@@ -1,0 +1,36 @@
+%{
+/*USER DECLERATIONS*/
+#include <iostream>
+#include "calc.h"
+using namespace std;
+#define YYSTYPE Node*
+int yylex();
+void yyerro(const char*);
+
+%}
+/*DECLERATIONS*/
+%token NUM
+%left PLUS MINUS
+%left MULT
+%right LPAR RPAR
+
+%%
+/*RULES*/
+prog :   prog line| /*epsilon*/
+;
+line :   exp'\n' {cout << $1->prettyPrint() << endl; }
+;
+exp :   NUM { $$ = $1; }
+        | exp PLUS exp {$$ = new Add($1,$3);}
+        | exp MINUS exp {$$ = new Sub($1,$3);}
+        | exp MULT exp {$$ = new Mul($1,$3);}
+        | LPAR exp RPAR {$$ = $2;}
+        ;
+%%
+
+/*USER ROUTINES*/
+void yyerror
+        (const char*) { cout << "syntax error" << endl; }
+int main() {
+    return yyparse();
+}
