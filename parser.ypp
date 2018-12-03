@@ -1,3 +1,4 @@
+//note: this is en exemple from the tutorial //todo: delete
 %{
 /*USER DECLERATIONS*/
 #include <iostream>
