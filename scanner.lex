@@ -3,46 +3,119 @@
 
 /* Declarations section */
 #include <stdio.h>
-#include "tokens.h"
-
-typedef enum tokens tokens_t;
 
 %}
 %option yylineno
 %option noyywrap
 %option caseless
-digit   		[0-9]
-decimal      	(\x2B|\x2D)?({digit})+
-hex          	(0x)([a-f]|{digit})*
-oct          	0([0-7])*
-bin          	0b([0-1])*
-integer      	{decimal}|{hex}|{oct}|{bin}
-realo        	(\x2B|\x2D)?(((\x2E){digit}+)|({digit}+(\x2E))|({digit}+(\x2E){digit}+))
-realt        	{realo}e(\x2B|\x2D){digit}+
-real        	{realt}|{realo}
-true      	 	(true)|(yes)
-false        	(false)|(no)
-letter  		[a-zA-Z]
-allowedsp		(\x7E|\x5F|\x2D|\x3F|\x27|\x2E|\x24)
-line			(\x0A|\x0D|(\x0D\x0A))
-whitespace		(\x09|\x20)
-alowed			{digit}|{letter}|{allowedsp}
-key 			{letter}+({alowed}|((\x20)+{alowed}))*
-section		 	(\x5B){key}(\x5D)
-indent       	({whitespace})+
-assign       	(\x3D)|(\x3A)
-dirname     	{letter}+({digit}|{letter}|(\x2D|\x2B|\x5F|\x2E|\x7E))*
-path        	(\x2F)+(({dirname})*(\x2F)*)*
-link        	(\x24)((\x7B{key}\x7D)|(\x7B{key}\x23{key}\x7D))
-sep         	(\x2C)
-string1      	(\x22)(([\x09\x20-\x21\x23-\x5B\x5D-\x7E])|((\x5C)([\x20-\x7E]))|({line}))*(\x5C)?(\x22)
-string2     	{letter}+(([\x21-\x22\x24-\x2B\x2D-\x3A\x3C-\x7E])|((\x09|\x20)+([\x21-\x22\x24-\x2B\x2D-\x3A\x3C-\x7E])))*
-string      	({string1}|{string2})
-comment     	({indent})*((\x23)|(\x3B))[^(\x0A|\x0D|(\x0D\x0A))]*
 
-%s KA IN K
+VOID								  (void)
+BYTE								  (byte)
+B                                     (b)
+BOOL								 (bool)
+STRUCT							  (struct)
+AND							      (and)
+OR							      (or)
+NOT							      (not)
+TRUE							      (true)
+FALSE							      (false)
+RETURN							  (return)
+IF			                  (if)
+ELSE							  (else)
+WHILE							      (while)
+BREAK						      (break)
+CONTINUE							  (continue)
+SC							      (\;)
+COMMA							      (\,)
+PERIOD							  (\.)
+LPAREN							  (\()
+RPAREN							  (\))
+LBRACE							  (\{)
+RBRASCE							  (\})
+ASSIGN							  (\=)
+RELOP							  ((\=\=)|(\!\=)|(\<)|(\>)|(\<\=)|(\>\=))
+BINOP					          ((\+)|(\-)|(\*)|(\/))
+ID							      [a-zA-Z][a-zA-Z0-9]*
+NUM							      0|[1-9][0-9]*
+STRING							  (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
+.                                  {errorLex(yylineno);}
+
+
+
+%s KA IN K //todo: change
 %%
-^{key}									 { BEGIN(K); return(KEY);}
+{VOID}								  { yylval=new Void(yytext)
+                                           return VOID;}
+{INT}								  { yylval=new Int(yytext)
+                                           return INT;}
+{BYTE}								  { yylval=new Byte(yytext)
+                                           return BYTE;}
+{B}								      { yylval=new B(yytext)
+                                           return B;}
+{BOOL}								  { yylval=new Bool(yytext)
+                                           return BOOL;}
+{STRUCT}							  { yylval=new Struct(yytext)
+                                           return STRUCT;}
+{AND}							      { yylval=new And(yytext)
+                                           return AND;}
+{OR}							      { yylval=new Or(yytext)
+                                           return OR;}
+{NOT}							      { yylval=new Not(yytext)
+                                           return NOT;}
+{TRUE}							      { yylval=new True(yytext)
+                                           return STRUCT;}
+{FALSE}							      { yylval=new False(yytext)
+                                           return FALSE;}
+{RETURN}							  { yylval=new Return(yytext)
+                                           return RETURN;}
+{IF}				                  { yylval=new If(yytext)
+                                           return IF;}
+{ELSE}							      { yylval=new Else(yytext)
+                                           return ELSE;}
+{WHILE}							      { yylval=new While(yytext)
+                                           return WHILE;}
+{BREAK}							      { yylval=new Break(yytext)
+                                           return BREAK;}
+{CONTINUE}							  { yylval=new Continue(yytext)
+                                           return CONTINUE;}
+{SC}							      { yylval=new Sc(yytext)
+                                           return SC;}
+{COMMA}							      { yylval=new Comma(yytext)
+                                           return COMMA;}
+{PERIOD}							  { yylval=new Period(yytext)
+                                           return PERIOD;}
+{LPAREN}							  { yylval=new Lparen(yytext)
+                                           return LPAREN;}
+{RPAREN}							  { yylval=new Rparen(yytext)
+                                           return RPAREN;}
+{LBRACE}							  { yylval=new Lbrace(yytext)
+                                           return LBRACE;}
+{RBRASCE}							  { yylval=new Rbrace(yytext)
+                                           return RBRACE;}
+{ASSIGN}							  { yylval=new Assign(yytext)
+                                           return ASSIGN;}
+{RELOP}							      { yylval=new Relop(yytext)
+                                           return RELOP;}
+{BINOP}							      { yylval=new Binop(yytext)
+                                           return BINOP;}
+{ID}							      { yylval=new Id(yytext)
+                                           return ID;}
+{NUM}							      { yylval=new Num(yytext)
+                                           return NUM;}
+{STRING}							  { yylval=new String(yytext)
+                                           return STRING;}
+
+
+
+
+
+
+
+
+
+
+
+
 <K,KA>{assign}	   	 					 {BEGIN(KA); return(ASSIGN); }
 {comment}                                {return(-1);}
 {section}	 					 		 {return(SECTION);}
