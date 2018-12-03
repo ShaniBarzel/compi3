@@ -3,4 +3,4 @@ project(compi3)
 
 set(CMAKE_CXX_STANDARD 98)
 
-add_executable(compi3 main.cpp output.cpp output.hpp parser.ypp)
+add_executable(compi3 main.cpp output.cpp output.hpp parser.ypp symtable.cpp cmake-build-debug/symtable.h cmake-build-debug/symtable.cpp cmake-build-debug/attributes.h)

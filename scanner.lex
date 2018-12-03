@@ -3,6 +3,8 @@
 
 /* Declarations section */
 #include <stdio.h>
+#include "output.hpp"
+#include "attributes.h"
 
 %}
 %option yylineno
@@ -38,7 +40,8 @@ BINOP					         ((\+)|(\-)|(\*)|(\/))
 ID							     [a-zA-Z][a-zA-Z0-9]*
 NUM							     0|[1-9][0-9]*
 STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
-.                                {errorLex(yylineno);}
+.                                {errorLex(yylineno);
+                                    exit(1);}
 
 
 
