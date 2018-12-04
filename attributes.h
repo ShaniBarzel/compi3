@@ -4,6 +4,10 @@
 
 #ifndef COMPI3_ATTRIBUTES_H
 #define COMPI3_ATTRIBUTES_H
+
+#include <iostream>
+
+//todo: not sure if yytokentype is needed
 typedef enum{
     VOID,
     INT,
@@ -36,7 +40,6 @@ typedef enum{
     NUM,
     STRING
 }  yytokentype ;
-//todo: find out if useful (if yes - would require enum to string conversion according to ToPrint)
 typedef enum{
     TYPE_INT,
     TYPE_BOOL,

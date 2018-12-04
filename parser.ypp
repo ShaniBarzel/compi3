@@ -3,10 +3,20 @@
 /*USER DECLERATIONS*/
 #include <iostream>
 #include "calc.h"
+#include "symtable.h"
+
 using namespace std;
 #define YYSTYPE Node*
 int yylex();
 void yyerro(const char*);
+
+//declaration of the stack of symbol tables. The table at the bottom of the stack is
+//the symbol table of the main scope of the program
+std::stack<symbolTable> scopes_symbol_tables;
+
+//the offsets stack. the ith entry in the stack contains the offset from the beginning of the ith scope
+//to the variable to be inserted next
+std::stack<int> offsets;
 
 %}
 /*DECLERATIONS*/
