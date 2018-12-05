@@ -6,7 +6,7 @@
 #define COMPI3_ATTRIBUTES_H
 
 #include <iostream>
-#include <list>
+#include <vector>
 
 typedef enum{
     TYPE_BYTE, //todo: shani
@@ -67,7 +67,10 @@ class ExpNode : public Node{
     std::string value;
 };
 class ExpListNode : public Node{
-    std::vector<ExpNode> exp_list;
+    std::vector<ExpNode>* exp_list;
+public:
+    ExpListNode() : exp_list(new std::vector<ExpNode>){};
+    ~ExpListNode() {delete(exp_list);};
 };
 //types:
 class TypeNode : public Node{
@@ -79,15 +82,23 @@ class FormalDeclNode : public Node{
     StructTypeNode s_type;
 };
 class FormalsListNode : public Node{
-    std::vector<FormalDeclNode> dec_list;
+    std::vector<FormalDeclNode>* dec_list;
+public:
+    FormalsListNode() : dec_list(new std::vector<FormalDeclNode>){};
+    ~FormalsListNode(){delete(dec_list);};
 };
 class FormalsNode : public Node{
     FormalsListNode list;
 };
 //structs
-class StructMemNode : public Node{TypeNode type;};
+class StructMemNode : public Node{
+    TypeNode type;
+};
 class StructMemListNode : public Node{
-    std::vector<StructMemNode> s_list;
+    std::vector<StructMemNode>* s_list;
+public:
+    StructMemListNode() : s_list(new std::vector<StructMemNode>){};
+    ~StructMemListNode(){delete(s_list);};
 };
 
 class StructsDeclNode : public Node{

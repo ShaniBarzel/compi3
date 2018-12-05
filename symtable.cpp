@@ -29,6 +29,17 @@ TableEntryFunc* SymbolTable::getFunctionEntry(std::string name) {
     return parent_table->getFunctionEntry(name);
 }
 
+TableEntryStruct* SymbolTable::getStructEntry(std::string name) {
+    for (std::vector<TableEntryStruct *>::const_iterator it = structs_scope_table.begin(), end = structs_scope_table.end();
+         it != end; ++it) {
+        if ((*it)->name == name)
+            return *it;
+    }
+    if(!parent_table)
+        return nullptr;
+    return parent_table->getStructEntry(name);
+}
+
 bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offset){
     //check if an entry for variable to be inserted already exists in some scope table in the tree
     if(getVariableEntry(name))
@@ -51,5 +62,16 @@ bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type, st
     new_entry->declaration_list = dec_list;
     new_entry->return_type = return_type;
     functions_scope_table.push_back(new_entry);
+    return true;
+}
+
+bool SymbolTable::insertStructEntry(std::string name, typeName type, std::vector<StructMemListNode> mem_list) {
+    if(getStructEntry(name))
+        return false;
+    TableEntryStruct* new_entry = new TableEntryStruct();
+    new_entry->name = name;
+    new_entry->type = type;
+    new_entry->mem_list = mem_list;
+    structs_scope_table.push_back(new_entry);
     return true;
 }

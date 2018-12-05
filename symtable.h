@@ -12,7 +12,6 @@
 struct TableEntry;
 struct TableEntryFunc;
 class SymbolTable;
-class SymbolTablesTree;
 
 struct TableEntry {
     std::string name;
@@ -20,10 +19,15 @@ struct TableEntry {
     int size;
     int offset;
 };
+struct TableEntryStruct{
+    std::string name;
+    typeName type;
+    std::vector<StructMemListNode> mem_list;
+};
 struct TableEntryFunc{
     std::string name;
     typeName return_type;
-    std::list<FormalDecl> declaration_list;
+    std::vector<FormalDeclNode> declaration_list;
 };
 /*
  * each symbol table is a node in the tree
@@ -39,6 +43,8 @@ class SymbolTable {
     std::vector<TableEntry*> variables_scope_table;
     //functions_scope_table is vector representing the current scope's symbol table of functions
     std::vector<TableEntryFunc*> functions_scope_table;
+    //
+    std::vector<TableEntryStruct*> structs_scope_table;
 public:
     /*
      * c'tor
@@ -58,6 +64,12 @@ public:
     */
     TableEntryFunc* getFunctionEntry(std::string name);
     /*
+     * doesFunctionExist
+     * checks if a struct table entry whose name field is "name" already exists
+     * if yes - returns it, else - returns null
+ */
+    TableEntryStruct* getStructEntry(std::string name);
+    /*
      * insertVariableEntry
      * inserts an entry of a variable to the table
      * returns true if succeeds
@@ -68,7 +80,13 @@ public:
   * inserts an entry of a function to the table
   * returns true if succeeds
   */
-    bool insertFunctionEntry(std::string name, typeName return_type, std::list<FormalDecl> dec_list);
+    bool insertFunctionEntry(std::string name, typeName return_type, std::vector<FormalDeclNode> dec_list);
+    /*
+* insertStructEntry
+* inserts an entry of a struct to the table
+* returns true if succeeds
+*/
+    bool insertStructEntry(std::string name, typeName type, std::vector<StructMemListNode> mem_list);
 };
 
 #endif //COMPI3_SYMTABLE_H
