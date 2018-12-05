@@ -31,80 +31,79 @@ public:
 
 };
 // terminals classes
-class Void : public Node {};
-class Int : public Node {};
-class Byte : public Node {};
-class B : public Node {};
-class Bool : public Node {};
-class Struct : public Node {};
-class And : public Node {};
-class Or : public Node {};
-class Not : public Node {};
-class True : public Node {};
-class False : public Node {};
-class Return : public Node {};
-class If : public Node {};
-class Else : public Node {};
-class While : public Node {};
-class Break : public Node {};
-class Continue : public Node {};
-class Sc : public Node {};
-class Comma : public Node {};
-class Period : public Node {};
-class Lparen : public Node{};
-class Rparen : public Node{};
-class Lbrace : public Node{};
-class Rbrace : public Node{};
-class Assign : public Node{};
-class Relop : public Node{};
-class Binop : public Node{};
-class Id : public Node{};
-class Num : public Node{};
-class String : public Node{};
+class VoidNode : public Node {};
+class IntNode : public Node {};
+class ByteNode : public Node {};
+class BNode : public Node {};
+class BoolNode : public Node {};
+class StructNode : public Node {};
+class AndNode : public Node {};
+class OrNode : public Node {};
+class NotNode : public Node {};
+class TrueNode : public Node {};
+class FalseNode : public Node {};
+class ReturnNode : public Node {};
+class IfNode : public Node {};
+class ElseNode : public Node {};
+class WhileNode : public Node {};
+class BreakNode : public Node {};
+class ContinueNode : public Node {};
+class ScNode : public Node {};
+class CommaNode : public Node {};
+class PeriodNode : public Node {};
+class LparenNode : public Node{};
+class RparenNode : public Node{};
+class LbraceNode : public Node{};
+class RbraceNode : public Node{};
+class AssignNode : public Node{};
+class RelopNode : public Node{};
+class BinopNode : public Node{};
+class IdNode : public Node{};
+class NumNode : public Node{};
+class StringNode : public Node{};
 
 //non terminals
-class Exp : public Node{
+class ExpNode : public Node{
     std::string value;
 };
-class ExpList : public Node{
+class ExpListNode : public Node{
     std::list<Exp> exp_list;
 };
 //types:
-class Type : public Node{
+class TypeNode : public Node{
     typeName value;
 };
-class StructType : public Node{
-    Struct s;
-    Id id;
+class StructTypeNode : public Node{
+    IdNode id;
 };
-class FormalDecl : public Node{
-    Type type;
-    Id id;
-    StructType s_type;
+class FormalDeclNode : public Node{
+    TypeNode type;
+    IdNode id;
+    StructTypeNode s_type;
 };
-class FormalsList : public Node{
-    std::list<FormalDecl> dec_list;
+class FormalsListNode : public Node{
+    std::vector<FormalDeclNode> dec_list;
 };
-class Formals : public Node{
-    FormalsList list;
+class FormalsNode : public Node{
+    FormalsListNode list;
 };
 //structs
-class StructMem : public Node{
-    Type type;
-    Id id;
+class StructMemNode : public Node{
+    TypeNode type;
+    IdNode id;
 };
-class StructMemList : public Node{
-    std::list<StructMem> s_list;
-};
-
-class StructsDecl : public Node{
-    Struct s;
-    Id identifier;
-    StructMemList s_mem_list;
+class StructMemListNode : public Node{
+    std::vector<StructMemNode> s_list;
 };
 
-class Structs : public Node{
-    StructsDecl s_decl;
+class StructsDeclNode : public Node{
+    StructNode s;
+    IdNode identifier;
+    StructMemListNode s_mem_list;
+};
+
+class StructsNode : public Node{
+    StructsDeclNode s_decl;
 };
 
 

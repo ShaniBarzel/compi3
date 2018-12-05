@@ -10,9 +10,6 @@ using namespace std;
 int yylex();
 void yyerro(const char*);
 
-//declaration of the stack of symbol tables. The table at the bottom of the stack is
-//the symbol table of the main scope of the program
-std::stack<symbolTable> scopes_symbol_tables; //todo: shani: ??
 SymbolTable currentScopeTable;
 
 //the offsets stack. the ith entry in the stack contains the offset from the beginning of the ith scope
