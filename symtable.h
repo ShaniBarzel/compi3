@@ -9,22 +9,27 @@
 #include <vector>
 #include "attributes.h"
 
-struct TableEntry;
-struct TableEntryFunc;
+class TableEntry;
+class TableEntryFunc;
 class SymbolTable;
-class SymbolTablesTree;
+//class SymbolTablesTree;
 
-struct TableEntry {
+class TableEntry { //todo : shani: i changed it to class
+public:
     std::string name;
     typeName type;
+    std::string sTypeName; //only if the type is StructType
     int size;
     int offset;
+    std::vector<IdNode> Fields; //for struct entry only
 };
-struct TableEntryFunc{
+class TableEntryFunc{ //todo : shani: i changed it to class
+public:
     std::string name;
     typeName return_type;
     std::list<FormalDecl> declaration_list;
 };
+
 /*
  * each symbol table is a node in the tree
  */
@@ -46,17 +51,18 @@ public:
      */
     SymbolTable(SymbolTable* p) : parent_table(p), variables_scope_table(), functions_scope_table(){};
     /*
-        * doesVariableExist
+        * getVariableEntry
         * checks if a variable table entry whose name field is "name" already exists
         * if yes - returns it, else - returns null
     */
     TableEntry* getVariableEntry(std::string name);
     /*
-        * doesFunctionExist
+        * getFunctionEntry
         * checks if a function table entry whose name field is "name" already exists
         * if yes - returns it, else - returns null
     */
     TableEntryFunc* getFunctionEntry(std::string name);
+
     /*
      * insertVariableEntry
      * inserts an entry of a variable to the table
