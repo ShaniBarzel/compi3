@@ -13,6 +13,7 @@
 %option caseless
 
 VOID							 (void)
+INT                              (int)
 BYTE							 (byte)
 B                                (b)
 BOOL						     (bool)

@@ -41,12 +41,13 @@ typedef enum{
     STRING
 }  yytokentype ;
 typedef enum{
+    TYPE_BYTE, //todo: shani
     TYPE_INT,
     TYPE_BOOL,
     TYPE_STRING
 } Type;
 
-struct Node {
+class Node {
     Node()=default;
     Node(char* yytext) : yytext_array(yytext){};
     //todo: check if need to add enum for token names (i/o section, 2.a)
@@ -56,6 +57,7 @@ private:
     std::string type;
     char* yytext_array;
 };
+
 class Void : public Node {
 public:
 

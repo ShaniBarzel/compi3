@@ -9,16 +9,18 @@
 #include <vector>
 #include "attributes.h"
 
-struct TableEntry;
+struct TableEntry; //todo: shani: why struct? i need constructor
 class SymbolTable;
 class SymbolTablesTree;
 
 struct TableEntry {
     std::string name;
     Type type;
+    std::string* StructType; //todo: shani: if the type of the variable is a variable that it's type is struct. else, it will be null
     int size;
     int offset;
 };
+
 /*
  * each symbol table is a node in the tree
  */
@@ -61,7 +63,7 @@ public:
         //root_table contains the whole tables tree vector (from the root)
         std::vector<TableEntry*> root_table = root->getScopeTable();
         for (std::vector<TableEntry*>::const_iterator it = root_table.begin(), end = root_table.end();
-                it != end; ++it) { //todo: shani: the iteration is only on the root table, and not his sons.
+             it != end; ++it) { //todo: shani: the iteration is only on the root table, and not his sons.
             if ((*it)->name == name)
                 return true;
         }
