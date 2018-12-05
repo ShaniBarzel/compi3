@@ -96,6 +96,7 @@ class StructsDecl : public Node{
     Id identifier;
 
 };
+
 class Structs : public Node{
     StructsDecl
 };
