@@ -67,7 +67,7 @@ class ExpNode : public Node{
     std::string value;
 };
 class ExpListNode : public Node{
-    std::list<Exp> exp_list;
+    std::vector<ExpNode> exp_list;
 };
 //types:
 class TypeNode : public Node{
