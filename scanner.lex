@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "output.hpp"
 #include "attributes.h"
+#include "source.tab.hpp"
 
 %}
 %option yylineno
@@ -35,13 +36,13 @@ RPAREN							 (\))
 LBRACE							 (\{)
 RBRASCE							 (\})
 ASSIGN							 (\=)
-RELOP							 ((\=\=)|(\!\=)|(\<)|(\>)|(\<\=)|(\>\=))
+ARELOP							 ((\=\=)|(\!\=))
+NARELOP                          ((\<)|(\>)|(\<\=)|(\>\=))
 BINOP					         ((\+)|(\-)|(\*)|(\/))
 ID							     [a-zA-Z][a-zA-Z0-9]*
 NUM							     0|[1-9][0-9]*
 STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
-.                                {errorLex(yylineno);
-                                    exit(1);}
+.                                {errorLex(yylineno);}
 
 
 
@@ -97,10 +98,10 @@ STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
                                            return RBRACE;}
 {ASSIGN}							  { yylval=new Assign(yytext)
                                            return ASSIGN;}
-{RELOP}							      { yylval=new Relop(yytext)
-                                           return RELOP;}
-{BINOP}							      { yylval=new Binop(yytext)
-                                           return BINOP;}
+{ARELOP}							  { yylval=new Relop(yytext)
+                                           return ARELOP;}
+{NARELOP}							  { yylval=new Relop(yytext)
+                                            return NARELOP;}
 {ID}							      { yylval=new Id(yytext)
                                            return ID;}
 {NUM}							      { yylval=new Num(yytext)

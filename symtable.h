@@ -32,6 +32,7 @@ public:
         return scope_table;
     }
 
+    //todo: shani: how is the fact that this is a tree is menifests? can i think of it as a stack, and the "father" is the sybTable below it?
     /*
      * creates a new scope table which is the son of p
      */
@@ -42,10 +43,12 @@ public:
     void insert(std::string name, Type type, int offset);
 
 };
+
 /*
  * the tree of symbol tables created in executing MakeTable(parent)
  */
 //todo: check when and where should MakeTable be executed
+//todo: shani: Maketable is a function that supposed to call the contstructor of SymbleTable. i cannot see the need of this class :(
 class SymboleTablesTree{
     SymbolTable* root;
 public:
@@ -58,11 +61,19 @@ public:
         //root_table contains the whole tables tree vector (from the root)
         std::vector<TableEntry*> root_table = root->getScopeTable();
         for (std::vector<TableEntry*>::const_iterator it = root_table.begin(), end = root_table.end();
-                it != end; ++it) {
+                it != end; ++it) { //todo: shani: the iteration is only on the root table, and not his sons.
             if ((*it)->name == name)
                 return true;
         }
-        return false;
+        /*todo: shani: here's an idea: we need this function in order to check if a veriable is already defind in the current
+        scope, or in the scopes that he is contained in. why not put this as a method of the class "SymbleTable", and let it be recursive search?
+        i mean, take this function as it is , and add this right here:
+
+        if (this->p == nullptr) return false; //we reached the root
+        else return (this->p)->doesTableEntryExsist(name);
+
+         */
+         return false;
     }
 };
 

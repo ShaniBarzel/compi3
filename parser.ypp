@@ -20,28 +20,127 @@ std::stack<int> offsets;
 
 %}
 /*DECLERATIONS*/
-%token NUM
-%left PLUS MINUS
-%left MULT
-%right LPAR RPAR
+%token VOID BYTE B BOOL STRUCT TRUE FALSE RETURN IF ELSE WHILE BREAK CONTINUE SC COMMA PERIOD ID NUM STRING NARELOP
+%left AND OR LPAREN RPAREN LBRACE RBRASCE BINOP ARELOP
+%right NOT ASSIGN
 
 %%
 /*RULES*/
-prog :   prog line| /*epsilon*/
+Program :   Structs Funcs
 ;
-line :   exp'\n' {cout << $1->prettyPrint() << endl; }
+Funcs :   FuncsDecl Funcs
+          | /*epsilon*/
 ;
-exp :   NUM { $$ = $1; }
-        | exp PLUS exp {$$ = new Add($1,$3);}
-        | exp MINUS exp {$$ = new Sub($1,$3);}
-        | exp MULT exp {$$ = new Mul($1,$3);}
-        | LPAR exp RPAR {$$ = $2;}
-        ;
+FuncDecl : RetType ID LPAREN Formals RPAREN {
+            /* todo: paudo code
+             * check if function args are legal
+             * add funcion to current scope
+             * create new scop table and define it as the currentScopeTable
+             * insert the top offset to the offset table
+             * insert all arguments as an Entries in the current scope, while updating the offset (is Entry alredy defined, is alraedy implenemted in "insert" method
+             */
+            }
+           LBRACE Statments RBRACE{
+            /* todo: psaudo code:
+             * call "endScope"
+             * call a function that does all the things that we were askd to do in page 6
+             * delete current scope and define "CurrentScopeTable" to be it's father
+             */
+           }
+;
+
+Structs :   StructsDecl Structs
+            | /*epsilon*/
+;
+
+StructsDecl : STRUCT ID LBRACE StructMemList RBRACE SC
+;
+
+RetType : Type {
+                    //todo: $$.type = $1.type ???
+                }
+          | VOID
+;
+Formals : FormalsList
+           | /*epsilon*/
+;
+FormalsList : FormalDecl
+                | FurmalDecl COMMA FormalsList
+;
+FormalDecl : Type ID
+            | StructType ID
+;
+StructMemList : StructMem
+                | StructMem StructMemList
+;
+StructMem : Type ID SC
+;
+Statements : Statement
+            | Statement Statements
+;
+Statement : LBRACE Statements RBRACE
+            | Type ID SC
+            | StructType ID SC
+            | STRUCT ID LBRACE StructMemList RBRACE SC
+            | Type ID ASSIGN Exp SC
+            | StructType ID ASSIGN Exp SC
+            | ID ASSIGN Exp SC
+            | ID PERIOD ID ASSIGN Exp SC
+            | Call SC
+            | RETURN SC{
+                //todo: get to the current function by the current scope, chack if it's return type is void
+            }
+            | RETURN Exp SC {
+                /*todo: get to the current function by the current scope, chack if it's return type is eq the exp type
+                        (it can also be byte if exp type is int - page 4 rule 12)
+                 */
+            }
+            | IF LPAREN Exp RPAREN Statement
+            | IF LPAREN Exp RPAREN Statement ELSE Statement
+            | WHILE LPAREN Exp RPAREN Statement
+            | BREAK SC
+            | CONTINUE SC
+;
+Call : ID LPAREN ExpList RPAREN
+        | ID LPAREN RPAREN
+;
+ExpList : Exp
+          | Exp COMME ExpList;
+;
+Type : INT
+        | BYTE
+        | BOOL
+;
+StructType : STRUCT ID
+;
+Exp : LPAREN Exp RPAREN
+      | Exp BINOP Exp
+      | ID
+      | ID PERIOD ID
+      | Call
+      | NUM
+      | NUM B
+      | STRING
+      | TRUE
+      | FALSE
+      | NOT Exp
+      | Exp AND Exp
+      | Exp OR Exp
+      | Exp RELOP Exp
+;
+
 %%
 
 /*USER ROUTINES*/
-void yyerror
+void yyerror //todo: delete?
         (const char*) { cout << "syntax error" << endl; }
+
+
 int main() {
-    return yyparse();
+    //todo: add "currentScopeTable"
+    //todo: add "offsetsTable" vector
+    //todo: add print and printi to the scope (this is the global scope) - page 4
+    yyparse();
+    //todo: check if main is missing
+    //todo: delete global scope
 }
