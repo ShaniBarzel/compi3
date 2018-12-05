@@ -65,7 +65,7 @@ StructsDecl : STRUCT ID LBRACE StructMemList RBRACE SC{
                  offsets.push(offsets.top());
                  //the updating offset of the fields in the struct
                  int current_offset = offsets.top();
-                 //
+                 //saving a ref to fields list field of the struct defined
                  std::vector<StructMemNode>* fields_list = current_scope_table->variables_scope_table.top()->Fields;
                  //iterating over the fields list of the struct
                  for(std::vector<StructMemNode>::const_iterator it = $4.s_list->begin();it!=$4.s_list->end();it++){
