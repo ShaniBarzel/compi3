@@ -31,7 +31,7 @@ TableEntryFunc* SymbolTable::getFunctionEntry(std::string name) {
 
 bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offset){
     //check if an entry for variable to be inserted already exists in some scope table in the tree
-    if(doesVariableExist(name))
+    if(getVariableEntry(name))
         return false;
     //the new entry of the variable to be inserted to the table
     TableEntry* new_entry = new TableEntry();
@@ -44,7 +44,7 @@ bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offse
 }
 
 bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type, std::list<FormalDecl> dec_list) {
-    if(doesFunctionExist(name))
+    if(getFunctionEntry(name))
         return false;
     TableEntryFunc* new_entry = new TableEntryFunc();
     new_entry->name = name;
