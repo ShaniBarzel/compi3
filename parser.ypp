@@ -4,15 +4,16 @@
 #include <iostream>
 #include "calc.h"
 #include "symtable.h"
+#include "output.hpp"
 
 using namespace std;
-#define YYSTYPE Node*
 int yylex();
 void yyerro(const char*);
 
-
-//the symbol tables tree
-SymbolTablesTree* st_tree;
+//declaration of the stack of symbol tables. The table at the bottom of the stack is
+//the symbol table of the main scope of the program
+std::stack<symbolTable> scopes_symbol_tables; //todo: shani: ??
+SymbolTable currentScopeTable;
 
 //the offsets stack. the ith entry in the stack contains the offset from the beginning of the ith scope
 //to the variable to be inserted next
@@ -20,9 +21,10 @@ std::stack<int> offsets;
 
 %}
 /*DECLERATIONS*/
-%token VOID BYTE B BOOL STRUCT TRUE FALSE RETURN IF ELSE WHILE BREAK CONTINUE SC COMMA PERIOD ID NUM STRING NARELOP
+%token VOID BYTE B BOOL STRUCT TRUE FALSE RETURN IF WHILE BREAK CONTINUE SC COMMA PERIOD ID NUM STRING NARELOP
 %left AND OR LPAREN RPAREN LBRACE RBRASCE BINOP ARELOP
 %right NOT ASSIGN
+%nonassoc ELSE
 
 %%
 /*RULES*/
@@ -53,13 +55,26 @@ Structs :   StructsDecl Structs
             | /*epsilon*/
 ;
 
-StructsDecl : STRUCT ID LBRACE StructMemList RBRACE SC
+StructsDecl : STRUCT ID {
+                /* todo: paudo code
+               * add struct to current scope9while checking if the name is not belong to any other entry int he scope)
+               */
+              }
+              LBRACE StructMemList RBRACE{
+                /* create new scop table and define it as the currentScopeTable
+                * insert the top offset to the offset table
+                * insert all arguments as an Entries in the current scope, while updating the offset (is Entry alredy defined, is alraedy implenemted in "insert" method
+                */
+                }
+              SC
 ;
 
 RetType : Type {
                     //todo: $$.type = $1.type ???
-                }
-          | VOID
+            }
+          | VOID {
+                    //todo: $$.type = VOID ???
+                 }
 ;
 Formals : FormalsList
            | /*epsilon*/
@@ -107,16 +122,73 @@ Call : ID LPAREN ExpList RPAREN
 ExpList : Exp
           | Exp COMME ExpList;
 ;
-Type : INT
+Type :   INT
         | BYTE
         | BOOL
 ;
 StructType : STRUCT ID
 ;
 Exp : LPAREN Exp RPAREN
-      | Exp BINOP Exp
-      | ID
-      | ID PERIOD ID
+      | Exp BINOP Exp{
+            //binops is defined on int and byte only (among the types that we are using in this project)
+            if (($1.type != TYPE_INT && $1.type != TYPE_BYTE) || ($3.type != TYPE_INT && $3.type != TYPE_BYTE) {
+                errorMismatch(yylineo);
+                exit();
+            }
+            $$.size = 1; //both INT  and BYTE are size 1
+            //the exp type is the type of the bigger of the $1 and $3 expressions
+            if ($1.type == TYPE_INT || $2.type == TYPE_INT)
+                $$.type = TYPE_INT;
+            else
+                $$.type = TYPE_BYTE;
+        }
+
+      | ID {
+            //we need to check if this variable is defined in the upper or current scopes
+            //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
+            TableEntry* IdVariable = currentScopeTable->getEntry($1.name);
+            if(IdVariable == nullptr){
+                //the variable was never defined
+                errorUndef(yylineno,$1.name);
+                exit();
+            }
+            // the exp type and size is the variable type and size
+            $$.type = IdVariable.type;
+            $$.size = IdVariable.size;
+        }
+
+      | ID PERIOD ID{
+            //we need to check if this variable is defined in the upper or current scopes
+            //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
+            TableEntry* IdVariable = currentScopeTable->getEntry($1.name); //todo: implement getEntry
+            if(IdVariable == nullptr || IdVariable.StructType == nullptr){
+            //the variable was never defined or it's type is not a struct type
+                errorUndef(yylineno,$1.name);
+                exit();
+            }
+            //todo: nonterminals class names diffrent than class names
+            TableEntry Struct = currentScopeTable->getEntry(IdVariable.StructType); //get the struct variable (Aminal for exemple), shouldn't fail, because this is the type defenition of $1
+            std::vector<structMem> StructFiledsList = Struct->getFieldList(); //get the list of the fileds of the struct (int age, string name, string furrColor) //todo: implement get list
+                                                                              //(this is a list of variable defenitions, not variables)
+            //todo: structMemList should be the type of  std::vector<structMem>
+            //todo: structMem should have name field
+            structMem field;
+            //search for the suitiable filed in the list
+            for(std::vector<structMem>::iterator it = StructFiledList.begin() ; *it != StructFiledList.end(); it++){
+                if((*it).name == $2.name){
+                    field = *it; //we found the wanted field
+                    break;
+                }
+            }
+            if (field == StructFiledList.end()){ //no such filed
+                errorUndefStructMember(yylineo,$1.name);
+                exit();
+            }
+            //else
+            $$.type = field.type;
+            $$.type = $$.size;
+        }
+
       | Call
       | NUM
       | NUM B
@@ -129,6 +201,7 @@ Exp : LPAREN Exp RPAREN
       | Exp RELOP Exp
 ;
 
+
 %%
 
 /*USER ROUTINES*/
@@ -137,8 +210,8 @@ void yyerror //todo: delete?
 
 
 int main() {
-    //todo: add "currentScopeTable"
-    //todo: add "offsetsTable" vector
+    //todo: add "currentScopeTable" - global
+    //todo: add "offsetsTable" vector -global
     //todo: add print and printi to the scope (this is the global scope) - page 4
     yyparse();
     //todo: check if main is missing

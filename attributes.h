@@ -9,6 +9,7 @@
 #include <list>
 
 typedef enum{
+    TYPE_BYTE, //todo: shani
     TYPE_INT,
     TYPE_BOOL,
     TYPE_STRING,
