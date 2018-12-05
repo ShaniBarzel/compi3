@@ -7,7 +7,7 @@
     * remark (racheli): I didn't want to unite all the "doesExist" functions to one because
     * then we wouldve needed a struct to wrap the two entries and it complicates things
  */
-TableEntry* SymbolTable::doesVariableExist(std::string name) {
+TableEntry* SymbolTable::getVariableEntry(std::string name) {
     for (std::vector<TableEntry *>::const_iterator it = variables_scope_table.begin(), end = variables_scope_table.end();
          it != end; ++it) {
         if ((*it)->name == name)
@@ -15,10 +15,10 @@ TableEntry* SymbolTable::doesVariableExist(std::string name) {
     }
     if(!parent_table)
         return nullptr;
-    return parent_table->doesVariableExist(name);
+    return parent_table->getVariableEntry(name);
 }
 
-TableEntryFunc* SymbolTable::doesFunctionExist(std::string name) {
+TableEntryFunc* SymbolTable::getFunctionEntry(std::string name) {
     for (std::vector<TableEntryFunc *>::const_iterator it = functions_scope_table.begin(), end = functions_scope_table.end();
          it != end; ++it) {
         if ((*it)->name == name)
@@ -26,7 +26,7 @@ TableEntryFunc* SymbolTable::doesFunctionExist(std::string name) {
     }
     if(!parent_table)
         return nullptr;
-    return parent_table->doesFunctionExist(name);
+    return parent_table->getFunctionEntry(name);
 }
 
 bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offset){

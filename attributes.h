@@ -73,12 +73,9 @@ class ExpListNode : public Node{
 class TypeNode : public Node{
     typeName value;
 };
-class StructTypeNode : public Node{
-    IdNode id;
-};
+class StructTypeNode : public Node{};
 class FormalDeclNode : public Node{
     TypeNode type;
-    IdNode id;
     StructTypeNode s_type;
 };
 class FormalsListNode : public Node{
@@ -88,10 +85,7 @@ class FormalsNode : public Node{
     FormalsListNode list;
 };
 //structs
-class StructMemNode : public Node{
-    TypeNode type;
-    IdNode id;
-};
+class StructMemNode : public Node{TypeNode type;};
 class StructMemListNode : public Node{
     std::vector<StructMemNode> s_list;
 };

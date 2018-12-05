@@ -50,13 +50,13 @@ public:
         * checks if a variable table entry whose name field is "name" already exists
         * if yes - returns it, else - returns null
     */
-    TableEntry* doesVariableExist(std::string name);
+    TableEntry* getVariableEntry(std::string name);
     /*
         * doesFunctionExist
         * checks if a function table entry whose name field is "name" already exists
         * if yes - returns it, else - returns null
     */
-    TableEntryFunc* doesFunctionExist(std::string name);
+    TableEntryFunc* getFunctionEntry(std::string name);
     /*
      * insertVariableEntry
      * inserts an entry of a variable to the table
