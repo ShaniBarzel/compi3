@@ -44,7 +44,7 @@ bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offse
     return true;
 }
 
-bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type, std::list<FormalDecl> dec_list) {
+bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type, std::vector<FormalDeclNode> dec_list) {
     if(getFunctionEntry(name))
         return false;
     TableEntryFunc* new_entry = new TableEntryFunc();

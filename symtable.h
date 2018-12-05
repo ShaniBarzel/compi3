@@ -17,10 +17,12 @@ class TableEntry {
 public:
     std::string name;
     typeName type;
-    std::string sTypeName; //only if the type is StructType
+    std::string sTypeName; //used for variables defined in the form: StructType ID
     int size;
     int offset;
-    std::vector<IdNode> Fields; //for struct entry only
+    std::vector<StructMemNode>* Fields; //(racheli) needs to be StructMemNode
+    TableEntry(): name(),type(),sTypeName(),size(),offset(),Fields(new std::vector<StructMemNode>){};
+    ~TableEntry(){delete(Fields);};
 };
 struct TableEntryStruct{
     std::string name;

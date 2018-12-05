@@ -10,7 +10,7 @@ using namespace std;
 int yylex();
 void yyerro(const char*);
 
-SymbolTable* currentScopeTable;
+SymbolTable* current_scope_table;
 
 //the offsets stack. the ith entry in the stack contains the offset from the beginning of the ith scope
 //to the variable to be inserted next
@@ -52,18 +52,35 @@ Structs :   StructsDecl Structs
             | /*epsilon*/
 ;
 
-StructsDecl : STRUCT ID {
-                /* todo: paudo code
-               * add struct to current scope9while checking if the name is not belong to any other entry int he scope)
-               */
-              }
-              LBRACE StructMemList RBRACE{
-                /* create new scop table and define it as the currentScopeTable
-                * insert the top offset to the offset table
-                * insert all arguments as an Entries in the current scope, while updating the offset (is Entry alredy defined, is alraedy implenemted in "insert" method
-                */
+StructsDecl : STRUCT ID LBRACE StructMemList RBRACE SC{
+                 //insertion to current scope's table
+                 if(!current_scope_table->insertVariableEntry($2.name, TYPE_STRUCT, offsets.top())){
+                        errorDef(yylineno,$2.name);
+                        exit(1);
+                 }
+                 //create new scope table for the scope defined by the struct
+                 SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
+                 current_scope_table = new_scope_table;
+                 //insert the new scope's offset to the offsets stack
+                 offsets.push(offsets.top());
+                 //the updating offset of the fields in the struct
+                 int current_offset = offsets.top();
+                 //
+                 std::vector<StructMemNode>* fields_list = current_scope_table->variables_scope_table.top()->Fields;
+                 //iterating over the fields list of the struct
+                 for(std::vector<StructMemNode>::const_iterator it = $4.s_list->begin();it!=$4.s_list->end();it++){
+                    //increment current offset by the current field's size
+                    current_offset += (*it).size;
+                    //insert the field as a table entry of the current scope table
+                    if(!current_scope_table->insertVariableEntry((*it).name,(*it).type,(*it).size,current_offset)){
+                        errorDef(yylineno,(*it).name);
+                        exit(1);
+                    }
+                    //insert field to fields list of the defined struct
+                    fields_list->push_back(*it);
+                 }
                 }
-              SC
+
 ;
 
 RetType : Type {
@@ -80,7 +97,9 @@ FormalsList : FormalDecl
                 | FurmalDecl COMMA FormalsList
 ;
 FormalDecl : Type ID
-            | StructType ID
+            | StructType ID {
+
+            }
 ;
 StructMemList : StructMem
                 | StructMem StructMemList

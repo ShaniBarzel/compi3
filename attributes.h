@@ -13,9 +13,11 @@ typedef enum{
     TYPE_INT,
     TYPE_BOOL,
     TYPE_STRING,
-    TYPE_VOID
+    TYPE_VOID,
+    TYPE_STRUCT     //RACHELI
 } typeName;
 
+struct racheli;
 
 class Node {
     int name, size;
