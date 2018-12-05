@@ -10,71 +10,65 @@
 #include "attributes.h"
 
 struct TableEntry;
+struct TableEntryFunc;
 class SymbolTable;
 class SymbolTablesTree;
 
 struct TableEntry {
     std::string name;
-    Type type;
+    typeName type;
     int size;
     int offset;
+};
+struct TableEntryFunc{
+    std::string name;
+    typeName return_type;
+    std::list<FormalDecl> declaration_list;
 };
 /*
  * each symbol table is a node in the tree
  */
 class SymbolTable {
+    /*
+     * remark(racheli): we don't need to have a scope_offset field since the current scope's offset is accessible
+     * from the top of the offsets stack
+     */
     //parent_table is the father of the current node in the symbol tables tree
     SymbolTable* parent_table;
-    //scope_table is vector representing the current scope's symbol table
-    std::vector<TableEntry*> scope_table;
+    //variables_scope_table is vector representing the current scope's symbol table of variables
+    std::vector<TableEntry*> variables_scope_table;
+    //functions_scope_table is vector representing the current scope's symbol table of functions
+    std::vector<TableEntryFunc*> functions_scope_table;
 public:
-    std::vector<TableEntry*> getScopeTable(){
-        return scope_table;
-    }
-
-    //todo: shani: how is the fact that this is a tree is menifests? can i think of it as a stack, and the "father" is the sybTable below it?
     /*
+     * c'tor
      * creates a new scope table which is the son of p
      */
-    SymbolTable(SymbolTable* p) : parent_table(p), scope_table() {};
+    SymbolTable(SymbolTable* p) : parent_table(p), variables_scope_table(), functions_scope_table(){};
     /*
+        * doesVariableExist
+        * checks if a variable table entry whose name field is "name" already exists
+        * if yes - returns it, else - returns null
+    */
+    TableEntry* doesVariableExist(std::string name);
+    /*
+        * doesFunctionExist
+        * checks if a function table entry whose name field is "name" already exists
+        * if yes - returns it, else - returns null
+    */
+    TableEntryFunc* doesFunctionExist(std::string name);
+    /*
+     * insertVariableEntry
      * inserts an entry of a variable to the table
+     * returns true if succeeds
      */
-    void insert(std::string name, Type type, int offset);
-
-};
-
-/*
- * the tree of symbol tables created in executing MakeTable(parent)
- */
-//todo: check when and where should MakeTable be executed
-//todo: shani: Maketable is a function that supposed to call the contstructor of SymbleTable. i cannot see the need of this class :(
-class SymboleTablesTree{
-    SymbolTable* root;
-public:
-    //setting the root node of the symbol tables tree
-    SymboleTablesTree(SymbolTable* r) : root(r) {};
+    bool insertVariableEntry(std::string name, typeName type, int offset);
     /*
-     * an auxiliary function to check if the tree already contains an entry for the variable name
-     */
-    bool doesTableEntryExist(std::string name){
-        //root_table contains the whole tables tree vector (from the root)
-        std::vector<TableEntry*> root_table = root->getScopeTable();
-        for (std::vector<TableEntry*>::const_iterator it = root_table.begin(), end = root_table.end();
-                it != end; ++it) { //todo: shani: the iteration is only on the root table, and not his sons.
-            if ((*it)->name == name)
-                return true;
-        }
-        /*todo: shani: here's an idea: we need this function in order to check if a veriable is already defind in the current
-        scope, or in the scopes that he is contained in. why not put this as a method of the class "SymbleTable", and let it be recursive search?
-        i mean, take this function as it is , and add this right here:
-
-        if (this->p == nullptr) return false; //we reached the root
-        else return (this->p)->doesTableEntryExsist(name);
-
-         */
-         return false;
-    }
+  * insertFunctionEntry
+  * inserts an entry of a function to the table
+  * returns true if succeeds
+  */
+    bool insertFunctionEntry(std::string name, typeName return_type, std::list<FormalDecl> dec_list);
 };
 
 #endif //COMPI3_SYMTABLE_H
