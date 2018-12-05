@@ -17,7 +17,6 @@ typedef enum{
 } typeName;
 
 
-
 class Node {
     int name, size;
     //todo: check if defining as typeName is better
@@ -90,22 +89,22 @@ class Formals : public Node{
     FormalsList list;
 };
 //structs
-
-class StructsDecl : public Node{
-    Struct s;
-    Id identifier;
-
-};
-
-class Structs : public Node{
-    StructsDecl
-};
 class StructMem : public Node{
     Type type;
     Id id;
 };
 class StructMemList : public Node{
+    std::list<StructMem> s_list;
+};
 
+class StructsDecl : public Node{
+    Struct s;
+    Id identifier;
+    StructMemList s_mem_list;
+};
+
+class Structs : public Node{
+    StructsDecl s_decl;
 };
 
 
