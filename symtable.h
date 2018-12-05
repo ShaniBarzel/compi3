@@ -13,7 +13,6 @@ class TableEntry;
 class TableEntryFunc;
 class SymbolTable;
 
-
 class TableEntry {
 public:
     std::string name;
