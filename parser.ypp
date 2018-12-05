@@ -10,7 +10,7 @@ using namespace std;
 int yylex();
 void yyerro(const char*);
 
-SymbolTable currentScopeTable;
+SymbolTable* currentScopeTable;
 
 //the offsets stack. the ith entry in the stack contains the offset from the beginning of the ith scope
 //to the variable to be inserted next
@@ -128,71 +128,103 @@ StructType : STRUCT ID
 Exp : LPAREN Exp RPAREN
       | Exp BINOP Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
-            if (($1.type != TYPE_INT && $1.type != TYPE_BYTE) || ($3.type != TYPE_INT && $3.type != TYPE_BYTE) {
+            if (((dynamic_cast<ExpNode>($1)).type != TYPE_INT && (dynamic_cast<ExpNode>($1)).type != TYPE_BYTE) ||
+                                    ((dynamic_cast<ExpNode>($3)).type != TYPE_INT && (dynamic_cast<ExpNode>($3)).type != TYPE_BYTE)) {
                 errorMismatch(yylineo);
-                exit();
+                exit(1);
             }
-            $$.size = 1; //both INT  and BYTE are size 1
+            (dynamic_cast<ExpNode>($$)).size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
-            if ($1.type == TYPE_INT || $2.type == TYPE_INT)
-                $$.type = TYPE_INT;
+            if ((dynamic_cast<ExpNode>($1)).type == TYPE_INT  || (dynamic_cast<ExpNode>($2)).type == TYPE_INT)
+                (dynamic_cast<ExpNode>($$)).type = TYPE_INT;
             else
-                $$.type = TYPE_BYTE;
+                (dynamic_cast<ExpNode>($$)).type = TYPE_BYTE;
         }
 
       | ID {
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
-            TableEntry* IdVariable = currentScopeTable->getEntry($1.name);
+            TableEntry* IdVariable = currentScopeTable->doesVariableExist((dynamic_cast<IdNode>($1)).name);
             if(IdVariable == nullptr){
                 //the variable was never defined
-                errorUndef(yylineno,$1.name);
-                exit();
+                errorUndef(yylineno,(dynamic_cast<IdNode>($1)).name);
+                exit(1);
             }
             // the exp type and size is the variable type and size
-            $$.type = IdVariable.type;
-            $$.size = IdVariable.size;
+            (dynamic_cast<ExpNode>($$)).type = IdVariable.type;
+            (dynamic_cast<ExpNode>($$)).size = IdVariable.size;
         }
 
       | ID PERIOD ID{
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
-            TableEntry* IdVariable = currentScopeTable->getEntry($1.name); //todo: implement getEntry
-            if(IdVariable == nullptr || IdVariable.StructType == nullptr){
+            TableEntry* IdVariable = currentScopeTable->getVariableEntry(dynamic_cast<IdNode>($1)).name);
+            if ((IdVariable == nullptr) || (IdVariable->sTypeName == nullptr)){
             //the variable was never defined or it's type is not a struct type
-                errorUndef(yylineno,$1.name);
-                exit();
+                errorUndef(yylineno,(dynamic_cast<IdNode>($1)).name);
+                exit(1);
             }
-            //todo: nonterminals class names diffrent than class names
-            TableEntry Struct = currentScopeTable->getEntry(IdVariable.StructType); //get the struct variable (Aminal for exemple), shouldn't fail, because this is the type defenition of $1
-            std::vector<structMem> StructFiledsList = Struct->getFieldList(); //get the list of the fileds of the struct (int age, string name, string furrColor) //todo: implement get list
+
+            TableEntry* StructDec = currentScopeTable->getVariableEntry(IdVariable->sTypeName); //get the struct variable (Aminal for exemple), shouldn't fail, because this is the type defenition of $1
+            std::vector<IdNode> StructFiledsList = StructDec->Fields; //get the list of the fileds of the struct (int age, string name, string furrColor) //todo: implement get list
                                                                               //(this is a list of variable defenitions, not variables)
-            //todo: structMemList should be the type of  std::vector<structMem>
-            //todo: structMem should have name field
-            structMem field;
+            StructMemNode field;
             //search for the suitiable filed in the list
-            for(std::vector<structMem>::iterator it = StructFiledList.begin() ; *it != StructFiledList.end(); it++){
-                if((*it).name == $2.name){
+            for(std::vector<StructMemNode>::iterator it = StructFiledList.begin() ; *it != StructFiledList.end(); it++){
+                if((*it).name == dynamic_cast<IdNode>($2).name){
                     field = *it; //we found the wanted field
                     break;
                 }
             }
             if (field == StructFiledList.end()){ //no such filed
-                errorUndefStructMember(yylineo,$1.name);
+                errorUndefStructMember(yylineo,dynamic_cast<IdNode>($1).name);
                 exit();
             }
             //else
-            $$.type = field.type;
-            $$.type = $$.size;
+            (dynamic_cast<ExpNode>($$)).type = field.type;
+            (dynamic_cast<ExpNode>($$)).size = dynamic_cast<IdNode>($1).size;
         }
 
-      | Call
-      | NUM
-      | NUM B
-      | STRING
-      | TRUE
-      | FALSE
-      | NOT Exp
+      | Call {
+            //if the exp derives a function call, it's value will be the return type
+            //todo: call should have ReturnType field
+            (dynamic_cast<ExpNode>($$)).type = (dynamic_cast<CallNode>($1)).RetType;
+            (dynamic_cast<ExpNode>($$)).type = (dynamic_cast<CallNode>($1)).RetType.size;
+        }
+      | NUM {
+            //exp type = num type = int
+            (dynamic_cast<ExpNode>($$)).type = TYPE_INT;
+            (dynamic_cast<ExpNode>($$)).size = 1; //Int size is 1
+        }
+      | NUM B {
+            //exp type = num type = byte
+            (dynamic_cast<ExpNode>($$)).type = TYPE_BYTE;
+            (dynamic_cast<ExpNode>($$)).size = 1; //byte size is 1
+          }
+      | STRING{
+            //exp type = num type = string
+            (dynamic_cast<ExpNode>($$)).type = TYPE_STRING;
+            (dynamic_cast<ExpNode>($$)).size = 1; //string size is 1
+        }
+      | TRUE{
+            //exp type = true type = bool
+            (dynamic_cast<ExpNode>($$)).type = TYPE_BOOL;
+            (dynamic_cast<ExpNode>($$)).size = 1; //bool size is 1
+        }
+      | FALSE{
+            //exp type = false type = bool
+            (dynamic_cast<ExpNode>($$)).type = TYPE_BOOL;
+            (dynamic_cast<ExpNode>($$)).size = 1; //bool size is 1
+        }
+      | NOT Exp {
+            if((dynamic_cast<ExpNode>($1)).type != TYPE_BOOL){
+                //not operator is valid only on bool variables
+                errorMismatch(yylineno);
+                exit(1);
+            }
+            (dynamic_cast<ExpNode>($$)).type = TYPE_BOOL;
+            (dynamic_cast<ExpNode>($$)).size = 1; //bool size is 1
+          }
       | Exp AND Exp
       | Exp OR Exp
       | Exp RELOP Exp
