@@ -9,26 +9,31 @@
 #include <vector>
 #include "attributes.h"
 
-struct TableEntry;
-struct TableEntryFunc;
+class TableEntry;
+class TableEntryFunc;
 class SymbolTable;
 
-struct TableEntry {
+class TableEntry {
+public:
     std::string name;
     typeName type;
+    std::string sTypeName; //only if the type is StructType
     int size;
     int offset;
+    std::vector<IdNode> Fields; //for struct entry only
 };
 struct TableEntryStruct{
     std::string name;
     typeName type;
     std::vector<StructMemListNode> mem_list;
 };
-struct TableEntryFunc{
+class TableEntryFunc{
+public:
     std::string name;
     typeName return_type;
     std::vector<FormalDeclNode> declaration_list;
 };
+
 /*
  * each symbol table is a node in the tree
  */
@@ -52,23 +57,18 @@ public:
      */
     SymbolTable(SymbolTable* p) : parent_table(p), variables_scope_table(), functions_scope_table(){};
     /*
-        * doesVariableExist
+        * getVariableEntry
         * checks if a variable table entry whose name field is "name" already exists
         * if yes - returns it, else - returns null
     */
     TableEntry* getVariableEntry(std::string name);
     /*
-        * doesFunctionExist
+        * getFunctionEntry
         * checks if a function table entry whose name field is "name" already exists
         * if yes - returns it, else - returns null
     */
     TableEntryFunc* getFunctionEntry(std::string name);
-    /*
-     * doesFunctionExist
-     * checks if a struct table entry whose name field is "name" already exists
-     * if yes - returns it, else - returns null
- */
-    TableEntryStruct* getStructEntry(std::string name);
+
     /*
      * insertVariableEntry
      * inserts an entry of a variable to the table
@@ -81,12 +81,7 @@ public:
   * returns true if succeeds
   */
     bool insertFunctionEntry(std::string name, typeName return_type, std::vector<FormalDeclNode> dec_list);
-    /*
-* insertStructEntry
-* inserts an entry of a struct to the table
-* returns true if succeeds
-*/
-    bool insertStructEntry(std::string name, typeName type, std::vector<StructMemListNode> mem_list);
+
 };
 
 #endif //COMPI3_SYMTABLE_H
