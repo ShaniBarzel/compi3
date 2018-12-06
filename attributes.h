@@ -17,15 +17,15 @@ typedef enum{
     TYPE_STRUCT     //RACHELI
 } typeName;
 
-struct racheli;
 
 class Node {
+public:
     int name, size;
     //todo: check if defining as typeName is better
     std::string type;
     //typeName type;
     char* yytext_array;
-public:
+
     Node()=default;
     Node(char* yytext) : yytext_array(yytext){};
     //todo: check if need to add enum for token names (i/o section, 2.a)
@@ -76,6 +76,7 @@ public:
 };
 //types:
 class TypeNode : public Node{
+public:
     typeName value;
 };
 class StructTypeNode : public Node{};
@@ -94,6 +95,7 @@ class FormalsNode : public Node{
 };
 //structs
 class StructMemNode : public Node{
+public:
     TypeNode type;
 };
 class StructMemListNode : public Node{

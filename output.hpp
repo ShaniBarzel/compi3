@@ -3,12 +3,18 @@
 
 #include <vector>
 #include <string>
+#include "attributes.h"
 using namespace std;
 
 namespace output{
     void endScope();
     void printID(const string& id, int offset, const string& type);
-    void printStructType(const string& name, vector<string>& memTypes, vector<string>& memNames);
+    /*
+ * auciliary function for converting typeName to string
+ */
+    string convertTypeNameToString(typeName t);
+    void printStructType(const string& name, vector<StructMemNode>* fields);
+
 
     /* Do not save the string returned from this function in a data structure 
         as it is not dynamically allocated and will be destroyed(!) at the end of the calling scope.

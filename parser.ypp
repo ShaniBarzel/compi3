@@ -52,7 +52,7 @@ Structs :   StructsDecl Structs
             | /*epsilon*/
 ;
 
-StructsDecl : STRUCT ID LBRACE StructMemList RBRACE SC{
+StructsDecl : STRUCT ID LBRACE StructMemList RBRACE{
                  //insertion to current scope's table
                  if(!current_scope_table->insertVariableEntry($2.name, TYPE_STRUCT, offsets.top())){
                         errorDef(yylineno,$2.name);
@@ -80,7 +80,16 @@ StructsDecl : STRUCT ID LBRACE StructMemList RBRACE SC{
                     fields_list->push_back(*it);
                  }
                 }
-
+                 SC{
+                    endScope();
+                    //todo: implement printStructType
+                    printStructType($2.name, fields_list);
+                    //popping tops of stack table and stack offsets
+                    SymbolTable* parent = current_scope_table->getParent();
+                    delete(current_scope_table);
+                    current_scope_table = parent;
+                    offsets.pop();
+                 }
 ;
 
 RetType : Type {
