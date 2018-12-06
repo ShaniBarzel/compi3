@@ -17,17 +17,19 @@ class TableEntry {
 public:
     std::string name;
     typeName type;
-    std::string sTypeName; //used for variables defined in the form: StructType ID
+ //   std::string sTypeName; //used for variables defined in the form: StructType ID
     int size;
     int offset;
-    std::vector<StructMemNode>* Fields; //(racheli) needs to be StructMemNode
+ /*   std::vector<StructMemNode>* Fields; //(racheli) needs to be StructMemNode
     TableEntry(): name(),type(),sTypeName(),size(),offset(),Fields(new std::vector<StructMemNode>){};
-    ~TableEntry(){delete(Fields);};
+    ~TableEntry(){delete(Fields);};*/
 };
-struct TableEntryStruct{
+class TableEntryStruct{
+public:
     std::string name;
     typeName type;
-    std::vector<StructMemListNode> mem_list;
+    std::vector<StructMemNode> Fields;
+
 };
 class TableEntryFunc{
 public:
@@ -57,7 +59,7 @@ public:
      * c'tor
      * creates a new scope table which is the son of p
      */
-    SymbolTable(SymbolTable* p) : parent_table(p), variables_scope_table(), functions_scope_table(){};
+    SymbolTable(SymbolTable* p) : parent_table(p), variables_scope_table(), functions_scope_table(), structs_scope_table(){};
     /*
         * getVariableEntry
         * checks if a variable table entry whose name field is "name" already exists
@@ -70,7 +72,12 @@ public:
         * if yes - returns it, else - returns null
     */
     TableEntryFunc* getFunctionEntry(std::string name);
-
+    /*
+        * getStructEntry
+        * checks if a struct table entry whose name field is "name" already exists
+        * if yes - returns it, else - returns null
+    */
+    TableEntryStruct* getStructEntry(std::string name);
     /*
      * insertVariableEntry
      * inserts an entry of a variable to the table
@@ -83,6 +90,12 @@ public:
   * returns true if succeeds
   */
     bool insertFunctionEntry(std::string name, typeName return_type, std::vector<FormalDeclNode> dec_list);
+    /*
+* insertStructEntry
+* inserts an entry of a struct to the table
+* returns true if succeeds
+*/
+    bool insertStructEntry(std::string name, typeName type, std::vector<StructMemNode> fields_list);
 
 };
 
