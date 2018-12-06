@@ -1,20 +1,26 @@
-//note: this is en exemple from the tutorial //todo: delete
 %{
 /*USER DECLERATIONS*/
 #include <iostream>
-#include "calc.h"
 #include "symtable.h"
 #include "output.hpp"
+#include <stack>
+#include <cstdlib> //for exit
+using namespace output; //errors defined inside the neamespace
 
-using namespace std;
 int yylex();
-void yyerro(const char*);
+void yyerror(const char*);
 
+//this will be initiated to the global scope. will be pointer to the current scope in current point in time.
 SymbolTable* current_scope_table;
 
 //the offsets stack. the ith entry in the stack contains the offset from the beginning of the ith scope
 //to the variable to be inserted next
 std::stack<int> offsets;
+
+//implemented at the end of the file
+void printStructTypeHelp(const string& name, vector<StructMemNode>* fields);
+std::vector<string> TypeVecToString(std::vector<typeName>& t_vec);
+std::string typeToString(typeName type);
 
 %}
 /*DECLERATIONS*/
@@ -25,21 +31,14 @@ std::stack<int> offsets;
 
 %%
 /*RULES*/
-Program :   Structs Funcs
+Program :  Structs Funcs
 ;
+
 Funcs :   FuncsDecl Funcs
           | /*epsilon*/
 ;
-FuncDecl : RetType ID LPAREN Formals RPAREN {
-            /* todo: paudo code
-             * check if function args are legal
-             * add funcion to current scope
-             * create new scop table and define it as the currentScopeTable
-             * insert the top offset to the offset table
-             * insert all arguments as an Entries in the current scope, while updating the offset (is Entry alredy defined, is alraedy implenemted in "insert" method
-             */
-            }
-           LBRACE Statments RBRACE{
+
+FuncDecl : RetType ID LPAREN Formals RPAREN M1 LBRACE Statments RBRACE{
             /* todo: psaudo code:
              * call "endScope"
              * call a function that does all the things that we were askd to do in page 6
@@ -48,41 +47,26 @@ FuncDecl : RetType ID LPAREN Formals RPAREN {
            }
 ;
 
+/* marker 1 */
+M1 : /*epsilon*/ {
+            /* todo: paudo code
+             * check if function args are legal
+             * add funcion to current scope
+             * create new scop table and define it as the currentScopeTable
+             * insert the top offset to the offset table
+             * insert all arguments as an Entries in the current scope, while updating the offset (is Entry alredy defined, is alraedy implenemted in "insert" method
+             */
+            }
+;
+
 Structs :   StructsDecl Structs
             | /*epsilon*/
 ;
 
-StructsDecl : STRUCT ID LBRACE StructMemList RBRACE{
-                 //insertion to current scope's table
-                 if(!current_scope_table->insertVariableEntry($2.name, TYPE_STRUCT, offsets.top())){
-                        errorDef(yylineno,$2.name);
-                        exit(1);
-                 }
-                 //create new scope table for the scope defined by the struct
-                 SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
-                 current_scope_table = new_scope_table;
-                 //insert the new scope's offset to the offsets stack
-                 offsets.push(offsets.top());
-                 //the updating offset of the fields in the struct
-                 int current_offset = offsets.top();
-                 //saving a ref to fields list field of the struct defined
-                 std::vector<StructMemNode>* fields_list = current_scope_table->variables_scope_table.top()->Fields;
-                 //iterating over the fields list of the struct
-                 for(std::vector<StructMemNode>::const_iterator it = $4.s_list->begin();it!=$4.s_list->end();it++){
-                    //increment current offset by the current field's size
-                    current_offset += (*it).size;
-                    //insert the field as a table entry of the current scope table
-                    if(!current_scope_table->insertVariableEntry((*it).name,(*it).type,(*it).size,current_offset)){
-                        errorDef(yylineno,(*it).name);
-                        exit(1);
-                    }
-                    //insert field to fields list of the defined struct
-                    fields_list->push_back(*it);
-                 }
-                }
-                 SC{
+//i changed STRUCT ID to StrctType to avoid conflict
+StructsDecl : StructType LBRACE StructMemList RBRACE M2 SC{
                     endScope();
-                    printStructType($2.name, fields_list);
+                    printStructTypeHelp(($2->name), fields_list);
                     //popping tops of stack table and stack offsets
                     SymbolTable* parent = current_scope_table->getParent();
                     delete(current_scope_table);
@@ -91,20 +75,53 @@ StructsDecl : STRUCT ID LBRACE StructMemList RBRACE{
                  }
 ;
 
+// marker 2
+M2 : /* epsilon*/ {
+            //insertion to current scope's table
+            if (!(current_scope_table->insertVariableEntry(($2)->name, TYPE_STRUCT, offsets.top()))){
+                    // id already defined
+                    errorDef(yylineno, (($2)->name));
+                    exit(1);
+            }
+            //create new scope table for the scope defined by the struct
+            SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
+            current_scope_table = new_scope_table;
+            //insert the new scope's offset to the offsets stack
+            offsets.push(offsets.top());
+            //the updating offset of the fields in the struct
+            int current_offset = offsets.top();
+            //saving a ref to fields list field of the struct defined
+            std::vector<StructMemNode>* fields_list = ((current_scope_table->variables_scope_table).top())->Fields;
+            //iterating over the fields list of the struct
+            for (std::vector<StructMemNode>::const_iterator it = (($4)->s_list)->begin(); it != (($4)->s_list)->end(); it++){
+                //increment current offset by the current field's size
+                current_offset += (*it).size;
+                //insert the field as a table entry of the current scope table
+                if (!(current_scope_table->insertVariableEntry((*it).name, (*it).type ,(*it).size ,current_offset))){
+                    // id already defined
+                    errorDef(yylineno,(*it).name);
+                    exit(1);
+                }
+                //insert field to fields list of the defined struct
+                fields_list->push_back(*it);
+             }
+        }
+;
+
 RetType : Type {
-                    //todo: $$.type = $1.type ???
+                    $$->type = $1->type;
             }
           | VOID {
-                    //todo: $$.type = VOID ???
+                    $$->type = TYPE_VOID;
                  }
 ;
 Formals : FormalsList
            | /*epsilon*/
 ;
 FormalsList : FormalDecl
-                | FurmalDecl COMMA FormalsList
+             | FurmalDecl COMMA FormalsList
 ;
-FormalDecl : Type ID
+FormalDecl : Type ID //todo: function cannot get string?
             | StructType ID {
 
             }
@@ -114,15 +131,91 @@ StructMemList : StructMem
 ;
 StructMem : Type ID SC
 ;
+
+//no semantics needed
 Statements : Statement
             | Statement Statements
 ;
+
 Statement : LBRACE Statements RBRACE
-            | Type ID SC
-            | StructType ID SC
+
+            | Type ID SC{
+                int offset = offsets.top();
+                offsets.pop();
+                if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset))){
+                    // Id already defined
+                    errorDef(yylineno,($2)->name);
+                    exit(1);
+                }
+                offsets.push(offset+1); //update offset
+            }
+
+            | StructType ID SC {
+                int offset = offsets.top();
+                offsets.pop();
+                if (!(current_scope_table->insertStructTypeEntry(($2)->name,(dynamic_cast<TableEntryStruct*>($1))->name),TYPE_STRUCTID,offset))){
+                    // Id already defined
+                    errorDef(yylineno,($2)->name);
+                    exit(1);
+                 }
+                offsets.push(offset+1); //update offset
+             }
+
             | STRUCT ID LBRACE StructMemList RBRACE SC
-            | Type ID ASSIGN Exp SC
-            | StructType ID ASSIGN Exp SC
+
+
+            | Type ID ASSIGN Exp SC{
+                int offset = offsets.top();
+                offsets.pop();
+                if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset))){
+                    // Id already defined
+                    errorDef(yylineno,($2)->name);
+                    exit(1);
+                }
+                offsets.push(offset+1); //update offset
+
+                if (($4)->type != ($1)->type){
+                    // exp is not the same type as id
+                    if ((($4)->type != TYPE_BYTE) || (($1)->type != TYPE_INT)){ // assignment of byte to int is ok
+                        errorMismatch(yylineo);
+                        exit(1);
+                    }
+                }
+            }
+
+            | StructType ID ASSIGN Exp SC {
+                int offset = offsets.top();
+                offsets.pop();
+                if (!(current_scope_table->insertStructTypeEntry(($2)->name,(dynamic_cast<TableEntryStruct*>($1))->name),TYPE_STRUCTID,offset))){
+                    // Id already defined
+                    errorDef(yylineno,($2)->name);
+                    exit(1);
+                }
+                offsets.push(offset+1); //update offset
+
+                if (($4)->type != TYPE_STRUCTID){
+                    // exp is not structType type
+                    errorMismatch(yylineo);
+                    exit(1);
+                }
+
+                TableEntry* s_s_type_exp = current_scope_table->getEntry(($4)->name);
+                //todo: shani: i think we can assume that exp is defined, beacuse this is being checked in the defenition of exp. dont earse it though, leave it for debug
+                /* todo: for debug
+                 * if(s_s_type_exp == nullptr){
+                    //the variable exp was never defined
+                    errorUndef(yylineno,(dynamic_cast<IdNode*>($1))->name);
+                    exit(1);
+                }*/
+
+                if ((dynamic_cast<TableEntryStructType*>($4))->structName != (dynamic_cast<TableEntryStruct*>($1))->name){
+                    // exp is not the same structType type
+                    errorMismatch(yylineo);
+                    exit(1);
+                }
+
+             }
+
             | ID ASSIGN Exp SC
             | ID PERIOD ID ASSIGN Exp SC
             | Call SC
@@ -143,118 +236,168 @@ Statement : LBRACE Statements RBRACE
 Call : ID LPAREN ExpList RPAREN
         | ID LPAREN RPAREN
 ;
-ExpList : Exp
-          | Exp COMME ExpList;
+ExpList : Exp {
+                // add the experssion to the expression list
+                ((dynamic_cast<ExpNode>($$)).getlist()).push_front((dynamic_cast<ExpNode>($1));
+            }
+          | Exp COMME ExpList {
+                //current list will be the list it derives with the exp is derives
+                (dynamic_cast<ExpNode>($$)).getlist() =(dynamic_cast<ExpNode>($2)).getlist();
+                ((dynamic_cast<ExpNode>($$)).getlist()).push_front((dynamic_cast<ExpNode>($1));
+
+            }
 ;
-Type :   INT
-        | BYTE
-        | BOOL
+
+Type :   INT{$$.type = TYPE_INT;}
+        | BYTE{$$.type = TYPE_BYTE;}
+        | BOOL{$$.type = TYPE_BOOL;}
 ;
-StructType : STRUCT ID
+
+StructType : STRUCT ID{
+                TableEntryStruct* IdVariable = current_scope_table->getEntry(($2)->name);
+                if(IdVariable == nullptr){
+                    //the variable was never defined
+                    errorUndef(yylineno,($2)->name);
+                    exit(1);
+                }
+                $$->type = TYPE_STRUCT; //todo: to delete?
+                $$->name = $2.name;
+            }
 ;
-Exp : LPAREN Exp RPAREN
+
+Exp : LPAREN Exp RPAREN{
+            $$->type = $2->type;
+            $$->size = $2->size;
+      }
+
       | Exp BINOP Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
-            if (((dynamic_cast<ExpNode>($1)).type != TYPE_INT && (dynamic_cast<ExpNode>($1)).type != TYPE_BYTE) ||
-                                    ((dynamic_cast<ExpNode>($3)).type != TYPE_INT && (dynamic_cast<ExpNode>($3)).type != TYPE_BYTE)) {
+            if (((dynamic_cast<ExpNode*>($1))->type != TYPE_INT && (dynamic_cast<ExpNode*>($1))->type != TYPE_BYTE) ||
+                                    ((dynamic_cast<ExpNode>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
                 errorMismatch(yylineo);
                 exit(1);
             }
-            (dynamic_cast<ExpNode>($$)).size = 1; //both INT  and BYTE are size 1
+            (dynamic_cast<ExpNode*>($$))->size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
-            if ((dynamic_cast<ExpNode>($1)).type == TYPE_INT  || (dynamic_cast<ExpNode>($2)).type == TYPE_INT)
-                (dynamic_cast<ExpNode>($$)).type = TYPE_INT;
+            if ((dynamic_cast<ExpNode*>($1))->type == TYPE_INT  || (dynamic_cast<ExpNode>($2))->type == TYPE_INT)
+                (dynamic_cast<ExpNode*>($$))->type = TYPE_INT;
             else
-                (dynamic_cast<ExpNode>($$)).type = TYPE_BYTE;
+                (dynamic_cast<ExpNode*>($$))->type = TYPE_BYTE;
         }
 
       | ID {
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
-            TableEntry* IdVariable = currentScopeTable->doesVariableExist((dynamic_cast<IdNode>($1)).name);
+            TableEntry* IdVariable = current_scope_table->getEntry((dynamic_cast<IdNode*>($1))->name);
             if(IdVariable == nullptr){
                 //the variable was never defined
-                errorUndef(yylineno,(dynamic_cast<IdNode>($1)).name);
+                errorUndef(yylineno,(dynamic_cast<IdNode*>($1))->name);
                 exit(1);
             }
             // the exp type and size is the variable type and size
-            (dynamic_cast<ExpNode>($$)).type = IdVariable.type;
-            (dynamic_cast<ExpNode>($$)).size = IdVariable.size;
+            (dynamic_cast<ExpNode>($$))->type = IdVariable->type;
+            (dynamic_cast<ExpNode>($$))->size = IdVariable->size;
         }
 
       | ID PERIOD ID{
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
-            TableEntry* IdVariable = currentScopeTable->getVariableEntry(dynamic_cast<IdNode>($1)).name);
-            if ((IdVariable == nullptr) || (IdVariable->sTypeName == nullptr)){
-            //the variable was never defined or it's type is not a struct type
-                errorUndef(yylineno,(dynamic_cast<IdNode>($1)).name);
+            TableEntry* IdVariable = current_scope_table->getEntry(dynamic_cast<IdNode>($1))->name);
+            if ((IdVariable == nullptr || (IdVariable->type != TYPE_STRUCTID) ) ){
+                //the variable was never defined or it's type is not a struct type (no such var name dog or dog is not struct animal type)
+                errorUndef(yylineno,(dynamic_cast<IdNode>($1))->name);
                 exit(1);
             }
 
-            TableEntry* StructDec = currentScopeTable->getVariableEntry(IdVariable->sTypeName); //get the struct variable (Aminal for exemple), shouldn't fail, because this is the type defenition of $1
-            std::vector<IdNode> StructFiledsList = StructDec->Fields; //get the list of the fileds of the struct (int age, string name, string furrColor) //todo: implement get list
-                                                                              //(this is a list of variable defenitions, not variables)
-            StructMemNode field;
-            //search for the suitiable filed in the list
-            for(std::vector<StructMemNode>::iterator it = StructFiledList.begin() ; *it != StructFiledList.end(); it++){
-                if((*it).name == dynamic_cast<IdNode>($2).name){
-                    field = *it; //we found the wanted field
-                    break;
-                }
-            }
-            if (field == StructFiledList.end()){ //no such filed
-                errorUndefStructMember(yylineo,dynamic_cast<IdNode>($1).name);
-                exit();
+            //s_type is "Animal"
+            TableEntryStruct* s_type = current_scope_table->getEntry((dynamic_cast<TableEntryStructType*>(IdVariable))->structName);
+
+            StructMemNode* field = s_type->getField($2.name);
+            if (field == nullptr){
+                // no such field
+                errorUndefStructMember(yylineo,(dynamic_cast<IdNode*>($1))->name);
+                exit(1);
             }
             //else
-            (dynamic_cast<ExpNode>($$)).type = field.type;
-            (dynamic_cast<ExpNode>($$)).size = dynamic_cast<IdNode>($1).size;
+            (dynamic_cast<ExpNode>($$))->type = field->type;
+            (dynamic_cast<ExpNode>($$))->size = (dynamic_cast<IdNode*>($1))->size;
         }
 
       | Call {
             //if the exp derives a function call, it's value will be the return type
             //todo: call should have ReturnType field
-            (dynamic_cast<ExpNode>($$)).type = (dynamic_cast<CallNode>($1)).RetType;
-            (dynamic_cast<ExpNode>($$)).type = (dynamic_cast<CallNode>($1)).RetType.size;
+            (dynamic_cast<ExpNode*>($$))->type = (dynamic_cast<CallNode*>($1))->RetType;
+            (dynamic_cast<ExpNode*>($$))->type = (dynamic_cast<CallNode*>($1))->RetType.size;
         }
+
       | NUM {
             //exp type = num type = int
-            (dynamic_cast<ExpNode>($$)).type = TYPE_INT;
-            (dynamic_cast<ExpNode>($$)).size = 1; //Int size is 1
+            (dynamic_cast<ExpNode*>($$))->type = TYPE_INT;
+            (dynamic_cast<ExpNode*>($$))->size = 1; //Int size is 1
         }
+
       | NUM B {
             //exp type = num type = byte
-            (dynamic_cast<ExpNode>($$)).type = TYPE_BYTE;
-            (dynamic_cast<ExpNode>($$)).size = 1; //byte size is 1
+            (dynamic_cast<ExpNode*>($$))->type = TYPE_BYTE;
+            (dynamic_cast<ExpNode*>($$))->size = 1; //byte size is 1
           }
+
       | STRING{
             //exp type = num type = string
-            (dynamic_cast<ExpNode>($$)).type = TYPE_STRING;
-            (dynamic_cast<ExpNode>($$)).size = 1; //string size is 1
+            (dynamic_cast<ExpNode*>($$))->type = TYPE_STRING;
+            (dynamic_cast<ExpNode*>($$))->size = 1; //string size is 1
         }
+
       | TRUE{
             //exp type = true type = bool
-            (dynamic_cast<ExpNode>($$)).type = TYPE_BOOL;
-            (dynamic_cast<ExpNode>($$)).size = 1; //bool size is 1
+            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
+            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
         }
+
       | FALSE{
             //exp type = false type = bool
-            (dynamic_cast<ExpNode>($$)).type = TYPE_BOOL;
-            (dynamic_cast<ExpNode>($$)).size = 1; //bool size is 1
+            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
+            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
         }
+
       | NOT Exp {
-            if((dynamic_cast<ExpNode>($1)).type != TYPE_BOOL){
+            if((dynamic_cast<ExpNode*>($1))->type != TYPE_BOOL){
                 //not operator is valid only on bool variables
                 errorMismatch(yylineno);
                 exit(1);
             }
-            (dynamic_cast<ExpNode>($$)).type = TYPE_BOOL;
-            (dynamic_cast<ExpNode>($$)).size = 1; //bool size is 1
+            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
+            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
           }
-      | Exp AND Exp
-      | Exp OR Exp
-      | Exp RELOP Exp
+
+      | Exp AND Exp{
+            if((dynamic_cast<ExpNode*>($1))->type != TYPE_BOOL || (dynamic_cast<ExpNode*>($3))->type != TYPE_BOOL){
+                //and operator is valid only on bool variables
+                errorMismatch(yylineno);
+                exit(1);
+            }
+            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
+            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+        }
+      | Exp OR Exp{
+            if((dynamic_cast<ExpNode*>($1))->type != TYPE_BOOL || (dynamic_cast<ExpNode*>($3))->type != TYPE_BOOL){
+            //or operator is valid only on bool variables
+                errorMismatch(yylineno);
+                exit(1);
+            }
+            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
+            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+       }
+
+      | Exp RELOP Exp{
+            if((dynamic_cast<ExpNode*>($1))->type != TYPE_INT || (dynamic_cast<ExpNode*>($3))->type != TYPE_INT){
+                //and operator is valid only on numerical variables
+                errorMismatch(yylineno);
+                exit(1);
+            }
+            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL; // return type of relop operator is bool
+            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+       }
 ;
 
 
@@ -272,4 +415,41 @@ int main() {
     yyparse();
     //todo: check if main is missing
     //todo: delete global scope
+}
+
+
+void printStructTypeHelp(const string& name, vector<StructMemNode>* fields){
+    std::vector<typeName> Types;
+    std::vector<string> Names;
+
+    for(vector<StructMemNode>::const_iterator it = fields->begin();it!=fields->end();it++){
+        Types.push_back((*it).type);
+        Names.push_back((*it).name);
+    }
+    printStructType(name, TypeVecToString(Types), Names);
+}
+
+std::string typeToString(typeName type){
+    switch (type){
+        case(TYPE_BYTE) :
+            return "BYTE";
+        case(TYPE_BOOL) :
+            return "BOOL";
+        case(TYPE_INT) :
+            return "INT";
+        case(TYPE_STRING) :
+            return "STRING";
+        case(TYPE_STRUCT) :
+            return "STRUCT";
+        case(TYPE_VOID) :
+            return "VIOD";
+    }
+}
+
+std::vector<string> TypeVecToString(std::vector<typeName>& t_vec){
+    std::vector<string> s_vec;
+    for(int i=0; i< t_vec.size(); i++){
+       s_vec.push_back(typeToString(t_vec[i]));
+    }
+    return s_vec;
 }

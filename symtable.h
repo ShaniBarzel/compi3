@@ -10,14 +10,16 @@
 #include "attributes.h"
 
 class TableEntry;
-class TableEntryVariable;
-class TableEntryFunc;
+class TableEntryFunc : public TableEntry;
+class TableEntryStructType : public TableEntry;
+class TableEntryStruct : public TableEntry
 class SymbolTable;
 
-class TableEntry{
+class TableEntry {
 public:
     std::string name;
     typeName type;
+ //   std::string sTypeName; //used for variables defined in the form: StructType ID
     int size;
     int offset;
 
@@ -25,18 +27,30 @@ public:
 
 class TableEntryVariable : public TableEntry{
 };
+
+
+//todo: shani: racheli: typeNme and name are inherited from TableEntry
 class TableEntryStruct : public TableEntry{
 public:
-    std::string name;
-    typeName type;
+    //std::string name;
+    //typeName type;
     std::vector<StructMemNode> Fields;
+    StructMemNode* getField(std::string name); //todo: shani
 
 };
+
 class TableEntryFunc : public TableEntry{
 public:
-    std::string name;
+    //std::string name;
     typeName return_type;
     std::vector<FormalDeclNode> declaration_list;
+};
+
+class TableEntryStructType : public TableEntry{ //todo: shani
+public:
+    //std::string name;
+    //typeName return_type;
+    std::string structName;
 };
 
 /*
@@ -77,12 +91,16 @@ public:
   */
     bool insertFunctionEntry(std::string name, typeName return_type, std::vector<FormalDeclNode> dec_list);
     /*
-* insertStructEntry
-* inserts an entry of a struct to the table
-* returns true if succeeds
-*/
+    * insertStructEntry
+    * inserts an entry of a struct to the table
+    * returns true if succeeds
+    */
     bool insertStructEntry(std::string name, typeName type, std::vector<StructMemNode> fields_list);
-
+    /* insertStructTypeEntry
+    * inserts an entry of a struct type to the table
+    * returns true if succeeds
+    */
+    bool insertStructTypeEntry(std::string name, std::string s_name, typeName type, int offset); //todo: shani
 };
 
 #endif //COMPI3_SYMTABLE_H

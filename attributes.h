@@ -14,16 +14,15 @@ typedef enum{
     TYPE_BOOL,
     TYPE_STRING,
     TYPE_VOID,
-    TYPE_STRUCT     //RACHELI
+    TYPE_STRUCT,     //todo: RACHELI
+    TYPE_STRUCTID //todo: shani
 } typeName;
 
 
 class Node {
 public:
-    int name, size;
-    //todo: check if defining as typeName is better
-    std::string type;
-    //typeName type;
+    int name, size; //todo: why name is int?
+    typeName type;
     char* yytext_array;
 
     Node()=default;
@@ -73,6 +72,10 @@ class ExpListNode : public Node{
 public:
     ExpListNode() : exp_list(new std::vector<ExpNode>){};
     ~ExpListNode() {delete(exp_list);};
+//todo shani
+    std::vector<ExpNode>* getList(){
+        return exp_list;
+    }
 };
 //types:
 class TypeNode : public Node{

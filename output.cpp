@@ -12,6 +12,7 @@ void output::printID(const string& id, int offset, const string& type) {
     cout << id << " " << type <<  " " << offset <<  endl;
 }
 
+/*
 //todo: check if we make sure type field of class Node always matches the actual type
 void output::printStructType(const string& name, vector<StructMemNode>* fields){
     cout << "struct " << name << "{";
@@ -20,6 +21,7 @@ void output::printStructType(const string& name, vector<StructMemNode>* fields){
     }
     cout << "}" << endl;
 }
+*/
 
 string typeListToString(const std::vector<string>& argTypes) {
     stringstream res;

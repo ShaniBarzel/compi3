@@ -51,72 +51,64 @@ STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
 %%
 {VOID}								  { yylval=new Void(yytext)
                                            return VOID;}
-{INT}								  { yylval=new Int(yytext)
+{INT}								  { yylval=new IntNode(yytext)
                                            return INT;}
-{BYTE}								  { yylval=new Byte(yytext)
+{BYTE}								  { yylval=new ByteNode(yytext)
                                            return BYTE;}
-{B}								      { yylval=new B(yytext)
+{B}								      { yylval=new BNode(yytext)
                                            return B;}
-{BOOL}								  { yylval=new Bool(yytext)
+{BOOL}								  { yylval=new BoolNode(yytext)
                                            return BOOL;}
-{STRUCT}							  { yylval=new Struct(yytext)
+{STRUCT}							  { yylval=new StructNode(yytext)
                                            return STRUCT;}
-{AND}							      { yylval=new And(yytext)
+{AND}							      { yylval=new AndNode(yytext)
                                            return AND;}
-{OR}							      { yylval=new Or(yytext)
+{OR}							      { yylval=new OrNode(yytext)
                                            return OR;}
-{NOT}							      { yylval=new Not(yytext)
+{NOT}							      { yylval=new NotNode(yytext)
                                            return NOT;}
-{TRUE}							      { yylval=new True(yytext)
+{TRUE}							      { yylval=new TrueNode(yytext)
                                            return STRUCT;}
-{FALSE}							      { yylval=new False(yytext)
+{FALSE}							      { yylval=new FalseNode(yytext)
                                            return FALSE;}
-{RETURN}							  { yylval=new Return(yytext)
+{RETURN}							  { yylval=new ReturnNode(yytext)
                                            return RETURN;}
-{IF}				                  { yylval=new If(yytext)
+{IF}				                  { yylval=new IfNode(yytext)
                                            return IF;}
-{ELSE}							      { yylval=new Else(yytext)
+{ELSE}							      { yylval=new ElseNode(yytext)
                                            return ELSE;}
-{WHILE}							      { yylval=new While(yytext)
+{WHILE}							      { yylval=new WhileNode(yytext)
                                            return WHILE;}
-{BREAK}							      { yylval=new Break(yytext)
+{BREAK}							      { yylval=new BreakNode(yytext)
                                            return BREAK;}
-{CONTINUE}							  { yylval=new Continue(yytext)
+{CONTINUE}							  { yylval=new ContinueNode(yytext)
                                            return CONTINUE;}
-{SC}							      { yylval=new Sc(yytext)
+{SC}							      { yylval=new ScNode(yytext)
                                            return SC;}
-{COMMA}							      { yylval=new Comma(yytext)
+{COMMA}							      { yylval=new CommaNode(yytext)
                                            return COMMA;}
-{PERIOD}							  { yylval=new Period(yytext)
+{PERIOD}							  { yylval=new PeriodNode(yytext)
                                            return PERIOD;}
-{LPAREN}							  { yylval=new Lparen(yytext)
+{LPAREN}							  { yylval=new LparenNode(yytext)
                                            return LPAREN;}
-{RPAREN}							  { yylval=new Rparen(yytext)
+{RPAREN}							  { yylval=new RparenNode(yytext)
                                            return RPAREN;}
-{LBRACE}							  { yylval=new Lbrace(yytext)
+{LBRACE}							  { yylval=new LbraceNode(yytext)
                                            return LBRACE;}
-{RBRASCE}							  { yylval=new Rbrace(yytext)
+{RBRASCE}							  { yylval=new RbraceNode(yytext)
                                            return RBRACE;}
-{ASSIGN}							  { yylval=new Assign(yytext)
+{ASSIGN}							  { yylval=new AssignNode(yytext)
                                            return ASSIGN;}
-{ARELOP}							  { yylval=new Relop(yytext)
+{ARELOP}							  { yylval=new RelopNode(yytext)
                                            return ARELOP;}
-{NARELOP}							  { yylval=new Relop(yytext)
+{NARELOP}							  { yylval=new RelopNode(yytext)
                                             return NARELOP;}
-{ID}							      { yylval=new Id(yytext)
+{ID}							      { yylval=new IdNode(yytext)
                                            return ID;}
-{NUM}							      { yylval=new Num(yytext)
+{NUM}							      { yylval=new NumNode(yytext)
                                            return NUM;}
-{STRING}							  { yylval=new String(yytext)
+{STRING}							  { yylval=new StringNode(yytext)
                                            return STRING;}
-
-
-
-
-
-
-
-
 
 
 

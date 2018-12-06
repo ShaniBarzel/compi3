@@ -9,12 +9,13 @@ using namespace std;
 namespace output{
     void endScope();
     void printID(const string& id, int offset, const string& type);
-    /*
- * auciliary function for converting typeName to string
- */
-    string convertTypeNameToString(typeName t);
-    void printStructType(const string& name, vector<StructMemNode>* fields);
 
+ /* todo: racheli, i couldent find the implimentation. i implemented it in parser.ypp
+ * auciliary function for converting typeName to string
+ /*
+    string convertTypeNameToString(typeName t);
+ */
+    void printStructType(const string& name, vector<StructMemNode>* fields);
 
     /* Do not save the string returned from this function in a data structure 
         as it is not dynamically allocated and will be destroyed(!) at the end of the calling scope.

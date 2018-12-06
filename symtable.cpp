@@ -20,7 +20,7 @@ TableEntry* SymbolTable::getEntry(std::string name) {
 
 bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offset){
     //check if an entry for variable to be inserted already exists in some scope table in the tree
-    if(getEntry(name))
+    if(getEntry(name)) //entry already exist
         return false;
     //the new entry of the variable to be inserted to the table
     TableEntryVariable* new_entry = new TableEntryVariable();
@@ -31,9 +31,24 @@ bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offse
     scope_table.push_back(new_entry);
     return true;
 }
+//todo: shani
+bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, typeName type, int offset){
+    //check if an entry for variable to be inserted already exists in some scope table in the tree
+    if(getEntry(name)) //entry already exist
+        return false;
+    //the new entry of the variable to be inserted to the table
+    TableEntryStructType* new_entry = new TableEntryStructType();
+    new_entry->name = name;
+    new_entry->type = type;
+    new_entry->offset = offset;
+    new_entry->structName = s_name;
+    //insertion to table of current scope
+    scope_table.push_back(new_entry);
+    return true;
+}
 
 bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type, std::vector<FormalDeclNode> dec_list) {
-    if(getEntry(name))
+    if(getEntry(name)) //entry already exist
         return false;
     TableEntryFunc* new_entry = new TableEntryFunc();
     new_entry->name = name;
@@ -45,11 +60,20 @@ bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type, st
 
 bool SymbolTable::insertStructEntry(std::string name, typeName type, std::vector<StructMemNode> fields_list) {
     if(getEntry(name))
-        return false;
+        return false; //entry alredy exist
     TableEntryStruct* new_entry = new TableEntryStruct();
     new_entry->name = name;
     new_entry->Fields = fields_list;
     new_entry->type = type;
     scope_table.push_back(new_entry);
     return true;
+}
+
+StructMemNode* TableEntryStruct::getField(std::string name){
+    for (std::vector<StructMemNode>::iterator it = Fields.begin(), end = Fields.end();
+         it != end; ++it) {
+        if (((*it).name) == name)
+            return &(*it);
+    }
+    return nullptr;
 }
