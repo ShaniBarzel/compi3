@@ -10,28 +10,29 @@
 #include "attributes.h"
 
 class TableEntry;
+class TableEntryVariable;
 class TableEntryFunc;
 class SymbolTable;
 
-class TableEntry {
+class TableEntry{
 public:
     std::string name;
     typeName type;
- //   std::string sTypeName; //used for variables defined in the form: StructType ID
     int size;
     int offset;
- /*   std::vector<StructMemNode>* Fields; //(racheli) needs to be StructMemNode
-    TableEntry(): name(),type(),sTypeName(),size(),offset(),Fields(new std::vector<StructMemNode>){};
-    ~TableEntry(){delete(Fields);};*/
+
 };
-class TableEntryStruct{
+
+class TableEntryVariable : public TableEntry{
+};
+class TableEntryStruct : public TableEntry{
 public:
     std::string name;
     typeName type;
     std::vector<StructMemNode> Fields;
 
 };
-class TableEntryFunc{
+class TableEntryFunc : public TableEntry{
 public:
     std::string name;
     typeName return_type;
@@ -48,36 +49,21 @@ class SymbolTable {
      */
     //parent_table is the father of the current node in the symbol tables tree
     SymbolTable* parent_table;
-    //variables_scope_table is vector representing the current scope's symbol table of variables
-    std::vector<TableEntry*> variables_scope_table;
-    //functions_scope_table is vector representing the current scope's symbol table of functions
-    std::vector<TableEntryFunc*> functions_scope_table;
-    //
-    std::vector<TableEntryStruct*> structs_scope_table;
+    //scope_table is vector representing the current scope's symbol table
+    std::vector<TableEntry*> scope_table;
+
 public:
     /*
      * c'tor
      * creates a new scope table which is the son of p
      */
-    SymbolTable(SymbolTable* p) : parent_table(p), variables_scope_table(), functions_scope_table(), structs_scope_table(){};
+    SymbolTable(SymbolTable* p) : parent_table(p), scope_table(){};
     /*
-        * getVariableEntry
-        * checks if a variable table entry whose name field is "name" already exists
+        * getEntry
+        * checks if a table entry whose name field is "name" already exists
         * if yes - returns it, else - returns null
     */
-    TableEntry* getVariableEntry(std::string name);
-    /*
-        * getFunctionEntry
-        * checks if a function table entry whose name field is "name" already exists
-        * if yes - returns it, else - returns null
-    */
-    TableEntryFunc* getFunctionEntry(std::string name);
-    /*
-        * getStructEntry
-        * checks if a struct table entry whose name field is "name" already exists
-        * if yes - returns it, else - returns null
-    */
-    TableEntryStruct* getStructEntry(std::string name);
+    TableEntry* getEntry(std::string name);
     /*
      * insertVariableEntry
      * inserts an entry of a variable to the table
