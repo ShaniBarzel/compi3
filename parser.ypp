@@ -82,7 +82,6 @@ StructsDecl : STRUCT ID LBRACE StructMemList RBRACE{
                 }
                  SC{
                     endScope();
-                    //todo: implement printStructType
                     printStructType($2.name, fields_list);
                     //popping tops of stack table and stack offsets
                     SymbolTable* parent = current_scope_table->getParent();
