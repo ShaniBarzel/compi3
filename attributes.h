@@ -21,7 +21,8 @@ typedef enum{
 
 class Node {
 public:
-    int name, size; //todo: why name is int?
+    int size; //todo: why name is int?
+    std::string name;
     typeName type;
     char* yytext_array;
 

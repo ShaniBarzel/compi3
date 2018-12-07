@@ -12,7 +12,7 @@
 class TableEntry;
 class TableEntryFunc : public TableEntry;
 class TableEntryStructType : public TableEntry;
-class TableEntryStruct : public TableEntry
+class TableEntryStruct : public TableEntry;
 class SymbolTable;
 
 class TableEntry {
