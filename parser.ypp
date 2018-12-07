@@ -66,7 +66,7 @@ Structs :   StructsDecl Structs
 //i changed STRUCT ID to StrctType to avoid conflict
 StructsDecl : StructType LBRACE StructMemList RBRACE M2 SC{
                     endScope();
-                    printStructTypeHelp(($2->name), fields_list);
+                    printStructTypeHelp((($2)->name), fields_list);
                     //popping tops of stack table and stack offsets
                     SymbolTable* parent = current_scope_table->getParent();
                     delete(current_scope_table);
@@ -78,7 +78,7 @@ StructsDecl : StructType LBRACE StructMemList RBRACE M2 SC{
 // marker 2
 M2 : /* epsilon*/ {
             //insertion to current scope's table
-            if (!(current_scope_table->insertVariableEntry(($2)->name, TYPE_STRUCT, offsets.top()))){
+            if (!(current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT, offsets.top()))){
                     // id already defined
                     errorDef(yylineno, (($2)->name));
                     exit(1);
@@ -90,8 +90,8 @@ M2 : /* epsilon*/ {
             offsets.push(offsets.top());
             //the updating offset of the fields in the struct
             int current_offset = offsets.top();
-            //saving a ref to fields list field of the struct defined
-            std::vector<StructMemNode>* fields_list = ((current_scope_table->variables_scope_table).top())->Fields;
+            //saving a reference to "fields list" field of the struct defined
+            std::vector<StructMemNode>* fields_list = ((current_scope_table->scope_table).top())->Fields;
             //iterating over the fields list of the struct
             for (std::vector<StructMemNode>::const_iterator it = (($4)->s_list)->begin(); it != (($4)->s_list)->end(); it++){
                 //increment current offset by the current field's size
@@ -223,9 +223,9 @@ Statement : LBRACE Statements RBRACE
                 //todo: get to the current function by the current scope, chack if it's return type is void
             }
             | RETURN Exp SC {
-                /*todo: get to the current function by the current scope, chack if it's return type is eq the exp type
-                        (it can also be byte if exp type is int - page 4 rule 12)
-                 */
+                todo: get to the current function by the current scope, chack if it's return type is eq the exp type
+                 todo:       (it can also be byte if exp type is int - page 4 rule 12)
+
             }
             | IF LPAREN Exp RPAREN Statement
             | IF LPAREN Exp RPAREN Statement ELSE Statement
@@ -428,7 +428,7 @@ void printStructTypeHelp(const string& name, vector<StructMemNode>* fields){
     }
     printStructType(name, TypeVecToString(Types), Names);
 }
-
+//todo: (racheli) TYPE_STRUCTID ?
 std::string typeToString(typeName type){
     switch (type){
         case(TYPE_BYTE) :
@@ -442,7 +442,7 @@ std::string typeToString(typeName type){
         case(TYPE_STRUCT) :
             return "STRUCT";
         case(TYPE_VOID) :
-            return "VIOD";
+            return "VOID";
     }
 }
 

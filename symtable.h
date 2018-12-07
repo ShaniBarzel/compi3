@@ -34,7 +34,9 @@ class TableEntryStruct : public TableEntry{
 public:
     //std::string name;
     //typeName type;
-    std::vector<StructMemNode> Fields;
+    std::vector<StructMemNode>* Fields;
+    TableEntryStruct() : Fields(new std::vector<StructMemNode>()){};
+    ~TableEntryStruct(){delete(Fields);};
     StructMemNode* getField(std::string name); //todo: shani
 
 };
@@ -43,7 +45,9 @@ class TableEntryFunc : public TableEntry{
 public:
     //std::string name;
     typeName return_type;
-    std::vector<FormalDeclNode> declaration_list;
+    std::vector<FormalDeclNode>* declaration_list;
+    TableEntryFunc() : declaration_list(new std::vector<FormalDeclNode>()){};
+    ~TableEntryFunc(){delete(declaration_list);};
 };
 
 class TableEntryStructType : public TableEntry{ //todo: shani
@@ -89,13 +93,13 @@ public:
   * inserts an entry of a function to the table
   * returns true if succeeds
   */
-    bool insertFunctionEntry(std::string name, typeName return_type, std::vector<FormalDeclNode> dec_list);
+    bool insertFunctionEntry(std::string name, typeName return_type);
     /*
     * insertStructEntry
     * inserts an entry of a struct to the table
     * returns true if succeeds
     */
-    bool insertStructEntry(std::string name, typeName type, std::vector<StructMemNode> fields_list);
+    bool insertStructEntry(std::string name, typeName type);
     /* insertStructTypeEntry
     * inserts an entry of a struct type to the table
     * returns true if succeeds

@@ -47,30 +47,30 @@ bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, ty
     return true;
 }
 
-bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type, std::vector<FormalDeclNode> dec_list) {
+bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type) {
     if(getEntry(name)) //entry already exist
         return false;
     TableEntryFunc* new_entry = new TableEntryFunc();
     new_entry->name = name;
-    new_entry->declaration_list = dec_list;
+   // new_entry->declaration_list = dec_list;
     new_entry->return_type = return_type;
     scope_table.push_back(new_entry);
     return true;
 }
 
-bool SymbolTable::insertStructEntry(std::string name, typeName type, std::vector<StructMemNode> fields_list) {
+bool SymbolTable::insertStructEntry(std::string name, typeName type) {
     if(getEntry(name))
         return false; //entry alredy exist
     TableEntryStruct* new_entry = new TableEntryStruct();
     new_entry->name = name;
-    new_entry->Fields = fields_list;
+    //new_entry->Fields = fields_list;
     new_entry->type = type;
     scope_table.push_back(new_entry);
     return true;
 }
 
 StructMemNode* TableEntryStruct::getField(std::string name){
-    for (std::vector<StructMemNode>::iterator it = Fields.begin(), end = Fields.end();
+    for (std::vector<StructMemNode>::iterator it = Fields->begin(), end = Fields->end();
          it != end; ++it) {
         if (((*it).name) == name)
             return &(*it);

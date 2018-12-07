@@ -15,7 +15,7 @@ namespace output{
  /*
     string convertTypeNameToString(typeName t);
  */
-    void printStructType(const string& name, vector<StructMemNode>* fields);
+    void printStructType(const string& name, std::vector<string>& memTypes, std::vector<string>& memNames);
 
     /* Do not save the string returned from this function in a data structure 
         as it is not dynamically allocated and will be destroyed(!) at the end of the calling scope.
