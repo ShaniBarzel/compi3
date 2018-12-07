@@ -10,9 +10,9 @@
 #include "attributes.h"
 
 class TableEntry;
-class TableEntryFunc : public TableEntry;
-class TableEntryStructType : public TableEntry;
-class TableEntryStruct : public TableEntry;
+class TableEntryFunc;
+class TableEntryStructType;
+class TableEntryStruct;
 class SymbolTable;
 
 class TableEntry {
