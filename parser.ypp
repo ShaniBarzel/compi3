@@ -31,13 +31,17 @@ std::string typeToString(typeName type);
 
 %%
 /*RULES*/
+
+//no semantics needed
 Program :  Structs Funcs
 ;
 
+//no semantics needed
 Funcs :   FuncsDecl Funcs
           | /*epsilon*/
 ;
 
+// todo: SHANI
 FuncDecl : RetType ID LPAREN Formals RPAREN M1 LBRACE Statments RBRACE{
             /* todo: psaudo code:
              * call "endScope"
@@ -47,6 +51,7 @@ FuncDecl : RetType ID LPAREN Formals RPAREN M1 LBRACE Statments RBRACE{
            }
 ;
 
+// todo: SHANI
 /* marker 1 */
 M1 : /*epsilon*/ {
             /* todo: paudo code
@@ -59,6 +64,7 @@ M1 : /*epsilon*/ {
             }
 ;
 
+//no semantic needed
 Structs :   StructsDecl Structs
             | /*epsilon*/
 ;
@@ -115,20 +121,30 @@ RetType : Type {
                     $$->type = TYPE_VOID;
                  }
 ;
+
+//todo: SHANI
 Formals : FormalsList
            | /*epsilon*/
 ;
+
+//todo: SHANI
 FormalsList : FormalDecl
              | FurmalDecl COMMA FormalsList
 ;
+
+//todo: SHANI
 FormalDecl : Type ID //todo: function cannot get string?
             | StructType ID {
 
             }
 ;
+
+//todo: SHANI
 StructMemList : StructMem
                 | StructMem StructMemList
 ;
+
+//todo: SHANI
 StructMem : Type ID SC
 ;
 
@@ -215,7 +231,7 @@ Statement : LBRACE Statements RBRACE
                 }
 
              }
-
+//todo: RACHELI from here
             | ID ASSIGN Exp SC
             | ID PERIOD ID ASSIGN Exp SC
             | Call SC
@@ -236,6 +252,8 @@ Statement : LBRACE Statements RBRACE
 Call : ID LPAREN ExpList RPAREN
         | ID LPAREN RPAREN
 ;
+//todo: RACHELI to here here
+
 ExpList : Exp {
                 // add the experssion to the expression list
                 ((dynamic_cast<ExpNode>($$)).getlist()).push_front((dynamic_cast<ExpNode>($1));
@@ -404,10 +422,8 @@ Exp : LPAREN Exp RPAREN{
 %%
 
 /*USER ROUTINES*/
-void yyerror //todo: delete?
-        (const char*) { cout << "syntax error" << endl; }
 
-
+//todo: RACHELI
 int main() {
     //todo: add "currentScopeTable" - global
     //todo: add "offsetsTable" vector -global
