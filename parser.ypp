@@ -233,15 +233,57 @@ Statement : LBRACE Statements RBRACE
              }
 //todo: RACHELI from here
             | ID ASSIGN Exp SC
+            {
+                TableEntryVariable* entry = current_scope_table->getEntry(($1)->name);
+                if (!entry)
+                {
+                    errorUndef(yylineno, ($1)->name);
+                    exit(1);
+                }
+
+                //check if valid assignment
+                if (($3)->type != entry->type || ($3)->size != entry->size)
+                {
+                    //check if not a byte to int assignment
+                    if (!(($3)->type == TYPE_BYTE && entry->type == TYPE_INT))
+                    {
+                        errorMismatch(yylineno);
+                        exit(1);
+                    }
+                }
+
+                //check if type of var entry is byte and
+                //todo: check if strtol is ok (converts string to long int)
+                if (entry->type == TYPE_BYTE && std::strtol(($3)->value, nullptr, 0) > 255)
+                {
+                    errorByteTooLarge(yylineno, ($3)->value);
+                    exit(1);
+                }
+            }
             | ID PERIOD ID ASSIGN Exp SC
+            {
+                //todo
+            }
             | Call SC
             | RETURN SC{
-                //todo: get to the current function by the current scope, chack if it's return type is void
+                //get current function scope
+                TableEntryFunc* current_function = current_scope_table->getLastFunctionEntry();
+
+                //error if return type of the entry isn't void
+                if (current_function->return_type != TYPE_VOID)
+                {
+                    errorMismatch(yylineno);
+                    exit(1);
+                }
             }
             | RETURN Exp SC {
-                todo: get to the current function by the current scope, chack if it's return type is eq the exp type
-                 todo:       (it can also be byte if exp type is int - page 4 rule 12)
-
+                TableEntryFunc* current_function = current_scope_table->getLastFunctionEntry();
+                //check if Exp type can be assigned to the functions' return type
+                if (current_function->return_type != ($2)->type && !(current_function->return_type == TYPE_INT && ($2)->type == TYPE_BYTE))
+                {
+                    errorMismatch(yylineno);
+                    exit(1);
+                }
             }
             | IF LPAREN Exp RPAREN Statement
             | IF LPAREN Exp RPAREN Statement ELSE Statement

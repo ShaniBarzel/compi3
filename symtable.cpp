@@ -77,3 +77,14 @@ StructMemNode* TableEntryStruct::getField(std::string name){
     }
     return nullptr;
 }
+
+TableEntryFunc* SymbolTable::getLastFunctionEntry() {
+    for (std::vector<TableEntry *>::const_iterator it = scope_table.begin(), end = scope_table.end();
+         it != end; ++it) {
+        if (typeid((*it)).name() == "TableEntryFunc")
+            return (TableEntryFunc*)*it;
+    }
+    if(!parent_table)
+        return nullptr;
+    return parent_table->getLastFunctionEntry();
+}

@@ -105,6 +105,11 @@ public:
     * returns true if succeeds
     */
     bool insertStructTypeEntry(std::string name, std::string s_name, typeName type, int offset); //todo: shani
+    /*
+     * this function returns the latest function entry in the table
+     * if exists - returns it, else - nullptr
+     */
+    TableEntryFunc* getLastFunctionEntry();
 };
 
 #endif //COMPI3_SYMTABLE_H
