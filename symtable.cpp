@@ -28,7 +28,7 @@ bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offse
     new_entry->type = type;
     new_entry->offset = offset;
     //insertion to table of current scope
-    scope_table.push_back(new_entry);
+    scope_table.push_back(new_entry); //shani: maybe we should cast this to regular entry because scope table is a vector of pointers to tableEntry. i'll wait to see is it works like this
     return true;
 }
 //todo: shani
@@ -51,6 +51,7 @@ bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type) {
     if(getEntry(name)) //entry already exist
         return false;
     TableEntryFunc* new_entry = new TableEntryFunc();
+    new_entry->type = TYPE_FUNC; //todo: shani
     new_entry->name = name;
    // new_entry->declaration_list = dec_list;
     new_entry->return_type = return_type;

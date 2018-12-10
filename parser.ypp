@@ -19,8 +19,10 @@ std::stack<int> offsets;
 
 //implemented at the end of the file
 void printStructTypeHelp(const string& name, vector<StructMemNode>* fields);
-std::vector<string> TypeVecToString(std::vector<typeName>& t_vec);
+std::vector<string>& TypeVecToString(std::vector<typeName>& t_vec);
 std::string typeToString(typeName type);
+void closeScope(); //todo: shani
+std::vector<typeName>& declToTypes(std::vector<FormalDeclNode> decls); //todo: shani
 
 %}
 /*DECLERATIONS*/
@@ -42,26 +44,50 @@ Funcs :   FuncsDecl Funcs
 ;
 
 // todo: SHANI
-FuncDecl : RetType ID LPAREN Formals RPAREN M1 LBRACE Statments RBRACE{
-            /* todo: psaudo code:
-             * call "endScope"
-             * call a function that does all the things that we were askd to do in page 6
-             * delete current scope and define "CurrentScopeTable" to be it's father
-             */
+FuncDecl :  M1 LBRACE Statments RBRACE{
+                ($$)->type = TYPE_FUNC;
+                endScope();
+                //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
+                closeScope();
+                //return the current scope to be the outer scope
+                SymbolTable* parent = current_scope_table->getParent();
+                delete(current_scope_table);
+                 current_scope_table = parent;
+                //back to the outer scope pffset
+                 offsets.pop();
            }
 ;
 
-// todo: SHANI
 /* marker 1 */
-M1 : /*epsilon*/ {
-            /* todo: paudo code
-             * check if function args are legal
-             * add funcion to current scope
-             * create new scop table and define it as the currentScopeTable
-             * insert the top offset to the offset table
-             * insert all arguments as an Entries in the current scope, while updating the offset (is Entry alredy defined, is alraedy implenemted in "insert" method
-             */
+M1 : RetType ID LPAREN Formals RPAREN {
+         //try to insert to the current symbol table
+        if (!(current_scope_table->insertFunctionEntry($2->name, $1->type, (dynamic_cast<FormalsNode>($4)).list.dec_list)))
+        {
+            //already exist function with this name
+            errorDef(yylineno,$2.terminal.name);
+            exit(1);
+        }
+        //create new scope table for function scope
+        SymbolTable* new_func_scope = new SymbolTable(current_scope_table);
+        //the current scope is the function scope now
+        current_scope_table = new_func_scope;
+        //add the top value to the offsets stuck
+        offsets.push(offsets.top());
+
+        int ParamOffset = offsets.top();
+        for (std::list<FormalDeclNode>::const_iterator it = ((dynamic_cast<FormalsNode>($4)).list.dec_list).begin(); it != ((dynamic_cast<FormalsNode>($4)).list.dec_list).end(); it++)
+        {
+            /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
+            specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
+            ParamOffset -= (*it).size;
+            if (!(current_scope_table->insertVariableEntry( (*it).name ,(*it).type , ParamOffset )))
+            {
+                //there is already a variable with the parameter's name
+                errorDef(yylineno,(*it).name);
+                exit(1);
             }
+        }
+    }
 ;
 
 //no semantic needed
@@ -70,7 +96,7 @@ Structs :   StructsDecl Structs
 ;
 
 //i changed STRUCT ID to StrctType to avoid conflict
-StructsDecl : StructType LBRACE StructMemList RBRACE M2 SC{
+StructsDecl :  M2 SC{
                     endScope();
                     printStructTypeHelp((($2)->name), fields_list);
                     //popping tops of stack table and stack offsets
@@ -82,7 +108,7 @@ StructsDecl : StructType LBRACE StructMemList RBRACE M2 SC{
 ;
 
 // marker 2
-M2 : /* epsilon*/ {
+M2 : StructType LBRACE StructMemList RBRACE {
             //insertion to current scope's table
             if (!(current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT, offsets.top()))){
                     // id already defined
@@ -122,30 +148,53 @@ RetType : Type {
                  }
 ;
 
-//todo: SHANI
-Formals : FormalsList
+Formals : FormalsList {
+                (dynamic_cast<FormalsNode>($$))->list = (dynamic_cast<FormalsListNode>($1))->dec_list;
+            }
            | /*epsilon*/
 ;
 
-//todo: SHANI
-FormalsList : FormalDecl
-             | FurmalDecl COMMA FormalsList
+FormalsList : FormalDecl {
+                    ((dynamic_cast<FormalsListNode>($$))->dec_list).push_front(dynamic_cast<FormalsDecNode>($1));
+                }
+             | FurmalDecl COMMA FormalsList{
+                    (dynamic_cast<FormalsListNode>($$))->dec_list = (dynamic_cast<FormalsListNode>($3))->dec_list;
+                    ((dynamic_cast<FormalsListNode>($$))->dec_list).push_front(dynamic_cast<FormalsDecNode>($1));
+                }
 ;
 
-//todo: SHANI
-FormalDecl : Type ID //todo: function cannot get string?
+FormalDecl : Type ID {
+                    ($$)->type = ($1)->type;
+                    ($$)->name = ($2)->name;
+                }//todo: function cannot get string?
             | StructType ID {
+                    //s_type is "Animal"
+                    TableEntryStruct* s_type = current_scope_table->getEntry(dynamic_cast<TableEntryStructType*>($1));
+                    if (IdVariable->type != TYPE_STRUCTID){
+                       //no such struct
+                        errorUndef(yylineno,($1)->name);
+                        exit(1);
+                    }
 
-            }
+                    ($$)->type = TYPE_STRUCTID;
+                                ($$)->name = ($2)->name;
+                 }
 ;
 
-//todo: SHANI
-StructMemList : StructMem
-                | StructMem StructMemList
+StructMemList : StructMem {
+                        ((dynamic_cast<StructMemListNode>($$))->s_list).push_front(dynamic_cast<StructMemNode>($1));
+                    }
+                | StructMem StructMemList{
+                        (dynamic_cast<StructMemListNode>($$))->s_list = (dynamic_cast<StructMemListNode>($2))->s_list;
+                        ((dynamic_cast<StructMemListNode>($%))->s_list).push_front(dynamic_cast<StructMemNode>($1));
+                    }
 ;
 
-//todo: SHANI
-StructMem : Type ID SC
+
+StructMem : Type ID SC{
+                ($$)->type = ($1)->type;
+                ($$)->name = ($2)->name;
+              }
 ;
 
 //no semantics needed
@@ -153,8 +202,18 @@ Statements : Statement
             | Statement Statements
 ;
 
-Statement : LBRACE Statements RBRACE
-
+Statement : M3 RBRACE{
+    //todo: shani
+                    endScope();
+                    //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
+                    closeScope();
+                    //return the current scope to be the outer scope
+                    SymbolTable* parent = current_scope_table->getParent();
+                    delete(current_scope_table);
+                    current_scope_table = parent;
+                    //back to the outer scope pffset
+                    offsets.pop();
+                }
             | Type ID SC{
                 int offset = offsets.top();
                 offsets.pop();
@@ -176,9 +235,8 @@ Statement : LBRACE Statements RBRACE
                  }
                 offsets.push(offset+1); //update offset
              }
-
-            | STRUCT ID LBRACE StructMemList RBRACE SC
-
+             //todo: racheli, it was STRUCT ID LBRACE StructMemList RBRACE SC , i changed it to "StructDecl" - this is another conflict
+            | StructDecl
 
             | Type ID ASSIGN Exp SC{
                 int offset = offsets.top();
@@ -324,6 +382,16 @@ StructType : STRUCT ID{
                 $$->name = $2.name;
             }
 ;
+
+M3 : LBRACE Statements {
+    //todo: shani: has to seperate the open scope and the close scope
+        //create new scope table for the scope
+        SymbolTable* new_scope = new SymbolTable(current_scope_table);
+        //the current scope is the new scope now
+        current_scope_table = new_scope;
+        //add the top value to the offsets stuck
+        offsets.push(offsets.top());
+};
 
 Exp : LPAREN Exp RPAREN{
             $$->type = $2->type;
@@ -486,7 +554,7 @@ void printStructTypeHelp(const string& name, vector<StructMemNode>* fields){
     }
     printStructType(name, TypeVecToString(Types), Names);
 }
-//todo: (racheli) TYPE_STRUCTID ?
+//todo: (racheli) TYPE_STRUCTID
 std::string typeToString(typeName type){
     switch (type){
         case(TYPE_BYTE) :
@@ -504,10 +572,38 @@ std::string typeToString(typeName type){
     }
 }
 
-std::vector<string> TypeVecToString(std::vector<typeName>& t_vec){
+std::vector<string>& TypeVecToString(std::vector<typeName>& t_vec){
     std::vector<string> s_vec;
     for(int i=0; i< t_vec.size(); i++){
        s_vec.push_back(typeToString(t_vec[i]));
     }
     return s_vec;
+}
+
+std::vector<typeName>& declToTypes(std::vector<FormalDeclNode>* decls){
+    std::vector<typeName> res;
+    for(std::vector<FormalDeclNode>::const_iterator it = decls->begin(); it != decls->end(); it++){
+        res.push_back((*it).type);
+    }
+    return res;
+}
+
+
+//todo: shani
+void closeScope() {
+    //note: type will never be struct (//todo: shani: racheli, i did not implimanted it for struct because you already did in another function))
+    //todo: should we support nested functions, or struct declaration inside a function?
+    //for all arguments in the scope table, print them
+    for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table).begin(); it != (current_scope_table->scope_table).end(); it++) {
+        if ((*it)->type == TYPE_FUNC) {
+            //we should print by using "makeFunctionType" in this case
+            printID((*it)->name,(*it)->offset,makeFunctionType(typeToString((dynamic_cast<TableEntryFunc*>(*it))->return_type),TypeVecToString(declToTypes((dynamic_cast<TableEntryFunc*>(*it))->declaration_list)));
+        } else if ((*it)->type == TYPE_STRUCTID){
+            //note: "+" is string concatenation operator
+            printID((*it)->name,(*it)->offset,("STRUCT<"+ (dynamic_cast<TableEntryStructType*>(*it))->structName + ">"));
+        }
+        else{
+            printID((*it)->name,(*it)->offset,typeToString((*it)->type));
+        }
+    }
 }

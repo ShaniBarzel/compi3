@@ -19,7 +19,6 @@ class TableEntry {
 public:
     std::string name;
     typeName type;
- //   std::string sTypeName; //used for variables defined in the form: StructType ID
     int size;
     int offset;
 
@@ -52,8 +51,6 @@ public:
 
 class TableEntryStructType : public TableEntry{ //todo: shani
 public:
-    //std::string name;
-    //typeName return_type;
     std::string structName;
 };
 

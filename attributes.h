@@ -15,7 +15,8 @@ typedef enum{
     TYPE_STRING,
     TYPE_VOID,
     TYPE_STRUCT,     //todo: RACHELI
-    TYPE_STRUCTID //todo: shani
+    TYPE_STRUCTID, //todo: shani
+    TYPE_FUNC //todo: shani
 } typeName;
 
 
@@ -85,22 +86,23 @@ public:
 };
 class StructTypeNode : public Node{};
 class FormalDeclNode : public Node{
-    TypeNode type;
+    //TypeNode type; //todo: shani: type is alredy in Node
     StructTypeNode s_type;
 };
 class FormalsListNode : public Node{
-    std::vector<FormalDeclNode>* dec_list;
 public:
+    std::vector<FormalDeclNode>* dec_list; //todo: shani: i moved it to public
     FormalsListNode() : dec_list(new std::vector<FormalDeclNode>){};
     ~FormalsListNode(){delete(dec_list);};
 };
 class FormalsNode : public Node{
+public: //todo: shani
     FormalsListNode list;
 };
 //structs
 class StructMemNode : public Node{
 public:
-    TypeNode type;
+    //TypeNode type; //todo: shani: type is alredy in Node
 };
 class StructMemListNode : public Node{
     std::vector<StructMemNode>* s_list;
