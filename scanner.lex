@@ -1,4 +1,3 @@
-//note: this is the previous lexer, we need to change it //todo: delete
 %{
 
 /* Declarations section */
@@ -43,11 +42,8 @@ BINOP					         ((\+)|(\-)|(\*)|(\/))
 ID							     [a-zA-Z][a-zA-Z0-9]*
 NUM							     0|[1-9][0-9]*
 STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
-.                                {errorLex(yylineno);}
 
 
-
-%s KA IN K //todo: change
 %%
 {VOID}								  { yylval=new Void(yytext)
                                            return VOID;}
@@ -109,24 +105,5 @@ STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
                                            return NUM;}
 {STRING}							  { yylval=new StringNode(yytext)
                                            return STRING;}
-
-
-
-
-<K,KA>{assign}	   	 					 {BEGIN(KA); return(ASSIGN); }
-{comment}                                {return(-1);}
-{section}	 					 		 {return(SECTION);}
-^{indent}       						 {BEGIN(IN); return(INDENT);}
-<<EOF>>        						     {return(EF);}
-<IN,KA>{true}/.* 					     {return(TRUE);}
-<IN,KA>{false}/.*    					 {return(FALSE);}
-<IN,KA>{integer}        		 		 {return(INTEGER);}
-<IN,KA>{real}          		 			 {return(REAL);}
-<IN,KA>{path}           		 		 {return(PATH);}
-<IN,KA>{link}           		 		 {return(LINK);}
-<IN,KA>{sep}             				 {return(SEP);}
-<IN,KA>{string}          				 {return(STRING);}
-{line}								     BEGIN(0);
-{whitespace}							 ;
-.									     {printf("Error %c\n", yytext[yyleng-1]); exit(0);}
+.                                      {errorLex(yylineno);}
 %%

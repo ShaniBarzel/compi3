@@ -26,8 +26,8 @@ std::vector<typeName>& declToTypes(std::vector<FormalDeclNode> decls); //todo: s
 
 %}
 /*DECLERATIONS*/
-%token VOID BYTE B BOOL STRUCT TRUE FALSE RETURN IF WHILE BREAK CONTINUE SC COMMA PERIOD ID NUM STRING NARELOP
-%left AND OR LPAREN RPAREN LBRACE RBRASCE BINOP ARELOP
+%token VOID INT BYTE B BOOL STRUCT TRUE FALSE RETURN IF WHILE BREAK CONTINUE SC COMMA PERIOD ID NUM STRING NARELOP
+%left AND OR LPAREN RPAREN LBRACE RBRACE BINOP ARELOP
 %right NOT ASSIGN
 %nonassoc ELSE
 
@@ -44,7 +44,7 @@ Funcs :   FuncsDecl Funcs
 ;
 
 // todo: SHANI
-FuncDecl :  M1 LBRACE Statments RBRACE{
+FuncsDecl :  M1 LBRACE Statmeents RBRACE{
                 ($$)->type = TYPE_FUNC;
                 endScope();
                 //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
@@ -91,12 +91,12 @@ M1 : RetType ID LPAREN Formals RPAREN {
 ;
 
 //no semantic needed
-Structs :   StructsDecl Structs
+Structs :   StructDecsl Structs
             | /*epsilon*/
 ;
 
 //i changed STRUCT ID to StrctType to avoid conflict
-StructsDecl :  M2 SC{
+StrucsDecl :  M2 SC{
                     endScope();
                     printStructTypeHelp((($2)->name), fields_list);
                     //popping tops of stack table and stack offsets
@@ -157,7 +157,7 @@ Formals : FormalsList {
 FormalsList : FormalDecl {
                     ((dynamic_cast<FormalsListNode>($$))->dec_list).push_front(dynamic_cast<FormalsDecNode>($1));
                 }
-             | FurmalDecl COMMA FormalsList{
+             | FormalDecl COMMA FormalsList{
                     (dynamic_cast<FormalsListNode>($$))->dec_list = (dynamic_cast<FormalsListNode>($3))->dec_list;
                     ((dynamic_cast<FormalsListNode>($$))->dec_list).push_front(dynamic_cast<FormalsDecNode>($1));
                 }
@@ -235,8 +235,8 @@ Statement : M3 RBRACE{
                  }
                 offsets.push(offset+1); //update offset
              }
-             //todo: racheli, it was STRUCT ID LBRACE StructMemList RBRACE SC , i changed it to "StructDecl" - this is another conflict
-            | StructDecl
+             //todo: racheli, it was STRUCT ID LBRACE StructMemList RBRACE SC , i changed it to "StructsDecl" - this is another conflict
+            | StructsDecl
 
             | Type ID ASSIGN Exp SC{
                 int offset = offsets.top();
@@ -517,7 +517,7 @@ Exp : LPAREN Exp RPAREN{
             (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
        }
 
-      | Exp RELOP Exp{
+      | Exp ARELOP Exp{
             if((dynamic_cast<ExpNode*>($1))->type != TYPE_INT || (dynamic_cast<ExpNode*>($3))->type != TYPE_INT){
                 //and operator is valid only on numerical variables
                 errorMismatch(yylineno);
@@ -525,6 +525,16 @@ Exp : LPAREN Exp RPAREN{
             }
             (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL; // return type of relop operator is bool
             (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+       }
+
+      | Exp NARELOP Exp{
+        if((dynamic_cast<ExpNode*>($1))->type != TYPE_INT || (dynamic_cast<ExpNode*>($3))->type != TYPE_INT){
+            //and operator is valid only on numerical variables
+            errorMismatch(yylineno);
+            exit(1);
+        }
+        (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL; // return type of relop operator is bool
+        (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
        }
 ;
 
@@ -591,8 +601,8 @@ std::vector<typeName>& declToTypes(std::vector<FormalDeclNode>* decls){
 
 //todo: shani
 void closeScope() {
-    //note: type will never be struct (//todo: shani: racheli, i did not implimanted it for struct because you already did in another function))
-    //todo: should we support nested functions, or struct declaration inside a function?
+    //note: type will never be struct (//todo: shani: racheli, i did not implimanted it for struct because you already did in another function)) 11.12 change: i changed it because of the FAQ
+    //todo: should we support nested functions?
     //for all arguments in the scope table, print them
     for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table).begin(); it != (current_scope_table->scope_table).end(); it++) {
         if ((*it)->type == TYPE_FUNC) {
@@ -601,6 +611,9 @@ void closeScope() {
         } else if ((*it)->type == TYPE_STRUCTID){
             //note: "+" is string concatenation operator
             printID((*it)->name,(*it)->offset,("STRUCT<"+ (dynamic_cast<TableEntryStructType*>(*it))->structName + ">"));
+        } else if ((*it)->type == TYPE_STRUCT){
+            TableEntryStruct* structInfo = dynamic_cast<TableEntryStruct*>(*it));
+            printStructTypeHelp(structInfo->name, structInfo->Fields);
         }
         else{
             printID((*it)->name,(*it)->offset,typeToString((*it)->type));

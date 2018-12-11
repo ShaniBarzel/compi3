@@ -1,0 +1,142 @@
+%{
+/*USER DECLERATIONS*/
+#include <iostream>
+#include "symtable.h"
+#include "output.hpp"
+#include <stack>
+#include <cstdlib> //for exit
+using namespace output; //errors defined inside the neamespace
+
+int yylex();
+void yyerror(const char*);
+
+%}
+/*DECLERATIONS*/
+%token VOID INT BYTE B BOOL STRUCT TRUE FALSE RETURN IF WHILE BREAK CONTINUE SC COMMA PERIOD ID NUM STRING NARELOP
+%left AND OR LPAREN RPAREN LBRACE RBRACE BINOP ARELOP
+%right NOT ASSIGN
+%nonassoc ELSE
+
+%%
+/*RULES*/
+
+//no semantics needed
+Program :  Structs Funcs
+;
+
+//no semantics needed
+Funcs :   FuncsDecl Funcs
+| /*epsilon*/
+;
+
+FuncsDecl :  M1 LBRACE Statements RBRACE
+;
+
+/* marker 1 */
+M1 : RetType ID LPAREN Formals RPAREN
+;
+
+//no semantic needed
+Structs :   StructsDecl Structs
+| /*epsilon*/
+;
+
+//i changed STRUCT ID to StrctType to avoid conflict
+StructsDecl :  M2 SC
+;
+
+// marker 2
+M2 : StructType LBRACE StructMemList RBRACE
+;
+
+RetType : Type
+| VOID
+;
+
+Formals : FormalsList
+| /*epsilon*/
+;
+
+FormalsList : FormalDecl
+| FormalDecl COMMA FormalsList
+;
+FormalDecl : Type ID
+| StructType ID
+;
+
+StructMemList : StructMem
+| StructMem StructMemList
+;
+
+StructMem : Type ID SC
+;
+
+Statements : Statement
+| Statement Statements
+;
+
+Statement : M3 RBRACE
+| Type ID SC
+| StructType ID SC
+| StructsDecl
+| Type ID ASSIGN Exp SC
+| StructType ID ASSIGN Exp SC
+| ID ASSIGN Exp SC
+| ID PERIOD ID ASSIGN Exp SC
+| Call SC
+| RETURN SC
+| RETURN Exp SC
+| IF LPAREN Exp RPAREN Statement
+| IF LPAREN Exp RPAREN Statement ELSE Statement
+| WHILE LPAREN Exp RPAREN Statement
+| BREAK SC
+| CONTINUE SC
+;
+Call : ID LPAREN ExpList RPAREN
+| ID LPAREN RPAREN
+;
+
+ExpList : Exp
+| Exp COMMA ExpList
+;
+
+Type : INT
+| BYTE
+| BOOL
+;
+
+StructType : STRUCT ID
+;
+M3 : LBRACE Statements
+;
+Exp : LPAREN Exp RPAREN
+| Exp BINOP Exp
+| ID
+| ID PERIOD ID
+| Call
+| NUM
+| NUM B
+| STRING
+| TRUE
+| FALSE
+| NOT Exp
+| Exp AND Exp
+| Exp OR Exp
+| Exp ARELOP Exp
+| Exp NARELOP Exp
+;
+
+
+%%
+
+/*USER ROUTINES*/
+
+//todo: RACHELI
+int main() {
+    //todo: add "currentScopeTable" - global
+    //todo: add "offsetsTable" vector -global
+    //todo: add print and printi to the scope (this is the global scope) - page 4
+    yyparse();
+    //todo: check if main is missing
+    //todo: delete global scope
+}
