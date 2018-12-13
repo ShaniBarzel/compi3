@@ -45,7 +45,7 @@ public:
     //std::string name;
     typeName return_type;
     std::vector<FormalDeclNode>* declaration_list;
-    TableEntryFunc() : declaration_list(new std::vector<FormalDeclNode>()){};
+    TableEntryFunc() : return_type() ,declaration_list(new std::vector<FormalDeclNode>()){};
     ~TableEntryFunc(){delete(declaration_list);};
 };
 

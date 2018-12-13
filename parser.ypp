@@ -343,12 +343,32 @@ Statement : M3 RBRACE{
                     exit(1);
                 }
             }
-            | IF LPAREN Exp RPAREN Statement
+            | M4  Statement M5{
+                endScope();
+                SymbolTable* current_parent = current_scope_table->getParent();
+                delete(current_scope_table);
+                current_scope_table = current_parent;
+                offsets.pop();
+            }
             | IF LPAREN Exp RPAREN Statement ELSE Statement
             | WHILE LPAREN Exp RPAREN Statement
             | BREAK SC
             | CONTINUE SC
 ;
+//marker M4
+M4  :  IF LPAREN Exp RPAREN {
+            if (($3)->type != TYPE_BOOL)
+            {
+                errorMismatch(yylineno);
+                exit(1);
+            }
+            SymbolTable* new_table = new SymbolTable(current_scope_table);
+            current_scope_table = new_table;
+            offsets.push(offsets.top());
+        }
+//marker M5
+M5  :  /*epsilon*/
+        | ELSE Statement
 Call : ID LPAREN ExpList RPAREN
         | ID LPAREN RPAREN
 ;
