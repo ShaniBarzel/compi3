@@ -49,6 +49,7 @@ Funcs :   FuncsDecl Funcs
 // todo: SHANI
 FuncsDecl :  M1 LBRACE Statmeents RBRACE{
                 ($$)->type = TYPE_FUNC;
+                dynamic_cast<FuncDeclNode>($$))->retType = $1->type; //passed from marker //todo: Shani
                 endScope();
                 //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
                 closeScope();
@@ -63,6 +64,8 @@ FuncsDecl :  M1 LBRACE Statmeents RBRACE{
 
 /* marker 1 */
 M1 : RetType ID LPAREN Formals RPAREN {
+        //to pass return typeto funcDecl   //todo: Shani
+        $$->type = $1->type; //todo: Shani
          //try to insert to the current symbol table
         if (!(current_scope_table->insertFunctionEntry($2->name, $1->type, (dynamic_cast<FormalsNode>($4)).list.dec_list)))
         {
@@ -101,7 +104,7 @@ Structs :   StructDecsl Structs
 //i changed STRUCT ID to StrctType to avoid conflict
 StrucsDecl :  M2 SC{
                     endScope();
-                    printStructTypeHelp((($2)->name), fields_list);
+                    printStructTypeHelp((($2)->name), fields_list); //todo: shani fix $2
                     //popping tops of stack table and stack offsets
                     SymbolTable* parent = current_scope_table->getParent();
                     delete(current_scope_table);
