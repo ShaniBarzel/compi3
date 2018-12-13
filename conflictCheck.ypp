@@ -13,8 +13,9 @@ void yyerror(const char*);
 %}
 /*DECLERATIONS*/
 %token VOID INT BYTE B BOOL STRUCT TRUE FALSE RETURN IF WHILE BREAK CONTINUE SC COMMA PERIOD ID NUM STRING NARELOP
-%left AND OR LPAREN RPAREN LBRACE RBRACE BINOP ARELOP
+%left OR AND ARELOP BINOP  RBRACE LBRACE RPAREN LPAREN
 %right NOT ASSIGN
+%nonassoc NARELOP
 %nonassoc ELSE
 
 %%
@@ -61,7 +62,7 @@ FormalsList : FormalDecl
 | FormalDecl COMMA FormalsList
 ;
 FormalDecl : Type ID
-| StructType ID
+| StructTypeId
 ;
 
 StructMemList : StructMem
@@ -77,12 +78,12 @@ Statements : Statement
 
 Statement : M3 RBRACE
 | Type ID SC
-| StructType ID SC
+| StructTypeId SC
 | StructsDecl
 | Type ID ASSIGN Exp SC
-| StructType ID ASSIGN Exp SC
+| StructTypeId ASSIGN Exp SC
 | ID ASSIGN Exp SC
-| ID PERIOD ID ASSIGN Exp SC
+| IdPId ASSIGN Exp SC
 | Call SC
 | RETURN SC
 | RETURN Exp SC
@@ -99,6 +100,11 @@ Call : ID LPAREN ExpList RPAREN
 ExpList : Exp
 | Exp COMMA ExpList
 ;
+StructTypeId :StructType ID
+;
+
+IdPId : ID PERIOD ID
+;
 
 Type : INT
 | BYTE
@@ -112,7 +118,7 @@ M3 : LBRACE Statements
 Exp : LPAREN Exp RPAREN
 | Exp BINOP Exp
 | ID
-| ID PERIOD ID
+| IdPId
 | Call
 | NUM
 | NUM B
