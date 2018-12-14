@@ -89,3 +89,25 @@ TableEntryFunc* SymbolTable::getLastFunctionEntry() {
         return nullptr;
     return parent_table->getLastFunctionEntry();
 }
+
+bool TableEntryFunc::compareArgumentTypes(std::vector<ExpNode>* args) {
+    //compare sizes of lists
+    if (args->size() != declaration_list->size())
+        return false;
+    //set iterators of both lists
+    std::vector<ExpNode>::const_iterator it_a = args->begin();
+    std::vector<FormalDeclNode>::const_iterator it_b = declaration_list->begin();
+    for (int i=0; i < args->size(); i++){
+        if (it_a->type != it_b->type) {
+            //an assignment of byte to int is allowed
+            if (!(it_b->type == TYPE_INT && it_a->type == TYPE_BYTE))
+                return false;
+        }
+        //else check if same size
+        else if (it_a->size != it_b->size)
+            return false;
+        it_a++;
+        it_b++;
+    }
+    return true;
+}

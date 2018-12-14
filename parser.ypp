@@ -17,6 +17,12 @@ SymbolTable* current_scope_table;
 //to the variable to be inserted next
 std::stack<int> offsets;
 
+//RACHELI addition
+//a boolean for knowing if we're inside a while loop
+bool inside_while = false;
+//a boolean for knowing weather main is defined
+bool main_def = false;
+
 //implemented at the end of the file
 void printStructTypeHelp(const string& name, vector<StructMemNode>* fields);
 std::vector<string>& TypeVecToString(std::vector<typeName>& t_vec);
@@ -346,17 +352,43 @@ Statement : M3 RBRACE{
                     exit(1);
                 }
             }
-            | M4  Statement M5{
+            | M4 Statement M5{
                 endScope();
                 SymbolTable* current_parent = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = current_parent;
                 offsets.pop();
             }
-            | IF LPAREN Exp RPAREN Statement ELSE Statement
-            | WHILE LPAREN Exp RPAREN Statement
+            | WHILE LPAREN Exp RPAREN M7
+               {
+                    //turn on flag of loop
+                    inside_while = true;
+                    //check expression type
+                    if (($3)->type != TYPE_BOOL)
+                    {
+                        errorMismatch(yylineno);
+                        exit(1);
+                    }
+                    SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
+                    current_scope_table = new_scope_table;
+                    offsets.push(offsets.top());
+               }
             | BREAK SC
+                {
+                    if (!inside_while)
+                    {
+                        errorUnexpectedBreak(yylineno);
+                        exit(1);
+                    }
+                }
             | CONTINUE SC
+                {
+                    if (!inside_while)
+                    {
+                        errorUnexpectedBreak(yylineno);
+                        exit(1);
+                    }
+                }
 ;
 //marker M4
 M4  :  IF LPAREN Exp RPAREN {
@@ -371,9 +403,86 @@ M4  :  IF LPAREN Exp RPAREN {
         }
 //marker M5
 M5  :  /*epsilon*/
-        | ELSE Statement
+        | ELSE M6
+        {
+            SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
+            current_scope_table = new_scope_table;
+            offsets.push(offsets.top());
+        }
+//marker M6
+M6  :   /*epsilon*/
+        | Statement
+        {
+            endScope();
+            SymbolTable* p = current_scope_table->getParent();
+            delete(current_scope_table);
+            current_scope_table = p;
+            offsets.pop();
+        }
+//marker M7
+M7  :   Statement
+        {
+            endScope();
+            SymbolTable* p = current_scope_table->getParent();
+            delete(current_scope_table);
+            current_scope_table = p;
+            offsets.pop();
+            //turn off boolean marking that we're out of the while loop
+            inside_while = false;
+        }
+
 Call : ID LPAREN ExpList RPAREN
+        {
+            //check that function's name isn't "main", else error
+            if (($1)->name == "main")
+            {
+                //todo: email (what error should we return?) (main should not have parameters list)
+                exit(1);
+            }
+            TableEntryFunc* f = current_scope_table.getEntry(($1)->name);
+            if (!f)
+            {
+                errorUndef(yylineno, ($1)->name);
+                exit(1);
+            }
+            //compare arguament list to declaration list
+            if (!(f->compareArgumentTypes(($3)->exp_list)))
+            {
+                //set vector of types as strings to send as parameter to error function
+                std::vector<std::string> types;
+                for (std::vector<FormalDeclNode>::const_iterator it = f->declaration_list->begin();
+                        it != f->declaration_list->end(); it++)
+                        {
+                            types.push_back(typeToString(it->type));
+                        }
+                errorPrototypeMismatch(yylineno, ($1)->name, types);
+                exit(1);
+            }
+        ($$)->return_type = f->return_type;
+        }
         | ID LPAREN RPAREN
+        {
+            TableEntryFunc* f = current_scope_table->getEntry(($1)->name);
+            if (!f)
+            {
+                errorUndefFunc(yylineno, ($1)->name);
+                exit(1);
+            }
+            //should be an empty list of args
+            if (f->declaration_list->size() != 0)
+            {
+                //set vector of types as strings to send as parameter to error function
+                std::vector<std::string> types;
+                for (std::vector<FormalDeclNode>::const_iterator it = f->declaration_list->begin();
+                      it != f->declaration_list->end(); it++)
+                         {
+                             types.push_back(typeToString(it->type));
+                         }
+                errorPrototypeMismatch(yylineno, ($1)->name, types);
+                exit(1);
+            }
+            ($$)->return_type = f->return_type;
+        }
 ;
 //todo: RACHELI to here here
 

@@ -121,7 +121,9 @@ class StructsNode : public Node{
     StructsDeclNode s_decl;
 };
 
-
+class CallNode : public Node{
+    typeName return_type;
+};
 #define YYSTYPE Node*
 
 extern YYSTYPE yyval;

@@ -47,6 +47,12 @@ public:
     std::vector<FormalDeclNode>* declaration_list;
     TableEntryFunc() : return_type() ,declaration_list(new std::vector<FormalDeclNode>()){};
     ~TableEntryFunc(){delete(declaration_list);};
+    /*
+     * compareArgumentTypes
+     * compares declaration list to argument list
+     * input: an argument list to compare
+     */
+    bool compareArgumentTypes(std::vector<ExpNode>* args);
 };
 
 class TableEntryStructType : public TableEntry{ //todo: shani
