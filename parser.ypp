@@ -38,6 +38,7 @@ std::vector<typeName>& declToTypes(std::vector<FormalDeclNode> decls); //todo: s
 %left SBINOP
 %right NOT ASSIGN
 %nonassoc NARELOP
+%nonassoc IF
 %nonassoc ELSE
 
 %%
@@ -405,7 +406,7 @@ M4  :  IF LPAREN Exp RPAREN {
             offsets.push(offsets.top());
         }
 //marker M5
-M5  :  /*epsilon*/
+M5  :  /*epsilon*/  %prec IF
         | ELSE M6
         {
             SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
@@ -422,6 +423,8 @@ M6  :   /*epsilon*/
             current_scope_table = p;
             offsets.pop();
         }
+        %prec ELSE
+
 //marker M7
 M7  :   Statement
         {
@@ -440,6 +443,7 @@ Call : ID LPAREN ExpList RPAREN
             if (($1)->name == "main")
             {
                 //todo: email (what error should we return?) (main should not have parameters list)
+                errorMismatch(yylineno);
                 exit(1);
             }
             TableEntryFunc* f = current_scope_table.getEntry(($1)->name);
