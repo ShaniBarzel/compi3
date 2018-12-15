@@ -55,6 +55,7 @@ Funcs :   FuncsDecl Funcs
 
 // todo: SHANI
 FuncsDecl :  M1 LBRACE Statmeents RBRACE{
+
                 ($$)->type = TYPE_FUNC;
                 dynamic_cast<FuncDeclNode>($$))->retType = $1->type; //passed from marker //todo: Shani
                 endScope();
