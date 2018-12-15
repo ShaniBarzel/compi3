@@ -415,8 +415,7 @@ M5  :  /*epsilon*/  %prec IF
             offsets.push(offsets.top());
         }
 //marker M6
-M6  :   /*epsilon*/
-        | Statement
+M6  :   Statement
         {
             endScope();
             SymbolTable* p = current_scope_table->getParent();
