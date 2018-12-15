@@ -334,7 +334,34 @@ Statement : M3 RBRACE{
             }
             | ID PERIOD ID ASSIGN Exp SC
             {
-                //todo
+                //check if $1 is struct name and $3 is its field
+                TableEntryStruct* s = current_scope_table->getEntry(($1)->name);
+                if (!s || s->type != TYPE_STRUCTID)
+                {
+                    errorUndef(yylineno, ($1)->name);
+                    exit(1);
+                }
+                StructMemNode* field = s->getField(($3)->name);
+                if (!s)
+                {
+                    errorUndefStructMember(yylineno, ($3)->name);
+                    exit(1);
+                }
+                //check types assignment match
+                if (field->type != ($5)->type)
+                {
+                    if (!(($5)->type == TYPE_BYTE && field->type == TYPE_INT))
+                    {
+                        errorMismatch(yylineno);
+                        exit(1);
+                    }
+                }
+                //check if legal case type byte
+                if (($5)->type == TYPE_BYTE && std::strtol(($5)->value, nullptr, 0) > 255)
+                {
+                    errorByteTooLarge(yylineno, ($5)->value);
+                    exit(1);
+                }
             }
             | Call SC
             | RETURN SC{
