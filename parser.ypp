@@ -75,10 +75,10 @@ M1 : RetType ID LPAREN Formals RPAREN {
         //to pass return typeto funcDecl   //todo: Shani
         $$->type = $1->type; //todo: Shani
          //try to insert to the current symbol table
-        if (!(current_scope_table->insertFunctionEntry($2->name, $1->type, (dynamic_cast<FormalsNode>($4)).list.dec_list)))
+        if (!(current_scope_table->insertFunctionEntry($2->name, $1->type)))
         {
             //already exist function with this name
-            errorDef(yylineno,$2.terminal.name);
+            errorDef(yylineno,($2)->name);
             exit(1);
         }
         //create new scope table for function scope
@@ -89,7 +89,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
         offsets.push(offsets.top());
 
         int ParamOffset = offsets.top();
-        for (std::list<FormalDeclNode>::const_iterator it = ((dynamic_cast<FormalsNode>($4)).list.dec_list).begin(); it != ((dynamic_cast<FormalsNode>($4)).list.dec_list).end(); it++)
+        for (std::vector<FormalDeclNode>::const_iterator it = ((dynamic_cast<FormalsNode*>($4))->list.dec_list)->begin(); it != ((dynamic_cast<FormalsNode*>($4))->list.dec_list)->end(); it++)
         {
             /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
             specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
@@ -124,7 +124,7 @@ StructDecl :  M2 SC{
 // marker 2
 M2 : StructType LBRACE StructMemList RBRACE {
             //insertion to current scope's table
-            if (!(current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT, offsets.top()))){
+            if (!(current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT))){
                     // id already defined
                     errorDef(yylineno, (($2)->name));
                     exit(1);
@@ -137,7 +137,7 @@ M2 : StructType LBRACE StructMemList RBRACE {
             //the updating offset of the fields in the struct
             int current_offset = offsets.top();
             //saving a reference to "fields list" field of the struct defined
-            std::vector<StructMemNode>* fields_list = ((current_scope_table->scope_table).top())->Fields;
+            std::vector<StructMemNode>* fields_list = ((dynamic_cast<TableEntryStruct*>(current_scope_table->scope_table).back())->Fields;
             //iterating over the fields list of the struct
             for (std::vector<StructMemNode>::const_iterator it = (($4)->s_list)->begin(); it != (($4)->s_list)->end(); it++){
                 //increment current offset by the current field's size
@@ -274,7 +274,7 @@ Statement : M3 RBRACE{
             | StructType ID ASSIGN Exp SC {
                 int offset = offsets.top();
                 offsets.pop();
-                if (!(current_scope_table->insertStructTypeEntry(($2)->name,(dynamic_cast<TableEntryStruct*>($1))->name),TYPE_STRUCTID,offset))){
+                if (!(current_scope_table->insertStructTypeEntry(($2)->name,(dynamic_cast<TableEntryStruct*>($1))->name),TYPE_STRUCTID,offset)){
                     // Id already defined
                     errorDef(yylineno,($2)->name);
                     exit(1);
@@ -335,7 +335,7 @@ Statement : M3 RBRACE{
             | ID PERIOD ID ASSIGN Exp SC
             {
                 //check if $1 is struct name and $3 is its field
-                TableEntryStruct* s = current_scope_table->getEntry(($1)->name);
+                TableEntryStruct* s = (TableEntryStruct*)current_scope_table->getEntry(($1)->name);
                 if (!s || s->type != TYPE_STRUCTID)
                 {
                     errorUndef(yylineno, ($1)->name);

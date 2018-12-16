@@ -64,16 +64,17 @@ public:
  * each symbol table is a node in the tree
  */
 class SymbolTable {
+
+
+public:
     /*
-     * remark(racheli): we don't need to have a scope_offset field since the current scope's offset is accessible
-     * from the top of the offsets stack
-     */
+ * remark(racheli): we don't need to have a scope_offset field since the current scope's offset is accessible
+ * from the top of the offsets stack
+ */
     //parent_table is the father of the current node in the symbol tables tree
     SymbolTable* parent_table;
     //scope_table is vector representing the current scope's symbol table
     std::vector<TableEntry*> scope_table;
-
-public:
     /*
      * c'tor
      * creates a new scope table which is the son of p
@@ -90,6 +91,9 @@ public:
      * inserts an entry of a variable to the table
      * returns true if succeeds
      */
+    SymbolTable* getParent(){
+        return parent_table;
+    }
     bool insertVariableEntry(std::string name, typeName type, int offset);
     /*
   * insertFunctionEntry

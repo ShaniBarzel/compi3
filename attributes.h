@@ -27,8 +27,8 @@ public:
     typeName type;
     char* yytext_array;
 
-    Node()=default;
-    Node(char* yytext) : yytext_array(yytext){};
+    Node(char* yytext = NULL) : size(), name(), type(), yytext_array(yytext){};
+    virtual ~Node() {};
     //todo: check if need to add enum for token names (i/o section, 2.a)
     // virtual string printID(int id, int offset, yytokentype type){};
 
@@ -67,11 +67,12 @@ class StringNode : public Node{};
 
 //non terminals
 class ExpNode : public Node{
+public:
     std::string value;
 };
 class ExpListNode : public Node{
-    std::vector<ExpNode>* exp_list;
 public:
+    std::vector<ExpNode>* exp_list;
     ExpListNode() : exp_list(new std::vector<ExpNode>){};
     ~ExpListNode() {delete(exp_list);};
 //todo shani
@@ -86,6 +87,7 @@ public:
 };
 class StructTypeNode : public Node{};
 class FormalDeclNode : public Node{
+public:
     //TypeNode type; //todo: shani: type is alredy in Node
     StructTypeNode s_type;
 };
@@ -105,23 +107,26 @@ public:
     //TypeNode type; //todo: shani: type is alredy in Node
 };
 class StructMemListNode : public Node{
-    std::vector<StructMemNode>* s_list;
 public:
+    std::vector<StructMemNode>* s_list;
     StructMemListNode() : s_list(new std::vector<StructMemNode>){};
     ~StructMemListNode(){delete(s_list);};
 };
 
 class StructsDeclNode : public Node{
+public:
     StructNode s;
     IdNode identifier;
     StructMemListNode s_mem_list;
 };
 
 class StructsNode : public Node{
+public:
     StructsDeclNode s_decl;
 };
 
 class CallNode : public Node{
+public:
     typeName return_type;
 };
 #define YYSTYPE Node*
