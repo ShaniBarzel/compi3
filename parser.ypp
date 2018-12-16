@@ -54,7 +54,7 @@ Funcs :   FuncsDecl Funcs
 ;
 
 // todo: SHANI
-FuncsDecl :  M1 LBRACE Statmeents RBRACE{
+FuncsDecl :  M1 LBRACE Statements RBRACE{
 
                 ($$)->type = TYPE_FUNC;
                 dynamic_cast<FuncDeclNode>($$))->retType = $1->type; //passed from marker //todo: Shani
@@ -105,12 +105,12 @@ M1 : RetType ID LPAREN Formals RPAREN {
 ;
 
 //no semantic needed
-Structs :   StructDecsl Structs
+Structs :   StructDecl Structs
             | /*epsilon*/
 ;
 
 //i changed STRUCT ID to StrctType to avoid conflict
-StrucsDecl :  M2 SC{
+StructDecl :  M2 SC{
                     endScope();
                     printStructTypeHelp((($2)->name), fields_list); //todo: shani fix $2
                     //popping tops of stack table and stack offsets
@@ -200,7 +200,7 @@ StructMemList : StructMem {
                     }
                 | StructMem StructMemList{
                         (dynamic_cast<StructMemListNode>($$))->s_list = (dynamic_cast<StructMemListNode>($2))->s_list;
-                        ((dynamic_cast<StructMemListNode>($%))->s_list).push_front(dynamic_cast<StructMemNode>($1));
+                        ((dynamic_cast<StructMemListNode>($$))->s_list).push_front(dynamic_cast<StructMemNode>($1));
                     }
 ;
 
@@ -250,7 +250,7 @@ Statement : M3 RBRACE{
                 offsets.push(offset+1); //update offset
              }
              //todo: racheli, it was STRUCT ID LBRACE StructMemList RBRACE SC , i changed it to "StructsDecl" - this is another conflict
-            | StructsDecl
+            | StructDecl
 
             | Type ID ASSIGN Exp SC{
                 int offset = offsets.top();
@@ -524,7 +524,7 @@ ExpList : Exp {
                 // add the experssion to the expression list
                 ((dynamic_cast<ExpNode>($$)).getlist()).push_front((dynamic_cast<ExpNode>($1));
             }
-          | Exp COMME ExpList {
+          | Exp COMMA ExpList {
                 //current list will be the list it derives with the exp is derives
                 (dynamic_cast<ExpNode>($$)).getlist() =(dynamic_cast<ExpNode>($2)).getlist();
                 ((dynamic_cast<ExpNode>($$)).getlist()).push_front((dynamic_cast<ExpNode>($1));
@@ -564,7 +564,7 @@ Exp : LPAREN Exp RPAREN{
             $$->size = $2->size;
       }
 
-      | Exp BINOP Exp{
+      | Exp SBINOP Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if (((dynamic_cast<ExpNode*>($1))->type != TYPE_INT && (dynamic_cast<ExpNode*>($1))->type != TYPE_BYTE) ||
                                     ((dynamic_cast<ExpNode>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
@@ -578,8 +578,20 @@ Exp : LPAREN Exp RPAREN{
             else
                 (dynamic_cast<ExpNode*>($$))->type = TYPE_BYTE;
         }
-
-      | ID {
+      | Exp LBINOP Exp{
+            //binops is defined on int and byte only (among the types that we are using in this project)
+            if (((dynamic_cast<ExpNode*>($1))->type != TYPE_INT && (dynamic_cast<ExpNode*>($1))->type != TYPE_BYTE) ||
+                                    ((dynamic_cast<ExpNode>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
+                errorMismatch(yylineo);
+                exit(1);
+            }
+            (dynamic_cast<ExpNode*>($$))->size = 1; //both INT  and BYTE are size 1
+            //the exp type is the type of the bigger of the $1 and $3 expressions
+            if ((dynamic_cast<ExpNode*>($1))->type == TYPE_INT  || (dynamic_cast<ExpNode>($2))->type == TYPE_INT)
+                (dynamic_cast<ExpNode*>($$))->type = TYPE_INT;
+            else
+                (dynamic_cast<ExpNode*>($$))->type = TYPE_BYTE;
+        }      | ID {
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
             TableEntry* IdVariable = current_scope_table->getEntry((dynamic_cast<IdNode*>($1))->name);
