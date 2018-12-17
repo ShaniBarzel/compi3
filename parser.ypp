@@ -111,6 +111,7 @@ Structs :   StructDecl Structs
 
 //i changed STRUCT ID to StrctType to avoid conflict
 StructDecl :  M2 SC{
+                    std::vector<StructMemNode>* fields_list = (dynamic_cast<TableEntryStruct*>(current_scope_table->scope_table.back()))->Fields;
                     endScope();
                     printStructTypeHelp((($2)->name), fields_list); //todo: shani fix $2
                     //popping tops of stack table and stack offsets
@@ -137,13 +138,13 @@ M2 : StructType LBRACE StructMemList RBRACE {
             //the updating offset of the fields in the struct
             int current_offset = offsets.top();
             //saving a reference to "fields list" field of the struct defined
-            std::vector<StructMemNode>* fields_list = ((dynamic_cast<TableEntryStruct*>(current_scope_table->scope_table).back())->Fields;
+            std::vector<StructMemNode>* fields_list = (dynamic_cast<TableEntryStruct*>((current_scope_table->scope_table).back()))->Fields;
             //iterating over the fields list of the struct
-            for (std::vector<StructMemNode>::const_iterator it = (($4)->s_list)->begin(); it != (($4)->s_list)->end(); it++){
+            for (std::vector<StructMemNode>::const_iterator it = ((dynamic_cast<StructMemListNode*>($3))->s_list)->begin(); it != ((dynamic_cast<StructMemListNode*>($3))->s_list)->end(); it++){
                 //increment current offset by the current field's size
                 current_offset += (*it).size;
                 //insert the field as a table entry of the current scope table
-                if (!(current_scope_table->insertVariableEntry((*it).name, (*it).type ,(*it).size ,current_offset))){
+                if (!(current_scope_table->insertVariableEntry((*it).name, (*it).type, current_offset))){
                     // id already defined
                     errorDef(yylineno,(*it).name);
                     exit(1);
@@ -163,17 +164,17 @@ RetType : Type {
 ;
 
 Formals : FormalsList {
-                (dynamic_cast<FormalsNode>($$))->list = (dynamic_cast<FormalsListNode>($1))->dec_list;
+                ((dynamic_cast<FormalsNode*>($$))->list).dec_list = (dynamic_cast<FormalsListNode*>($1))->dec_list;
             }
            | /*epsilon*/
 ;
 
 FormalsList : FormalDecl {
-                    ((dynamic_cast<FormalsListNode>($$))->dec_list).push_front(dynamic_cast<FormalsDecNode>($1));
+                    ((dynamic_cast<FormalsListNode*>($$))->dec_list)->push_back(*(dynamic_cast<FormalDeclNode*>($1)));
                 }
              | FormalDecl COMMA FormalsList{
-                    (dynamic_cast<FormalsListNode>($$))->dec_list = (dynamic_cast<FormalsListNode>($3))->dec_list;
-                    ((dynamic_cast<FormalsListNode>($$))->dec_list).push_front(dynamic_cast<FormalsDecNode>($1));
+                    (dynamic_cast<FormalsListNode*>($$))->dec_list = (dynamic_cast<FormalsListNode*>($3))->dec_list;
+                    ((dynamic_cast<FormalsListNode*>($$))->dec_list)->push_back(*(dynamic_cast<FormalDeclNode*>($1)));
                 }
 ;
 
@@ -183,7 +184,7 @@ FormalDecl : Type ID {
                 }//todo: function cannot get string?
             | StructType ID {
                     //s_type is "Animal"
-                    TableEntryStruct* s_type = current_scope_table->getEntry(dynamic_cast<TableEntryStructType*>($1));
+                    TableEntryStructType* s_type = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry((dynamic_cast<StructTypeNode*>($1))->name));
                     if (IdVariable->type != TYPE_STRUCTID){
                        //no such struct
                         errorUndef(yylineno,($1)->name);
@@ -196,11 +197,11 @@ FormalDecl : Type ID {
 ;
 
 StructMemList : StructMem {
-                        ((dynamic_cast<StructMemListNode>($$))->s_list).push_front(dynamic_cast<StructMemNode>($1));
+                        ((dynamic_cast<StructMemListNode*>($$))->s_list)->push_back(*(dynamic_cast<StructMemNode*>($1)));
                     }
                 | StructMem StructMemList{
-                        (dynamic_cast<StructMemListNode>($$))->s_list = (dynamic_cast<StructMemListNode>($2))->s_list;
-                        ((dynamic_cast<StructMemListNode>($$))->s_list).push_front(dynamic_cast<StructMemNode>($1));
+                        (dynamic_cast<StructMemListNode*>($$))->s_list = (dynamic_cast<StructMemListNode*>($2))->s_list;
+                        ((dynamic_cast<StructMemListNode*>($$))->s_list)->push_back(*(dynamic_cast<StructMemNode*>($1)));
                     }
 ;
 
@@ -242,7 +243,7 @@ Statement : M3 RBRACE{
             | StructType ID SC {
                 int offset = offsets.top();
                 offsets.pop();
-                if (!(current_scope_table->insertStructTypeEntry(($2)->name,(dynamic_cast<TableEntryStruct*>($1))->name),TYPE_STRUCTID,offset))){
+                if (!(current_scope_table->insertStructTypeEntry(($2)->name, (dynamic_cast<TableEntryStruct*>($1))->name,TYPE_STRUCTID,offset))){
                     // Id already defined
                     errorDef(yylineno,($2)->name);
                     exit(1);
@@ -274,7 +275,7 @@ Statement : M3 RBRACE{
             | StructType ID ASSIGN Exp SC {
                 int offset = offsets.top();
                 offsets.pop();
-                if (!(current_scope_table->insertStructTypeEntry(($2)->name,(dynamic_cast<TableEntryStruct*>($1))->name),TYPE_STRUCTID,offset)){
+                if (!(current_scope_table->insertStructTypeEntry(($2)->name, (dynamic_cast<TableEntryStruct*>($1))->name,TYPE_STRUCTID,offset))){
                     // Id already defined
                     errorDef(yylineno,($2)->name);
                     exit(1);
@@ -306,7 +307,7 @@ Statement : M3 RBRACE{
 //todo: RACHELI from here
             | ID ASSIGN Exp SC
             {
-                TableEntryVariable* entry = current_scope_table->getEntry(($1)->name);
+                TableEntryVariable* entry = (TableEntryVariable*)(current_scope_table->getEntry(($1)->name));
                 if (!entry)
                 {
                     errorUndef(yylineno, ($1)->name);
@@ -326,9 +327,9 @@ Statement : M3 RBRACE{
 
                 //check if type of var entry is byte and
                 //todo: check if strtol is ok (converts string to long int)
-                if (entry->type == TYPE_BYTE && std::strtol(($3)->value, nullptr, 0) > 255)
+                if (entry->type == TYPE_BYTE && std::strtol((dynamic_cast<ExpNode*>($3))->value, nullptr, 0) > 255)
                 {
-                    errorByteTooLarge(yylineno, ($3)->value);
+                    errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($3))->value);
                     exit(1);
                 }
             }
@@ -357,9 +358,9 @@ Statement : M3 RBRACE{
                     }
                 }
                 //check if legal case type byte
-                if (($5)->type == TYPE_BYTE && std::strtol(($5)->value, nullptr, 0) > 255)
+                if (($5)->type == TYPE_BYTE && std::strtol((dynamic_cast<ExpNode*>($5))->value, nullptr, 0) > 255)
                 {
-                    errorByteTooLarge(yylineno, ($5)->value);
+                    errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($5))->value);
                     exit(1);
                 }
             }
@@ -473,14 +474,14 @@ Call : ID LPAREN ExpList RPAREN
                 errorMismatch(yylineno);
                 exit(1);
             }
-            TableEntryFunc* f = current_scope_table.getEntry(($1)->name);
+            TableEntryFunc* f = (TableEntryFunc*)current_scope_table->getEntry(($1)->name);
             if (!f)
             {
                 errorUndef(yylineno, ($1)->name);
                 exit(1);
             }
             //compare arguament list to declaration list
-            if (!(f->compareArgumentTypes(($3)->exp_list)))
+            if (!(f->compareArgumentTypes((dynamic_cast<ExpListNode*>($3))->exp_list)))
             {
                 //set vector of types as strings to send as parameter to error function
                 std::vector<std::string> types;
@@ -492,11 +493,11 @@ Call : ID LPAREN ExpList RPAREN
                 errorPrototypeMismatch(yylineno, ($1)->name, types);
                 exit(1);
             }
-        ($$)->return_type = f->return_type;
+        (dynamic_cast<CallNode*>($$))->return_type = f->return_type;
         }
         | ID LPAREN RPAREN
         {
-            TableEntryFunc* f = current_scope_table->getEntry(($1)->name);
+            TableEntryFunc* f = (TableEntryFunc*)current_scope_table->getEntry(($1)->name);
             if (!f)
             {
                 errorUndefFunc(yylineno, ($1)->name);
@@ -515,37 +516,37 @@ Call : ID LPAREN ExpList RPAREN
                 errorPrototypeMismatch(yylineno, ($1)->name, types);
                 exit(1);
             }
-            ($$)->return_type = f->return_type;
+            (dynamic_cast<CallNode*>($$))->return_type = f->return_type;
         }
 ;
 //todo: RACHELI to here here
 
 ExpList : Exp {
                 // add the experssion to the expression list
-                ((dynamic_cast<ExpNode>($$)).getlist()).push_front((dynamic_cast<ExpNode>($1));
+                ((dynamic_cast<ExpListNode*>($$))->exp_list)->push_back(*(dynamic_cast<ExpNode*>($1)));
             }
           | Exp COMMA ExpList {
                 //current list will be the list it derives with the exp is derives
-                (dynamic_cast<ExpNode>($$)).getlist() =(dynamic_cast<ExpNode>($2)).getlist();
-                ((dynamic_cast<ExpNode>($$)).getlist()).push_front((dynamic_cast<ExpNode>($1));
+                (dynamic_cast<ExpListNode*>($$))->exp_list =(dynamic_cast<ExpListNode*>($3))->exp_list;
+                ((dynamic_cast<ExpListNode*>($$))->exp_list)->push_back(*(dynamic_cast<ExpNode*>($1)));
 
             }
 ;
 
-Type :   INT{$$.type = TYPE_INT;}
-        | BYTE{$$.type = TYPE_BYTE;}
-        | BOOL{$$.type = TYPE_BOOL;}
+Type :   INT{(dynamic_cast<TypeNode*>($$))->type = TYPE_INT;}
+        | BYTE{(dynamic_cast<TypeNode*>($$))->type = TYPE_BYTE;}
+        | BOOL{(dynamic_cast<TypeNode*>($$))->type = TYPE_BOOL;}
 ;
 
 StructType : STRUCT ID{
-                TableEntryStruct* IdVariable = current_scope_table->getEntry(($2)->name);
+                TableEntryStruct* IdVariable = (TableEntryStruct*)current_scope_table->getEntry(($2)->name);
                 if(IdVariable == nullptr){
                     //the variable was never defined
                     errorUndef(yylineno,($2)->name);
                     exit(1);
                 }
-                $$->type = TYPE_STRUCT; //todo: to delete?
-                $$->name = $2.name;
+                (dynamic_cast<StructTypeNode*>($$))->type = TYPE_STRUCT; //todo: to delete?
+                (dynamic_cast<StructTypeNode*>($$))->name = ($2)->name;
             }
 ;
 
@@ -567,13 +568,13 @@ Exp : LPAREN Exp RPAREN{
       | Exp SBINOP Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if (((dynamic_cast<ExpNode*>($1))->type != TYPE_INT && (dynamic_cast<ExpNode*>($1))->type != TYPE_BYTE) ||
-                                    ((dynamic_cast<ExpNode>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
+                                    ((dynamic_cast<ExpNode*>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
                 errorMismatch(yylineo);
                 exit(1);
             }
             (dynamic_cast<ExpNode*>($$))->size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
-            if ((dynamic_cast<ExpNode*>($1))->type == TYPE_INT  || (dynamic_cast<ExpNode>($2))->type == TYPE_INT)
+            if ((dynamic_cast<ExpNode*>($1))->type == TYPE_INT  || (dynamic_cast<ExpNode*>($2))->type == TYPE_INT)
                 (dynamic_cast<ExpNode*>($$))->type = TYPE_INT;
             else
                 (dynamic_cast<ExpNode*>($$))->type = TYPE_BYTE;
@@ -581,13 +582,13 @@ Exp : LPAREN Exp RPAREN{
       | Exp LBINOP Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if (((dynamic_cast<ExpNode*>($1))->type != TYPE_INT && (dynamic_cast<ExpNode*>($1))->type != TYPE_BYTE) ||
-                                    ((dynamic_cast<ExpNode>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
+                                    ((dynamic_cast<ExpNode*>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
                 errorMismatch(yylineo);
                 exit(1);
             }
             (dynamic_cast<ExpNode*>($$))->size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
-            if ((dynamic_cast<ExpNode*>($1))->type == TYPE_INT  || (dynamic_cast<ExpNode>($2))->type == TYPE_INT)
+            if ((dynamic_cast<ExpNode*>($1))->type == TYPE_INT  || (dynamic_cast<ExpNode*>($2))->type == TYPE_INT)
                 (dynamic_cast<ExpNode*>($$))->type = TYPE_INT;
             else
                 (dynamic_cast<ExpNode*>($$))->type = TYPE_BYTE;
@@ -601,39 +602,38 @@ Exp : LPAREN Exp RPAREN{
                 exit(1);
             }
             // the exp type and size is the variable type and size
-            (dynamic_cast<ExpNode>($$))->type = IdVariable->type;
-            (dynamic_cast<ExpNode>($$))->size = IdVariable->size;
+            (dynamic_cast<ExpNode*>($$))->type = IdVariable->type;
+            (dynamic_cast<ExpNode*>($$))->size = IdVariable->size;
         }
 
       | ID PERIOD ID{
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
-            TableEntry* IdVariable = current_scope_table->getEntry(dynamic_cast<IdNode>($1))->name);
+            TableEntry* IdVariable = current_scope_table->getEntry(($1)->name);
             if ((IdVariable == nullptr || (IdVariable->type != TYPE_STRUCTID) ) ){
                 //the variable was never defined or it's type is not a struct type (no such var name dog or dog is not struct animal type)
-                errorUndef(yylineno,(dynamic_cast<IdNode>($1))->name);
+                errorUndef(yylineno,(dynamic_cast<IdNode*>($1))->name);
                 exit(1);
             }
 
             //s_type is "Animal"
-            TableEntryStruct* s_type = current_scope_table->getEntry((dynamic_cast<TableEntryStructType*>(IdVariable))->structName);
+            TableEntryStruct* s_type = (TableEntryStruct*)current_scope_table->getEntry((dynamic_cast<TableEntryStructType*>(IdVariable))->structName);
 
-            StructMemNode* field = s_type->getField($2.name);
+            StructMemNode* field = s_type->getField(($3)->name);
             if (field == nullptr){
                 // no such field
                 errorUndefStructMember(yylineo,(dynamic_cast<IdNode*>($1))->name);
                 exit(1);
             }
             //else
-            (dynamic_cast<ExpNode>($$))->type = field->type;
-            (dynamic_cast<ExpNode>($$))->size = (dynamic_cast<IdNode*>($1))->size;
+            (dynamic_cast<ExpNode*>($$))->type = field->type;
+            (dynamic_cast<ExpNode*>($$))->size = (dynamic_cast<IdNode*>($1))->size;
         }
 
       | Call {
             //if the exp derives a function call, it's value will be the return type
             //todo: call should have ReturnType field
-            (dynamic_cast<ExpNode*>($$))->type = (dynamic_cast<CallNode*>($1))->RetType;
-            (dynamic_cast<ExpNode*>($$))->type = (dynamic_cast<CallNode*>($1))->RetType.size;
+            (dynamic_cast<ExpNode*>($$))->type = (dynamic_cast<CallNode*>($1))->return_type;
         }
 
       | NUM {
