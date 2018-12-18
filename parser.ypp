@@ -57,7 +57,7 @@ Funcs :   FuncDecl Funcs
 FuncDecl :  M1 LBRACE Statements RBRACE{
 
                 ($$)->type = TYPE_FUNC;
-                dynamic_cast<FuncDeclNode>($$))->retType = $1->type; //passed from marker //todo: Shani
+               (dynamic_cast<FuncDeclNode*>($$))->return_type = (dynamic_cast<RetTypeNode*>($1))->type; //passed from marker //todo: Shani
                 endScope();
                 //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
                 closeScope();
@@ -111,7 +111,7 @@ Structs :   StructDecl Structs
 
 //i changed STRUCT ID to StrctType to avoid conflict
 StructDecl :  M2 SC{
-                    std::vector<StructMemNode>* fields_list = (dynamic_cast<TableEntryStruct*>(current_scope_table->scope_table.back()))->Fields;
+                    std::vector<StructMemNode>* fields_list = ((TableEntryStruct*)(current_scope_table->scope_table.back()))->Fields;
                     endScope();
                     printStructTypeHelp((($2)->name), fields_list); //todo: shani fix $2
                     //popping tops of stack table and stack offsets
@@ -138,7 +138,7 @@ M2 : StructType LBRACE StructMemList RBRACE {
             //the updating offset of the fields in the struct
             int current_offset = offsets.top();
             //saving a reference to "fields list" field of the struct defined
-            std::vector<StructMemNode>* fields_list = (dynamic_cast<TableEntryStruct*>((current_scope_table->scope_table).back()))->Fields;
+            std::vector<StructMemNode>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table).back()))->Fields;
             //iterating over the fields list of the struct
             for (std::vector<StructMemNode>::const_iterator it = ((dynamic_cast<StructMemListNode*>($3))->s_list)->begin(); it != ((dynamic_cast<StructMemListNode*>($3))->s_list)->end(); it++){
                 //increment current offset by the current field's size
@@ -184,7 +184,7 @@ FormalDecl : Type ID {
                 }//todo: function cannot get string?
             | StructType ID {
                     //s_type is "Animal"
-                    TableEntryStructType* s_type = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry((dynamic_cast<StructTypeNode*>($1))->name));
+                    TableEntryStructType* s_type = (TableEntryStructType*)(current_scope_table->getEntry((dynamic_cast<StructTypeNode*>($1))->name));
                     if (IdVariable->type != TYPE_STRUCTID){
                        //no such struct
                         errorUndef(yylineno,($1)->name);
@@ -327,7 +327,9 @@ Statement : M3 RBRACE{
 
                 //check if type of var entry is byte and
                 //todo: check if strtol is ok (converts string to long int)
-                if (entry->type == TYPE_BYTE && std::strtol((dynamic_cast<ExpNode*>($3))->value, nullptr, 0) > 255)
+                //const char * c = str.c_str();
+                const char * c = ((dynamic_cast<ExpNode*>($3))->value).c_str();
+                if (entry->type == TYPE_BYTE && std::strtol(c, NULL, 0) > 255)
                 {
                     errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($3))->value);
                     exit(1);
@@ -358,7 +360,8 @@ Statement : M3 RBRACE{
                     }
                 }
                 //check if legal case type byte
-                if (($5)->type == TYPE_BYTE && std::strtol((dynamic_cast<ExpNode*>($5))->value, nullptr, 0) > 255)
+                const char* c = ((dynamic_cast<ExpNode*>($5))->value).c_str();
+                if (($5)->type == TYPE_BYTE && std::strtol(c, nullptr, 0) > 255)
                 {
                     errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($5))->value);
                     exit(1);
@@ -611,14 +614,14 @@ Exp : LPAREN Exp RPAREN{
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
             TableEntry* IdVariable = current_scope_table->getEntry(($1)->name);
-            if ((IdVariable == nullptr || (IdVariable->type != TYPE_STRUCTID) ) ){
+            if ((!IdVariable || (IdVariable->type != TYPE_STRUCTID) ) ){
                 //the variable was never defined or it's type is not a struct type (no such var name dog or dog is not struct animal type)
                 errorUndef(yylineno,(dynamic_cast<IdNode*>($1))->name);
                 exit(1);
             }
 
             //s_type is "Animal"
-            TableEntryStruct* s_type = (TableEntryStruct*)current_scope_table->getEntry((dynamic_cast<TableEntryStructType*>(IdVariable))->structName);
+            TableEntryStruct* s_type = (TableEntryStruct*)(current_scope_table->getEntry(IdVariable->name));
 
             StructMemNode* field = s_type->getField(($3)->name);
             if (field == nullptr){
