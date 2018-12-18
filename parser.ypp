@@ -49,12 +49,12 @@ Program :  Structs Funcs
 ;
 
 //no semantics needed
-Funcs :   FuncsDecl Funcs
+Funcs :   FuncDecl Funcs
           | /*epsilon*/
 ;
 
 // todo: SHANI
-FuncsDecl :  M1 LBRACE Statements RBRACE{
+FuncDecl :  M1 LBRACE Statements RBRACE{
 
                 ($$)->type = TYPE_FUNC;
                 dynamic_cast<FuncDeclNode>($$))->retType = $1->type; //passed from marker //todo: Shani
@@ -503,6 +503,7 @@ Call : ID LPAREN ExpList RPAREN
                 errorUndefFunc(yylineno, ($1)->name);
                 exit(1);
             }
+
             //should be an empty list of args
             if (f->declaration_list->size() != 0)
             {
@@ -723,10 +724,39 @@ Exp : LPAREN Exp RPAREN{
 
 //todo: RACHELI
 int main() {
-    //todo: add "currentScopeTable" - global
-    //todo: add "offsetsTable" vector -global
-    //todo: add print and printi to the scope (this is the global scope) - page 4
+    current_scope_table = new SymbolTable(NULL);
+    offsets.push(0);
+    std::vector<FormalDeclNode*> decl_list;
+    FormalDeclNode* n;
+    n->name = "";
+    n->type = TYPE_STRING;
+    n->size = 1;
+    decl_list->push_back(n);
+    current_scope_table->insertFunctionEntry("print", TYPE_VOID, decl_list);
+    decl_list->pop_back();
+    n->type = TYPE_INT;
+    decl_list->push_bacl(n);
+    current_scope_table->insertFunctionEntry("printi", TYPE_VOID, decl_list);
     yyparse();
+    int main_counter = 0;
+    for (std::vector<TableEntryFunc*>::const_iterator it = current_scope_table->begin(); it != current_scope_table->end(); it++)
+    {
+        if (typeid((*it)).name() == "TableEntryFunc")
+        {
+            if ((*it).name == "main" && (*it).return_type == TYPE_VOID && (*it).decl_list.size() == 0)
+            {
+                main_counter++;
+            }
+        }
+
+    }
+    if (main_counter != 1)
+    {
+        errorMainMissing();
+        exit(1);
+    }
+    endScope();
+    delete(current_scope_table);
     //todo: check if main is missing
     //todo: delete global scope
 }
