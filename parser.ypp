@@ -364,7 +364,7 @@ Statement : M3 RBRACE{
                 }
                 //check if legal case type byte
                 const char* c = ((dynamic_cast<ExpNode*>($5))->value).c_str();
-                if (($5)->type == TYPE_BYTE && std::strtol(c, nullptr, 0) > 255)
+                if (($5)->type == TYPE_BYTE && std::strtol(c, NULL, 0) > 255)
                 {
                     errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($5))->value);
                     exit(1);
@@ -547,7 +547,7 @@ Type :   INT{(dynamic_cast<TypeNode*>($$))->type = TYPE_INT;}
 
 StructType : STRUCT ID{
                 TableEntryStruct* IdVariable = (TableEntryStruct*)current_scope_table->getEntry(($2)->name);
-                if(IdVariable == nullptr){
+                if(!IdVariable){
                     //the variable was never defined
                     errorUndef(yylineno,($2)->name);
                     exit(1);
@@ -603,7 +603,7 @@ Exp : LPAREN Exp RPAREN{
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
             TableEntry* IdVariable = current_scope_table->getEntry((dynamic_cast<IdNode*>($1))->name);
-            if(IdVariable == nullptr){
+            if(!IdVariable){
                 //the variable was never defined
                 errorUndef(yylineno,(dynamic_cast<IdNode*>($1))->name);
                 exit(1);
@@ -627,7 +627,7 @@ Exp : LPAREN Exp RPAREN{
             TableEntryStruct* s_type = (TableEntryStruct*)(current_scope_table->getEntry(IdVariable->name));
 
             StructMemNode* field = s_type->getField(($3)->name);
-            if (field == nullptr){
+            if (!field){
                 // no such field
                 errorUndefStructMember(yylineno,(dynamic_cast<IdNode*>($1))->name);
                 exit(1);

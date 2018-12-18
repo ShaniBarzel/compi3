@@ -14,7 +14,7 @@ TableEntry* SymbolTable::getEntry(std::string name) {
             return *it;
     }
     if(!parent_table)
-        return nullptr;
+        return NULL;
     return parent_table->getEntry(name);
 }
 
@@ -76,7 +76,7 @@ StructMemNode* TableEntryStruct::getField(std::string name){
         if (((*it).name) == name)
             return &(*it);
     }
-    return nullptr;
+    return NULL;
 }
 
 TableEntryFunc* SymbolTable::getLastFunctionEntry() {
@@ -86,7 +86,7 @@ TableEntryFunc* SymbolTable::getLastFunctionEntry() {
             return (TableEntryFunc*)*it;
     }
     if(!parent_table)
-        return nullptr;
+        return NULL;
     return parent_table->getLastFunctionEntry();
 }
 
