@@ -734,11 +734,11 @@ int main() {
     n->name = "";
     n->type = TYPE_STRING;
     n->size = 1;
-    decl_list->push_back(n);
+    decl_list.push_back(n);
     current_scope_table->insertFunctionEntry("print", TYPE_VOID, decl_list);
-    decl_list->pop_back();
+    decl_list.pop_back();
     n->type = TYPE_INT;
-    decl_list->push_bacl(n);
+    decl_list.push_bacl(n);
     current_scope_table->insertFunctionEntry("printi", TYPE_VOID, decl_list);
     yyparse();
     int main_counter = 0;
