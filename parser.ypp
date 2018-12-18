@@ -81,7 +81,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
             errorDef(yylineno,($2)->name);
             exit(1);
         }
-        TableEntryFunc* f = current_scope_table->getEntry(($2)->name);
+        TableEntryFunc* f = (TableEntryFunc*)(current_scope_table->getEntry(($2)->name));
         //create new scope table for function scope
         SymbolTable* new_func_scope = new SymbolTable(current_scope_table);
         //the current scope is the function scope now
@@ -90,7 +90,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
         offsets.push(offsets.top());
 
         int ParamOffset = offsets.top();
-        for (std::vector<FormalDeclNode*>::const_iterator it = ((dynamic_cast<FormalsNode*>($4))->list.dec_list)->begin(); it != ((dynamic_cast<FormalsNode*>($4))->list.dec_list)->end(); it++)
+        for (std::vector<FormalDeclNode>::const_iterator it = (dynamic_cast<FormalsNode*>($4))->list.dec_list->begin(); it != (dynamic_cast<FormalsNode*>($4))->list.dec_list->end(); it++)
         {
             /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
             specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
@@ -187,7 +187,7 @@ FormalDecl : Type ID {
             | StructType ID {
                     //s_type is "Animal"
                     TableEntryStructType* s_type = (TableEntryStructType*)(current_scope_table->getEntry((dynamic_cast<StructTypeNode*>($1))->name));
-                    if (IdVariable->type != TYPE_STRUCTID){
+                    if (s_type->type != TYPE_STRUCTID){
                        //no such struct
                         errorUndef(yylineno,($1)->name);
                         exit(1);
@@ -749,7 +749,7 @@ int main() {
     {
         if (typeid((*it)).name() == "TableEntryFunc")
         {
-            if ((*it)->name == "main" && ((TableEntryFunc*)(*it))->return_type == TYPE_VOID && ((TableEntryFunc*)(*it))->declaration_list.size() == 0)
+            if ((*it)->name == "main" && ((TableEntryFunc*)(*it))->return_type == TYPE_VOID && ((TableEntryFunc*)(*it))->declaration_list->size() == 0)
             {
                 main_counter++;
             }
