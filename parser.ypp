@@ -7,8 +7,9 @@
 #include <cstdlib> //for exit
 using namespace output; //errors defined inside the neamespace
 
-int yylex();
-void yyerror(const char*);
+extern int yylex();
+void yyerror(std::string);
+extern int yylineno;
 
 //this will be initiated to the global scope. will be pointer to the current scope in current point in time.
 SymbolTable* current_scope_table;
@@ -268,7 +269,7 @@ Statement : M3 RBRACE{
                 if (($4)->type != ($1)->type){
                     // exp is not the same type as id
                     if ((($4)->type != TYPE_BYTE) || (($1)->type != TYPE_INT)){ // assignment of byte to int is ok
-                        errorMismatch(yylineo);
+                        errorMismatch(yylineno);
                         exit(1);
                     }
                 }
@@ -286,7 +287,7 @@ Statement : M3 RBRACE{
 
                 if (($4)->type != TYPE_STRUCTID){
                     // exp is not structType type
-                    errorMismatch(yylineo);
+                    errorMismatch(yylineno);
                     exit(1);
                 }
 
@@ -301,7 +302,7 @@ Statement : M3 RBRACE{
 
                 if ((dynamic_cast<TableEntryStructType*>($4))->structName != (dynamic_cast<TableEntryStruct*>($1))->name){
                     // exp is not the same structType type
-                    errorMismatch(yylineo);
+                    errorMismatch(yylineno);
                     exit(1);
                 }
 
@@ -575,7 +576,7 @@ Exp : LPAREN Exp RPAREN{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if (((dynamic_cast<ExpNode*>($1))->type != TYPE_INT && (dynamic_cast<ExpNode*>($1))->type != TYPE_BYTE) ||
                                     ((dynamic_cast<ExpNode*>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
-                errorMismatch(yylineo);
+                errorMismatch(yylineno);
                 exit(1);
             }
             (dynamic_cast<ExpNode*>($$))->size = 1; //both INT  and BYTE are size 1
@@ -589,7 +590,7 @@ Exp : LPAREN Exp RPAREN{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if (((dynamic_cast<ExpNode*>($1))->type != TYPE_INT && (dynamic_cast<ExpNode*>($1))->type != TYPE_BYTE) ||
                                     ((dynamic_cast<ExpNode*>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
-                errorMismatch(yylineo);
+                errorMismatch(yylineno);
                 exit(1);
             }
             (dynamic_cast<ExpNode*>($$))->size = 1; //both INT  and BYTE are size 1
@@ -628,7 +629,7 @@ Exp : LPAREN Exp RPAREN{
             StructMemNode* field = s_type->getField(($3)->name);
             if (field == nullptr){
                 // no such field
-                errorUndefStructMember(yylineo,(dynamic_cast<IdNode*>($1))->name);
+                errorUndefStructMember(yylineno,(dynamic_cast<IdNode*>($1))->name);
                 exit(1);
             }
             //else
@@ -728,6 +729,14 @@ Exp : LPAREN Exp RPAREN{
 /*USER ROUTINES*/
 
 //todo: RACHELI
+
+void yyerror(std::string m)
+{
+    //todo: why do we need an input to this function?
+    errorSyn(yylineno);
+    exit(0);
+}
+
 int main() {
     current_scope_table = new SymbolTable(NULL);
     offsets.push(0);
