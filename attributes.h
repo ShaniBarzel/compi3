@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <vector>
+#include <typeinfo>
 #include <cstddef>
 
 typedef enum{

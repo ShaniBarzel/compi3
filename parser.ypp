@@ -730,26 +730,26 @@ Exp : LPAREN Exp RPAREN{
 //todo: RACHELI
 int main() {
     current_scope_table = new SymbolTable(NULL);
-    offsets.push(0);
+    offsets.push_back(0);
     //std::vector<FormalDeclNode*> decl_list;
     FormalDeclNode* n;
     n->name = "";
     n->type = TYPE_STRING;
     n->size = 1;
     current_scope_table->insertFunctionEntry("print", TYPE_VOID);
-    TableEntryFunc* f_print = current_scope_table->getEntry("print");
-    f_print->declaration_list->push_back(n);
+    TableEntryFunc* f_print = (TableEntryFunc*)current_scope_table->getEntry("print");
+    f_print->declaration_list->push_back(*n);
     n->type = TYPE_INT;
-    current_scope_table->insertFunctionEntry("printi", TYPE_VOID, decl_list);
-    TableEntryFunc* f_printi = current_scope_table->getEntry("printi");
-    f_printi->declaration_list->push_back(n);
+    current_scope_table->insertFunctionEntry("printi", TYPE_VOID);
+    TableEntryFunc* f_printi = (TableEntryFunc*)current_scope_table->getEntry("printi");
+    f_printi->declaration_list->push_back(*n);
     yyparse();
     int main_counter = 0;
-    for (std::vector<TableEntryFunc*>::const_iterator it = current_scope_table->begin(); it != current_scope_table->end(); it++)
+    for (std::vector<TableEntryFunc*>::const_iterator it = current_scope_table->scope_table.begin(); it != current_scope_table->scope_table.end(); it++)
     {
         if (typeid((*it)).name() == "TableEntryFunc")
         {
-            if ((*it).name == "main" && (*it).return_type == TYPE_VOID && (*it).decl_list.size() == 0)
+            if (it->name == "main" && it->return_type == TYPE_VOID && it->decl_list.size() == 0)
             {
                 main_counter++;
             }
@@ -821,12 +821,12 @@ void closeScope() {
     for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table).begin(); it != (current_scope_table->scope_table).end(); it++) {
         if ((*it)->type == TYPE_FUNC) {
             //we should print by using "makeFunctionType" in this case
-            printID((*it)->name,(*it)->offset,makeFunctionType(typeToString((dynamic_cast<TableEntryFunc*>(*it))->return_type),TypeVecToString(declToTypes((dynamic_cast<TableEntryFunc*>(*it))->declaration_list)));
+            printID((*it)->name,(*it)->offset,makeFunctionType(typeToString(((TableEntryFunc*)(*it))->return_type),TypeVecToString(declToTypes(((TableEntryFunc*)(*it))->declaration_list)));
         } else if ((*it)->type == TYPE_STRUCTID){
             //note: "+" is string concatenation operator
-            printID((*it)->name,(*it)->offset,("STRUCT<"+ (dynamic_cast<TableEntryStructType*>(*it))->structName + ">"));
+            printID((*it)->name,(*it)->offset,("STRUCT<"+ ((TableEntryStructType*)(*it))->structName + ">"));
         } else if ((*it)->type == TYPE_STRUCT){
-            TableEntryStruct* structInfo = dynamic_cast<TableEntryStruct*>(*it));
+            TableEntryStruct* structInfo = (TableEntryStruct*)(*it);
             printStructTypeHelp(structInfo->name, structInfo->Fields);
         }
         else{
