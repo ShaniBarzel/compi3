@@ -81,6 +81,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
             errorDef(yylineno,($2)->name);
             exit(1);
         }
+        TableEntryFunc* f = current_scope_table->getEntry(($2)->name);
         //create new scope table for function scope
         SymbolTable* new_func_scope = new SymbolTable(current_scope_table);
         //the current scope is the function scope now
@@ -89,7 +90,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
         offsets.push(offsets.top());
 
         int ParamOffset = offsets.top();
-        for (std::vector<FormalDeclNode>::const_iterator it = ((dynamic_cast<FormalsNode*>($4))->list.dec_list)->begin(); it != ((dynamic_cast<FormalsNode*>($4))->list.dec_list)->end(); it++)
+        for (std::vector<FormalDeclNode*>::const_iterator it = ((dynamic_cast<FormalsNode*>($4))->list.dec_list)->begin(); it != ((dynamic_cast<FormalsNode*>($4))->list.dec_list)->end(); it++)
         {
             /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
             specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
@@ -100,6 +101,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
                 errorDef(yylineno,(*it).name);
                 exit(1);
             }
+            f->declaration_list->push_back(*it);
         }
     }
 ;
@@ -729,17 +731,18 @@ Exp : LPAREN Exp RPAREN{
 int main() {
     current_scope_table = new SymbolTable(NULL);
     offsets.push(0);
-    std::vector<FormalDeclNode*> decl_list;
+    //std::vector<FormalDeclNode*> decl_list;
     FormalDeclNode* n;
     n->name = "";
     n->type = TYPE_STRING;
     n->size = 1;
-    decl_list.push_back(n);
-    current_scope_table->insertFunctionEntry("print", TYPE_VOID, decl_list);
-    decl_list.pop_back();
+    current_scope_table->insertFunctionEntry("print", TYPE_VOID);
+    TableEntryFunc* f_print = current_scope_table->getEntry("print");
+    f_print->declaration_list->push_back(n);
     n->type = TYPE_INT;
-    decl_list.push_bacl(n);
     current_scope_table->insertFunctionEntry("printi", TYPE_VOID, decl_list);
+    TableEntryFunc* f_printi = current_scope_table->getEntry("printi");
+    f_printi->declaration_list->push_back(n);
     yyparse();
     int main_counter = 0;
     for (std::vector<TableEntryFunc*>::const_iterator it = current_scope_table->begin(); it != current_scope_table->end(); it++)
