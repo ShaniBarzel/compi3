@@ -46,7 +46,7 @@ STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
 
 
 %%
-{VOID}								  { yylval=(Node*)(new Void(yytext));
+{VOID}								  { yylval=new VoidNode(yytext);
                                            return VOID;}
 {INT}								  { yylval=new IntNode(yytext);
                                            return INT;}
