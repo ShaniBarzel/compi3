@@ -27,7 +27,7 @@ public:
     typeName type;
     char* yytext_array;
 
-    Node(char* yytext = nullptr) : size(), name(), type(), yytext_array(yytext){};
+    Node(char* yytext_a) : size(), name(), type(), yytext_array(yytext_a){};
     virtual ~Node() {};
     //todo: check if need to add enum for token names (i/o section, 2.a)
     // virtual string printID(int id, int offset, yytokentype type){};
