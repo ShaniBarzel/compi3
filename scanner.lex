@@ -106,5 +106,5 @@ STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
                                            return NUM;}
 {STRING}							  { yylval=new StringNode(yytext);
                                            return STRING;}
-.                                      {errorLex(yylineno);}
+.                                      {output::errorLex(yylineno);}
 %%
