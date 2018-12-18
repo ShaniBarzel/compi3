@@ -730,7 +730,7 @@ Exp : LPAREN Exp RPAREN{
 //todo: RACHELI
 int main() {
     current_scope_table = new SymbolTable(NULL);
-    offsets.push_back(0);
+    offsets.push(0);
     //std::vector<FormalDeclNode*> decl_list;
     FormalDeclNode* n;
     n->name = "";
@@ -745,11 +745,11 @@ int main() {
     f_printi->declaration_list->push_back(*n);
     yyparse();
     int main_counter = 0;
-    for (std::vector<TableEntryFunc*>::const_iterator it = current_scope_table->scope_table.begin(); it != current_scope_table->scope_table.end(); it++)
+    for (std::vector<TableEntry*>::const_iterator it = current_scope_table->scope_table.begin(); it != current_scope_table->scope_table.end(); it++)
     {
         if (typeid((*it)).name() == "TableEntryFunc")
         {
-            if (it->name == "main" && it->return_type == TYPE_VOID && it->decl_list.size() == 0)
+            if ((*it)->name == "main" && ((TableEntryFunc*)(*it))->return_type == TYPE_VOID && ((TableEntryFunc*)(*it))->decl_list.size() == 0)
             {
                 main_counter++;
             }
@@ -821,7 +821,7 @@ void closeScope() {
     for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table).begin(); it != (current_scope_table->scope_table).end(); it++) {
         if ((*it)->type == TYPE_FUNC) {
             //we should print by using "makeFunctionType" in this case
-            printID((*it)->name,(*it)->offset,makeFunctionType(typeToString(((TableEntryFunc*)(*it))->return_type),TypeVecToString(declToTypes(((TableEntryFunc*)(*it))->declaration_list)));
+            printID((*it)->name,(*it)->offset,makeFunctionType(typeToString(((TableEntryFunc*)(*it))->return_type),TypeVecToString(declToTypes(((TableEntryFunc*)(*it))->declaration_list))));
         } else if ((*it)->type == TYPE_STRUCTID){
             //note: "+" is string concatenation operator
             printID((*it)->name,(*it)->offset,("STRUCT<"+ ((TableEntryStructType*)(*it))->structName + ">"));
