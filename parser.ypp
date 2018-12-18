@@ -749,7 +749,7 @@ int main() {
     {
         if (typeid((*it)).name() == "TableEntryFunc")
         {
-            if ((*it)->name == "main" && ((TableEntryFunc*)(*it))->return_type == TYPE_VOID && ((TableEntryFunc*)(*it))->decl_list.size() == 0)
+            if ((*it)->name == "main" && ((TableEntryFunc*)(*it))->return_type == TYPE_VOID && ((TableEntryFunc*)(*it))->declaration_list.size() == 0)
             {
                 main_counter++;
             }
