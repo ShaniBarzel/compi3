@@ -770,7 +770,7 @@ int main() {
         errorMainMissing();
         exit(1);
     }
-    endScope();
+    closeScope();
     delete(current_scope_table);
     //todo: check if main is missing
     //todo: delete global scope
@@ -826,6 +826,7 @@ std::vector<typeName>& declToTypes(std::vector<FormalDeclNode>* decls){
 void closeScope() {
     //note: type will never be struct (//todo: shani: racheli, i did not implimanted it for struct because you already did in another function)) 11.12 change: i changed it because of the FAQ
     //todo: should we support nested functions?
+    endScope();
     //for all arguments in the scope table, print them
     for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table).begin(); it != (current_scope_table->scope_table).end(); it++) {
         if ((*it)->type == TYPE_FUNC) {
