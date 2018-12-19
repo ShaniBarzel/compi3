@@ -1,7 +1,10 @@
 %{
 /*USER DECLERATIONS*/
+#define YYERROR_VERBOSE 1 //todo: for degig
+#define YYDEBUG 1 //todo: for debug
 #include <iostream>
 #include "symtable.h"
+#include "attributes.h"
 #include "output.hpp"
 #include <stack>
 #include <cstdlib> //for exit
@@ -58,7 +61,7 @@ Funcs :   FuncDecl Funcs
 FuncDecl :  M1 LBRACE Statements RBRACE{
 
                 ($$)->type = TYPE_FUNC;
-               (dynamic_cast<FuncDeclNode*>($$))->return_type = (dynamic_cast<RetTypeNode*>($1))->type; //passed from marker //todo: Shani
+               (dynamic_cast<FuncDeclNode*>($$))->return_type = ($1)->type; //passed from marker //todo: Shani
                 endScope();
                 //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
                 closeScope();
@@ -74,9 +77,9 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
 /* marker 1 */
 M1 : RetType ID LPAREN Formals RPAREN {
         //to pass return typeto funcDecl   //todo: Shani
-        $$->type = $1->type; //todo: Shani
+            ($$)->type = ($1)->type; //todo: Shani
          //try to insert to the current symbol table
-        if (!(current_scope_table->insertFunctionEntry($2->name, $1->type)))
+        if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type)))
         {
             //already exist function with this name
             errorDef(yylineno,($2)->name);
@@ -91,7 +94,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
         offsets.push(offsets.top());
 
         int ParamOffset = offsets.top();
-        for (std::vector<FormalDeclNode>::const_iterator it = (dynamic_cast<FormalsNode*>($4))->list.dec_list->begin(); it != (dynamic_cast<FormalsNode*>($4))->list.dec_list->end(); it++)
+        for(std::vector<FormalDeclNode>::const_iterator it = ((dynamic_cast<FormalsNode*>($4))->list)->dec_list->begin(); it != ((dynamic_cast<FormalsNode*>($4))->list)->dec_list->end(); it++)
         {
             /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
             specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
@@ -167,15 +170,20 @@ RetType : Type {
 ;
 
 Formals : FormalsList {
-                ((dynamic_cast<FormalsNode*>($$))->list).dec_list = (dynamic_cast<FormalsListNode*>($1))->dec_list;
+                  $$ = new FormalsNode();
+                ((dynamic_cast<FormalsNode*>($$))->list)->dec_list = (dynamic_cast<FormalsListNode*>($1))->dec_list;
             }
            | /*epsilon*/
 ;
 
 FormalsList : FormalDecl {
-                    ((dynamic_cast<FormalsListNode*>($$))->dec_list)->push_back(*(dynamic_cast<FormalDeclNode*>($1)));
+                    FormalsListNode* temp = new FormalsListNode();
+                    (temp->dec_list)->push_back($1);
+                    dynamic_cast<FormalsListNode*>($$) = temp;
+                    //((dynamic_cast<FormalsListNode*>($$))->dec_list)->push_back(*(dynamic_cast<FormalDeclNode*>($1)));
                 }
              | FormalDecl COMMA FormalsList{
+                    $$ = new FormalsListNode();
                     (dynamic_cast<FormalsListNode*>($$))->dec_list = (dynamic_cast<FormalsListNode*>($3))->dec_list;
                     ((dynamic_cast<FormalsListNode*>($$))->dec_list)->push_back(*(dynamic_cast<FormalDeclNode*>($1)));
                 }
@@ -187,7 +195,7 @@ FormalDecl : Type ID {
                 }//todo: function cannot get string?
             | StructType ID {
                     //s_type is "Animal"
-                    TableEntryStructType* s_type = (TableEntryStructType*)(current_scope_table->getEntry((dynamic_cast<StructTypeNode*>($1))->name));
+                    TableEntryStructType* s_type = (TableEntryStructType*)(current_scope_table->getEntry(($1)->name));
                     if (s_type->type != TYPE_STRUCTID){
                        //no such struct
                         errorUndef(yylineno,($1)->name);
@@ -195,7 +203,7 @@ FormalDecl : Type ID {
                     }
 
                     ($$)->type = TYPE_STRUCTID;
-                                ($$)->name = ($2)->name;
+                    ($$)->name = ($2)->name;
                  }
 ;
 
@@ -246,7 +254,7 @@ Statement : M3 RBRACE{
             | StructType ID SC {
                 int offset = offsets.top();
                 offsets.pop();
-                if (!(current_scope_table->insertStructTypeEntry(($2)->name, (dynamic_cast<TableEntryStruct*>($1))->name,TYPE_STRUCTID,offset))){
+                if (!(current_scope_table->insertStructTypeEntry(($2)->name, ($1)->name,TYPE_STRUCTID,offset))){
                     // Id already defined
                     errorDef(yylineno,($2)->name);
                     exit(1);
@@ -278,7 +286,7 @@ Statement : M3 RBRACE{
             | StructType ID ASSIGN Exp SC {
                 int offset = offsets.top();
                 offsets.pop();
-                if (!(current_scope_table->insertStructTypeEntry(($2)->name, (dynamic_cast<TableEntryStruct*>($1))->name,TYPE_STRUCTID,offset))){
+                if (!(current_scope_table->insertStructTypeEntry(($2)->name, ($1)->name,TYPE_STRUCTID,offset))){
                     // Id already defined
                     errorDef(yylineno,($2)->name);
                     exit(1);
@@ -300,7 +308,7 @@ Statement : M3 RBRACE{
                     exit(1);
                 }*/
 
-                if ((dynamic_cast<TableEntryStructType*>($4))->structName != (dynamic_cast<TableEntryStruct*>($1))->name){
+                if ((dynamic_cast<TableEntryStructType*>($4))->structName != ($1)->name){
                     // exp is not the same structType type
                     errorMismatch(yylineno);
                     exit(1);
@@ -540,9 +548,9 @@ ExpList : Exp {
             }
 ;
 
-Type :   INT{(dynamic_cast<TypeNode*>($$))->type = TYPE_INT;}
-        | BYTE{(dynamic_cast<TypeNode*>($$))->type = TYPE_BYTE;}
-        | BOOL{(dynamic_cast<TypeNode*>($$))->type = TYPE_BOOL;}
+Type :   INT{($$)->type = TYPE_INT;}
+        | BYTE{($$)->type = TYPE_BYTE;}
+        | BOOL{($$)->type = TYPE_BOOL;}
 ;
 
 StructType : STRUCT ID{
@@ -552,8 +560,8 @@ StructType : STRUCT ID{
                     errorUndef(yylineno,($2)->name);
                     exit(1);
                 }
-                (dynamic_cast<StructTypeNode*>($$))->type = TYPE_STRUCT; //todo: to delete?
-                (dynamic_cast<StructTypeNode*>($$))->name = ($2)->name;
+                ($$)->type = TYPE_STRUCT; //todo: to delete?
+                ($$)->name = ($2)->name;
             }
 ;
 
@@ -574,43 +582,41 @@ Exp : LPAREN Exp RPAREN{
 
       | Exp SBINOP Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
-            if (((dynamic_cast<ExpNode*>($1))->type != TYPE_INT && (dynamic_cast<ExpNode*>($1))->type != TYPE_BYTE) ||
-                                    ((dynamic_cast<ExpNode*>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
+            if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
                 errorMismatch(yylineno);
                 exit(1);
             }
-            (dynamic_cast<ExpNode*>($$))->size = 1; //both INT  and BYTE are size 1
+            ($$)->size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
-            if ((dynamic_cast<ExpNode*>($1))->type == TYPE_INT  || (dynamic_cast<ExpNode*>($2))->type == TYPE_INT)
-                (dynamic_cast<ExpNode*>($$))->type = TYPE_INT;
+            if (($1)->type == TYPE_INT  || ($2)->type == TYPE_INT)
+                ($$)->type = TYPE_INT;
             else
-                (dynamic_cast<ExpNode*>($$))->type = TYPE_BYTE;
+                ($$)->type = TYPE_BYTE;
         }
       | Exp LBINOP Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
-            if (((dynamic_cast<ExpNode*>($1))->type != TYPE_INT && (dynamic_cast<ExpNode*>($1))->type != TYPE_BYTE) ||
-                                    ((dynamic_cast<ExpNode*>($3))->type != TYPE_INT && (dynamic_cast<ExpNode*>($3))->type != TYPE_BYTE)) {
+            if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
                 errorMismatch(yylineno);
                 exit(1);
             }
-            (dynamic_cast<ExpNode*>($$))->size = 1; //both INT  and BYTE are size 1
+            ($$)->size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
-            if ((dynamic_cast<ExpNode*>($1))->type == TYPE_INT  || (dynamic_cast<ExpNode*>($2))->type == TYPE_INT)
-                (dynamic_cast<ExpNode*>($$))->type = TYPE_INT;
+            if (($1)->type == TYPE_INT  || ($2)->type == TYPE_INT)
+                    ($$)->type = TYPE_INT;
             else
-                (dynamic_cast<ExpNode*>($$))->type = TYPE_BYTE;
+                ($$)->type = TYPE_BYTE;
         }      | ID {
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
-            TableEntry* IdVariable = current_scope_table->getEntry((dynamic_cast<IdNode*>($1))->name);
+            TableEntry* IdVariable = current_scope_table->getEntry(($1)->name);
             if(!IdVariable){
                 //the variable was never defined
-                errorUndef(yylineno,(dynamic_cast<IdNode*>($1))->name);
+                errorUndef(yylineno,($1)->name);
                 exit(1);
             }
             // the exp type and size is the variable type and size
-            (dynamic_cast<ExpNode*>($$))->type = IdVariable->type;
-            (dynamic_cast<ExpNode*>($$))->size = IdVariable->size;
+            ($$)->type = IdVariable->type;
+            ($$)->size = IdVariable->size;
         }
 
       | ID PERIOD ID{
@@ -633,93 +639,93 @@ Exp : LPAREN Exp RPAREN{
                 exit(1);
             }
             //else
-            (dynamic_cast<ExpNode*>($$))->type = field->type;
-            (dynamic_cast<ExpNode*>($$))->size = (dynamic_cast<IdNode*>($1))->size;
+            ($$)->type = field->type;
+            ($$)->size = ($1)->size;
         }
 
       | Call {
             //if the exp derives a function call, it's value will be the return type
             //todo: call should have ReturnType field
-            (dynamic_cast<ExpNode*>($$))->type = (dynamic_cast<CallNode*>($1))->return_type;
+            ($$)->type = dynamic_cast<CallNode*>($1)->return_type;
         }
 
       | NUM {
             //exp type = num type = int
-            (dynamic_cast<ExpNode*>($$))->type = TYPE_INT;
-            (dynamic_cast<ExpNode*>($$))->size = 1; //Int size is 1
+            ($$)->type = TYPE_INT;
+            ($$)->size = 1; //Int size is 1
         }
 
       | NUM B {
             //exp type = num type = byte
-            (dynamic_cast<ExpNode*>($$))->type = TYPE_BYTE;
-            (dynamic_cast<ExpNode*>($$))->size = 1; //byte size is 1
+            ($$)->type = TYPE_BYTE;
+            ($$)->size = 1; //byte size is 1
           }
 
       | STRING{
             //exp type = num type = string
-            (dynamic_cast<ExpNode*>($$))->type = TYPE_STRING;
-            (dynamic_cast<ExpNode*>($$))->size = 1; //string size is 1
+            ($$)->type = TYPE_STRING;
+            ($$)->size = 1; //string size is 1
         }
 
       | TRUE{
             //exp type = true type = bool
-            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
-            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+            ($$)->type = TYPE_BOOL;
+            ($$)->size = 1; //bool size is 1
         }
 
       | FALSE{
             //exp type = false type = bool
-            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
-            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+            ($$)->type = TYPE_BOOL;
+            ($$)->size = 1; //bool size is 1
         }
 
       | NOT Exp {
-            if((dynamic_cast<ExpNode*>($1))->type != TYPE_BOOL){
+            if(($1)->type != TYPE_BOOL){
                 //not operator is valid only on bool variables
                 errorMismatch(yylineno);
                 exit(1);
             }
-            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
-            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+            ($$)->type = TYPE_BOOL;
+            ($$)->size = 1; //bool size is 1
           }
 
       | Exp AND Exp{
-            if((dynamic_cast<ExpNode*>($1))->type != TYPE_BOOL || (dynamic_cast<ExpNode*>($3))->type != TYPE_BOOL){
+            if(($1)->type != TYPE_BOOL || ($3)->type != TYPE_BOOL){
                 //and operator is valid only on bool variables
                 errorMismatch(yylineno);
                 exit(1);
             }
-            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
-            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+            ($$)->type = TYPE_BOOL;
+            ($$)->size = 1; //bool size is 1
         }
       | Exp OR Exp{
-            if((dynamic_cast<ExpNode*>($1))->type != TYPE_BOOL || (dynamic_cast<ExpNode*>($3))->type != TYPE_BOOL){
+            if (($1)->type != TYPE_BOOL || ($3)->type != TYPE_BOOL){
             //or operator is valid only on bool variables
                 errorMismatch(yylineno);
                 exit(1);
             }
-            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL;
-            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+            ($$)->type = TYPE_BOOL;
+            ($$)->size = 1; //bool size is 1
        }
 
-      | Exp ARELOP Exp{
-            if((dynamic_cast<ExpNode*>($1))->type != TYPE_INT || (dynamic_cast<ExpNode*>($3))->type != TYPE_INT){
+      | Exp ARELOP Exp{ cout << "Exp ARELOP Exp" << endl; //todo: for debug
+            if (($1)->type != TYPE_INT || ($3)->type != TYPE_INT){
                 //and operator is valid only on numerical variables
                 errorMismatch(yylineno);
                 exit(1);
             }
-            (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL; // return type of relop operator is bool
-            (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+            ($$)->type = TYPE_BOOL; // return type of relop operator is bool
+            ($$)->size = 1; //bool size is 1
        }
 
-      | Exp NARELOP Exp{
-        if((dynamic_cast<ExpNode*>($1))->type != TYPE_INT || (dynamic_cast<ExpNode*>($3))->type != TYPE_INT){
+      | Exp NARELOP Exp{ cout << "Exp NARELOP Exp" << endl; //todo: for debug
+        if ( ($1)->type != TYPE_INT || ($3)->type != TYPE_INT){
             //and operator is valid only on numerical variables
             errorMismatch(yylineno);
             exit(1);
         }
-        (dynamic_cast<ExpNode*>($$))->type = TYPE_BOOL; // return type of relop operator is bool
-        (dynamic_cast<ExpNode*>($$))->size = 1; //bool size is 1
+        ($$)->type = TYPE_BOOL; // return type of relop operator is bool
+        ($$)->size = 1; //bool size is 1
        }
 ;
 
@@ -738,6 +744,8 @@ void yyerror(std::string m)
 }
 
 int main() {
+    yydebug = 1; //todo: for debug
+    cout << "main " << endl; //todo: for debug
     current_scope_table = new SymbolTable(NULL);
     offsets.push(0);
     //std::vector<FormalDeclNode*> decl_list;
@@ -745,6 +753,7 @@ int main() {
     n->name = "";
     n->type = TYPE_STRING;
     n->size = 1;
+    cout << "749 " << endl; //todo: for debug
     current_scope_table->insertFunctionEntry("print", TYPE_VOID);
     TableEntryFunc* f_print = (TableEntryFunc*)current_scope_table->getEntry("print");
     f_print->declaration_list->push_back(*n);
@@ -752,7 +761,9 @@ int main() {
     current_scope_table->insertFunctionEntry("printi", TYPE_VOID);
     TableEntryFunc* f_printi = (TableEntryFunc*)current_scope_table->getEntry("printi");
     f_printi->declaration_list->push_back(*n);
+    cout << "757 " << endl; //todo: for debug
     yyparse();
+    cout << "759 " << endl; //todo: for debug
     int main_counter = 0;
     for (std::vector<TableEntry*>::const_iterator it = current_scope_table->scope_table.begin(); it != current_scope_table->scope_table.end(); it++)
     {

@@ -160,13 +160,16 @@ public:
 //non terminals
 class ExpNode : public Node{
 public:
+    ExpNode() : Node(NULL), value(){};
+    virtual ~ExpNode(){};
     std::string value;
 };
 class ExpListNode : public Node{
 public:
     std::vector<ExpNode>* exp_list;
-   // ExpListNode() : exp_list(new std::vector<ExpNode>){};
-   // ~ExpListNode() {delete(exp_list);};
+   ExpListNode() :Node(NULL), exp_list(new std::vector<ExpNode>){};
+
+    virtual ~ExpListNode() {delete(exp_list);};
 //todo shani
     std::vector<ExpNode>* getList(){
         return exp_list;
@@ -175,44 +178,56 @@ public:
 //types:
 class TypeNode : public Node{
 public:
+    TypeNode():Node(NULL), value(){};
     typeName value;
+    virtual ~TypeNode();
 };
+
 class StructTypeNode : public Node{
 public:
+    StructTypeNode() : Node(NULL){};
+    virtual ~StructTypeNode(){};
 };
 class FormalDeclNode : public Node{
 public:
-    //TypeNode type; //todo: shani: type is alredy in Node
+    FormalDeclNode() : Node(NULL), s_type(StructTypeNode()){};
+    virtual ~FormalDeclNode(){};
     StructTypeNode s_type;
 };
 class FuncDeclNode : public Node{
 public:
+    FuncDeclNode() : Node(NULL), return_type(){};
+    virtual ~FuncDeclNode(){};
     typeName return_type;
 };
 class FormalsListNode : public Node{
 public:
-    std::vector<FormalDeclNode>* dec_list; //todo: shani: i moved it to public
-    //FormalsListNode() : dec_list(new std::vector<FormalDeclNode>){};
-    //~FormalsListNode(){delete(dec_list);};
+    std::vector<FormalDeclNode>* dec_list;
+    FormalsListNode() : Node(NULL), dec_list(new std::vector<FormalDeclNode>){};
+    virtual ~FormalsListNode(){delete(dec_list);};
 };
 class FormalsNode : public Node{
-public: //todo: shani
-    FormalsListNode list;
+public:
+    FormalsListNode* list;
+    FormalsNode() : Node(NULL), list(new FormalsListNode()){};
+    virtual ~FormalsNode(){delete(list);};
 };
 //structs
 class StructMemNode : public Node{
 public:
-    //TypeNode type; //todo: shani: type is alredy in Node
+    StructMemNode() : Node(NULL){};
+    virtual ~StructMemNode(){};
 };
 class StructMemListNode : public Node{
 public:
     std::vector<StructMemNode>* s_list;
-    //StructMemListNode() : s_list(new std::vector<StructMemNode>){};
-    //~StructMemListNode(){delete(s_list);};
+    StructMemListNode() :Node(NULL),  s_list(new std::vector<StructMemNode>){};
+    virtual ~StructMemListNode(){delete(s_list);};
 };
 
 class StructsDeclNode : public Node{
 public:
+    StructsDeclNode() : Node(NULL), s(StructNode(NULL)), identifier(IdNode(NULL)), s_mem_list(StructMemListNode()){};
     StructNode s;
     IdNode identifier;
     StructMemListNode s_mem_list;
@@ -220,15 +235,19 @@ public:
 
 class RetTypeNode : public Node{
 public:
+    RetTypeNode() :Node(NULL){};
+    virtual ~RetTypeNode(){};
 };
 
 class StructsNode : public Node{
 public:
+    StructsNode() : Node(NULL) , s_decl(StructsDeclNode()){}
     StructsDeclNode s_decl;
 };
 
 class CallNode : public Node{
 public:
+    CallNode() : Node(NULL), return_type(){};
     typeName return_type;
 };
 #define YYSTYPE Node*

@@ -3,4 +3,4 @@ project(compi3)
 
 set(CMAKE_CXX_STANDARD 98)
 
-add_executable(compi3 main.cpp output.cpp output.hpp symtable.cpp symtable.h attributes.h scanner.lex parser.ypp)
+add_executable(compi3 output.cpp output.hpp symtable.cpp symtable.h attributes.h scanner.lex parser.ypp)
