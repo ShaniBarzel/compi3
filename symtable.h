@@ -33,8 +33,8 @@ class TableEntryStruct : public TableEntry{
 public:
     //std::string name;
     //typeName type;
-    std::vector<StructMemNode>* Fields;
-    TableEntryStruct() : Fields(new std::vector<StructMemNode>()){};
+    std::vector<StructMemNode*>* Fields;
+    TableEntryStruct() : Fields(new std::vector<StructMemNode*>()){};
     ~TableEntryStruct(){delete(Fields);};
     StructMemNode* getField(std::string name); //todo: shani
 
@@ -44,15 +44,15 @@ class TableEntryFunc : public TableEntry{
 public:
     //std::string name;
     typeName return_type;
-    std::vector<FormalDeclNode>* declaration_list;
-    TableEntryFunc() : return_type() ,declaration_list(new std::vector<FormalDeclNode>()){};
+    std::vector<FormalDeclNode*>* declaration_list;
+    TableEntryFunc() : return_type() ,declaration_list(new std::vector<FormalDeclNode*>()){};
     ~TableEntryFunc(){delete(declaration_list);};
     /*
      * compareArgumentTypes
      * compares declaration list to argument list
      * input: an argument list to compare
      */
-    bool compareArgumentTypes(std::vector<ExpNode>* args);
+    bool compareArgumentTypes(std::vector<ExpNode*>* args);
 };
 
 class TableEntryStructType : public TableEntry{ //todo: shani

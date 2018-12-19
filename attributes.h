@@ -166,12 +166,12 @@ public:
 };
 class ExpListNode : public Node{
 public:
-    std::vector<ExpNode>* exp_list;
-   ExpListNode() :Node(NULL), exp_list(new std::vector<ExpNode>){};
+    std::vector<ExpNode*>* exp_list;
+   ExpListNode() :Node(NULL), exp_list(new std::vector<ExpNode*>){};
 
     virtual ~ExpListNode() {delete(exp_list);};
 //todo shani
-    std::vector<ExpNode>* getList(){
+    std::vector<ExpNode*>* getList(){
         return exp_list;
     }
 };
@@ -202,8 +202,8 @@ public:
 };
 class FormalsListNode : public Node{
 public:
-    std::vector<FormalDeclNode>* dec_list;
-    FormalsListNode() : Node(NULL), dec_list(new std::vector<FormalDeclNode>){};
+    std::vector<FormalDeclNode*>* dec_list;
+    FormalsListNode() : Node(NULL), dec_list(new std::vector<FormalDeclNode*>){};
     virtual ~FormalsListNode(){delete(dec_list);};
 };
 class FormalsNode : public Node{
@@ -220,8 +220,8 @@ public:
 };
 class StructMemListNode : public Node{
 public:
-    std::vector<StructMemNode>* s_list;
-    StructMemListNode() :Node(NULL),  s_list(new std::vector<StructMemNode>){};
+    std::vector<StructMemNode*>* s_list;
+    StructMemListNode() :Node(NULL),  s_list(new std::vector<StructMemNode*>){};
     virtual ~StructMemListNode(){delete(s_list);};
 };
 
