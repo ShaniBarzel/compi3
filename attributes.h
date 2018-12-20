@@ -9,6 +9,8 @@
 #include <vector>
 #include <typeinfo>
 #include <cstddef>
+#include <string>
+
 
 typedef enum{
     TYPE_BYTE, //todo: shani
@@ -26,15 +28,25 @@ class Node {
 public:
     int size; //todo: why name is int?
     std::string name;
+    //char* name;
     typeName type;
     char* yytext_array;
 
-    Node(char* yytext_a= NULL) : size(), name(), type(), yytext_array(yytext_a){};
-    virtual ~Node() {};
+    Node() : size(0), name(), type(), yytext_array(){};
+    Node(char* yytext_a){
+        size = 0;
+        yytext_array = yytext_a;
+        if (yytext_a)
+            name = std::string(yytext_a);
+    };
+    virtual ~Node(){};
     //todo: check if need to add enum for token names (i/o section, 2.a)
     // virtual string printID(int id, int offset, yytokentype type){};
 
 };
+#define YYSTYPE Node*
+
+extern YYSTYPE yyval;
 // terminals classes
 class VoidNode : public Node {
 public:
@@ -178,9 +190,9 @@ public:
 //types:
 class TypeNode : public Node{
 public:
-    TypeNode():Node(NULL), value(){};
+    TypeNode(char* yytext_a):Node(yytext_a), value(){};
     typeName value;
-    virtual ~TypeNode();
+    virtual ~TypeNode(){};
 };
 
 class StructTypeNode : public Node{
@@ -190,9 +202,8 @@ public:
 };
 class FormalDeclNode : public Node{
 public:
-    FormalDeclNode() : Node(NULL), s_type(StructTypeNode()){};
+    FormalDeclNode() : Node(NULL){};
     virtual ~FormalDeclNode(){};
-    StructTypeNode s_type;
 };
 class FuncDeclNode : public Node{
 public:
@@ -227,9 +238,10 @@ public:
 
 class StructsDeclNode : public Node{
 public:
-    StructsDeclNode() : Node(NULL), s(StructNode(NULL)), identifier(IdNode(NULL)), s_mem_list(StructMemListNode()){};
-    StructNode s;
-    IdNode identifier;
+    //todo: (racheli) I changed call to IdNode ctor with yytext_array
+    StructsDeclNode() : Node(NULL),/* s(StructNode(NULL)), identifier(IdNode(yytext_array))*/s_mem_list(StructMemListNode()){};
+    //StructNode s;
+    //IdNode identifier;
     StructMemListNode s_mem_list;
 };
 
@@ -250,7 +262,5 @@ public:
     CallNode() : Node(NULL), return_type(){};
     typeName return_type;
 };
-#define YYSTYPE Node*
 
-extern YYSTYPE yyval;
 #endif //COMPI3_ATTRIBUTES_H

@@ -36,7 +36,24 @@ std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls); //todo: 
 
 %}
 /*DECLERATIONS*/
-%token VOID INT BYTE B BOOL STRUCT TRUE FALSE RETURN WHILE BREAK CONTINUE SC COMMA PERIOD ID NUM STRING
+%token VOID
+%token INT
+%token BYTE
+%token B
+%token BOOL
+%token STRUCT
+%token TRUE
+%token FALSE
+%token RETURN
+%token WHILE
+%token BREAK
+%token CONTINUE
+%token SC
+%token COMMA
+%token PERIOD
+%token ID
+%token NUM
+%token STRING
 %left AND OR LPAREN RPAREN LBRACE RBRACE ARELOP
 %left LBINOP
 %left SBINOP
@@ -86,6 +103,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
             errorDef(yylineno,($2)->name);
             exit(1);
         }
+
         TableEntryFunc* f = (TableEntryFunc*)(current_scope_table->getEntry(($2)->name));
         //create new scope table for function scope
         SymbolTable* new_func_scope = new SymbolTable(current_scope_table);
@@ -94,21 +112,28 @@ M1 : RetType ID LPAREN Formals RPAREN {
         //add the top value to the offsets stuck
         offsets.push(offsets.top());
         int ParamOffset = offsets.top();
+        if (!(dynamic_cast<FormalsNode*>($4)))
+            cout<<"NULL"<<endl;
+                        cout<<"RACHELI HERE 2"<<endl;
 
-        for(std::vector<FormalDeclNode*>::const_iterator it = ((dynamic_cast<FormalsNode*>($4))->list)->dec_list->begin(); it != ((dynamic_cast<FormalsNode*>($4))->list)->dec_list->end(); it++)
+        for(std::vector<FormalDeclNode*>::const_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->begin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->end(); it++)
         {
+
             /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
             specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
             ParamOffset = ParamOffset - (*it)->size;
             if (!(current_scope_table->insertVariableEntry( (*it)->name ,(*it)->type , ParamOffset )))
             {
+                cout<<"RACHELI HERE"<<endl;
+                cout<<(*it)->name<<endl;
                 //there is already a variable with the parameter's name
                 errorDef(yylineno,(*it)->name);
                 exit(1);
             }
             f->declaration_list->push_back(*it); cout<<"shani"<<endl;
+         }
+
         }
-    }
 ;
 
 //no semantic needed
@@ -181,6 +206,7 @@ Formals : FormalsList {
                 FormalsNode* temp2 = new FormalsNode();
                 (temp2->list)->dec_list = (dynamic_cast<FormalsListNode*>($1))->dec_list;
                 $$ = temp2;
+
             }
            | /*epsilon*/
 ;
@@ -198,9 +224,14 @@ FormalsList : FormalDecl {
                };
 
 FormalDecl : Type ID {
-                    ($$)->type = ($1)->type;
-                    ($$)->name = ($2)->name;
-                    ($$)->size =1;
+                    //RACHELI ADDITION
+                    FormalDeclNode* new_node = new FormalDeclNode();
+                    new_node->type = ($1)->type;
+                    new_node->name = ($2)->name;
+                    cout<<"RACHELI TEST"<<endl;
+                    cout<<new_node->name<<endl;
+                    new_node->size =1;
+                    $$ = new_node;
                 }//todo: function cannot get string?
             | StructType ID {
                     //s_type is "Animal"
@@ -210,10 +241,12 @@ FormalDecl : Type ID {
                         errorUndef(yylineno,($1)->name);
                         exit(1);
                     }
-
-                    ($$)->type = TYPE_STRUCTID;
-                    ($$)->name = ($2)->name;
-                    ($$)->size = ($2)->size;
+                    //RACHELI ADDITION
+                    FormalDeclNode* new_node = new FormalDeclNode();
+                    new_node->type = TYPE_STRUCTID;
+                    new_node->name = ($2)->name;
+                    new_node->size = ($2)->size;
+                    $$ = new_node;
                  }
 ;
 
@@ -495,6 +528,7 @@ M7  :   Statement
 Call : ID LPAREN ExpList RPAREN
         {
             //check that function's name isn't "main", else error
+
             if (($1)->name == "main")
             {
                 //todo: email (what error should we return?) (main should not have parameters list)
@@ -507,6 +541,8 @@ Call : ID LPAREN ExpList RPAREN
                 errorUndef(yylineno, ($1)->name);
                 exit(1);
             }
+                                    cout<<"RACHELI NEW TEST"<<endl;
+
             //compare arguament list to declaration list
             if (!(f->compareArgumentTypes((dynamic_cast<ExpListNode*>($3))->exp_list)))
             {
@@ -515,6 +551,7 @@ Call : ID LPAREN ExpList RPAREN
                 for (std::vector<FormalDeclNode*>::const_iterator it = f->declaration_list->begin();
                      it != f->declaration_list->end(); it++)
                         {
+                                    cout<<"RACHELI NEW TEST 2"<<endl;
                             types.push_back(typeToString((*it)->type));
                         }
                 errorPrototypeMismatch(yylineno, ($1)->name, types);
