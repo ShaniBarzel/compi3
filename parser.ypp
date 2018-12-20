@@ -156,7 +156,11 @@ StructsDecl :  M2 SC{
 //todo update code to match new rule
     //StructType LBRACE StructMemLlist RBRACE
 M2 : StructTypeDec StructMemList RBRACE {
-
+            //the updating offset of the fields in the struct
+            int current_offset = offsets.top();
+            int size = 0;
+            //saving a reference to "fields list" field of the struct defined
+            std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table).back()))->Fields;
             //iterating over the fields list of the struct
             for (std::vector<StructMemNode*>::const_iterator it = ((dynamic_cast<StructMemListNode*>($2))->s_list)->begin(); it != ((dynamic_cast<StructMemListNode*>($2))->s_list)->end(); it++){
                 //increment current offset by the current field's size
@@ -188,11 +192,7 @@ StructTypeDec : STRUCT ID LBRACE{
             current_scope_table = new_scope_table;
             //insert the new scope's offset to the offsets stack
             offsets.push(offsets.top());
-            //the updating offset of the fields in the struct
-            int current_offset = offsets.top();
-            int size = 0;
-            //saving a reference to "fields list" field of the struct defined
-            std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table).back()))->Fields;}
+}
 
 RetType : Type {
                     $$->type = $1->type;
