@@ -28,7 +28,7 @@ bool inside_while = false;
 bool main_def = false;
 
 //implemented at the end of the file
-void printStructTypeHelp(const string& name, vector<StructMemNode*>* fields);
+void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields);
 std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec);
 std::string typeToString(typeName type);
 void closeScope(); //todo: shani
@@ -149,10 +149,10 @@ StructsDecl :  M2 SC{
                     printStructTypeHelp((($1)->name), fields_list); //todo: shani fix $2
                     //popping tops of stack table and stack offsets
                                         cout<<"RACHELI TEST CONT"<<endl;
-                                        cout<<current_scope_table<<endl;
                     SymbolTable* parent = current_scope_table->getParent();
                     delete(current_scope_table);
                     current_scope_table = parent;
+
                     offsets.pop();
                  }
 ;
@@ -855,15 +855,17 @@ int main() {
 }
 
 
-void printStructTypeHelp(const string& name, vector<StructMemNode*>* fields){
-    std::vector<typeName> Types;
-    std::vector<string> Names;
-
-    for(vector<StructMemNode*>::const_iterator it = fields->begin();it!=fields->end();it++){
-        Types.push_back((*it)->type);
-        Names.push_back((*it)->name);
+void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields){
+    std::vector<typeName>* Types = new std::vector<typeName>();
+    std::vector<string>* Names = new std::vector<string>();
+    if (*(fields->begin()))
+        cout<<"OK"<<endl;
+    for(std::vector<StructMemNode*>::const_iterator it = fields->begin();it!=fields->end();it++){
+        Types->push_back((*it)->type);
+        Names->push_back((*it)->name);
     }
-    printStructType(name, *(TypeVecToString(Types)), Names);
+    cout<<"RACHELI TEST CONT 2"<<endl;
+    printStructType(name, *(TypeVecToString(*Types)), *Names);
 }
 //todo: (racheli) TYPE_STRUCTID
 std::string typeToString(typeName type){
