@@ -132,12 +132,12 @@ M1 : RetType ID LPAREN Formals RPAREN {
 ;
 
 //no semantic needed
-Structs :   StructDecl Structs
+Structs :   StructsDecl Structs
             | /*epsilon*/
 ;
 
 //i changed STRUCT ID to StrctType to avoid conflict
-StructDecl :  M2 SC{
+StructsDecl :  M2 SC{
         ($$)->name = ($$)->name;
         ($$)->size = ($$)->size;
 
@@ -153,10 +153,11 @@ StructDecl :  M2 SC{
 ;
 
 // marker 2
-M2 : StructType LBRACE StructMemList RBRACE {
+//todo update code to match new rule
+M2 : StructTypeDec StructMemList RBRACE {
             ($$)->name = ($1)->name;
             //insertion to current scope's table
-            if (!(current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT))){
+            if (!(current_scope_table->insertStructEntry(($1)->name, TYPE_STRUCT))){
                     // id already defined
                     errorDef(yylineno, (($1)->name));
                     exit(1);
@@ -188,6 +189,10 @@ M2 : StructType LBRACE StructMemList RBRACE {
         ($$)->size = size;
         }
 ;
+
+StructTypeDec : STRUCT ID LBRACE{
+                                //todo
+}
 
 RetType : Type {
                     $$->type = $1->type;
@@ -302,7 +307,7 @@ Statement : M3 RBRACE{
                 offsets.push(offset+1); //update offset
              }
              //todo: racheli, it was STRUCT ID LBRACE StructMemList RBRACE SC , i changed it to "StructsDecl" - this is another conflict
-            | StructDecl
+            | StructsDecl
 
             | Type ID ASSIGN Exp SC{
                 int offset = offsets.top();
