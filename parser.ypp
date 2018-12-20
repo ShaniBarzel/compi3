@@ -80,7 +80,6 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
                 temp1->type = TYPE_FUNC;
                 temp1->return_type = ($1)->type; //passed from marker
                 $$ = temp1;
-                endScope();
                 //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
                 closeScope();
                 //return the current scope to be the outer scope
@@ -112,28 +111,24 @@ M1 : RetType ID LPAREN Formals RPAREN {
         //add the top value to the offsets stuck
         offsets.push(offsets.top());
         int ParamOffset = offsets.top();
-        if (!(dynamic_cast<FormalsNode*>($4)))
-            cout<<"NULL"<<endl;
-                        cout<<"RACHELI HERE 2"<<endl;
-
-        for(std::vector<FormalDeclNode*>::const_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->begin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->end(); it++)
-        {
-
-            /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
-            specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
-            ParamOffset = ParamOffset - (*it)->size;
-            if (!(current_scope_table->insertVariableEntry( (*it)->name ,(*it)->type , ParamOffset )))
+        if ((dynamic_cast<FormalsNode*>($4))){ //if the parameters list is not empty
+            for(std::vector<FormalDeclNode*>::const_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->begin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->end(); it++)
             {
-                cout<<"RACHELI HERE"<<endl;
-                cout<<(*it)->name<<endl;
-                //there is already a variable with the parameter's name
-                errorDef(yylineno,(*it)->name);
-                exit(1);
-            }
-            f->declaration_list->push_back(*it); cout<<"shani"<<endl;
-         }
 
+                /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
+                specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
+                ParamOffset = ParamOffset - (*it)->size;
+                if (!(current_scope_table->insertVariableEntry( (*it)->name ,(*it)->type , ParamOffset )))
+                {
+                    cout<<(*it)->name<<endl;
+                    //there is already a variable with the parameter's name
+                    errorDef(yylineno,(*it)->name);
+                    exit(1);
+                }
+                f->declaration_list->push_back(*it);
+             }
         }
+    }
 ;
 
 //no semantic needed
@@ -276,7 +271,6 @@ Statements : Statement
 
 Statement : M3 RBRACE{
     //todo: shani
-                    endScope();
                     //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
                     closeScope();
                     //return the current scope to be the outer scope
@@ -446,7 +440,7 @@ Statement : M3 RBRACE{
                 }
             }
             | M4 Statement M5{
-                endScope();
+                closeScope();
                 SymbolTable* current_parent = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = current_parent;
@@ -503,9 +497,8 @@ M5  :  /*epsilon*/  %prec IF
             offsets.push(offsets.top());
         }
 //marker M6
-M6  :   Statement
-        {
-            endScope();
+M6  :   Statement{
+            closeScope();
             SymbolTable* p = current_scope_table->getParent();
             delete(current_scope_table);
             current_scope_table = p;
@@ -516,7 +509,7 @@ M6  :   Statement
 //marker M7
 M7  :   Statement
         {
-            endScope();
+            closeScope();
             SymbolTable* p = current_scope_table->getParent();
             delete(current_scope_table);
             current_scope_table = p;
@@ -764,7 +757,7 @@ Exp : LPAREN Exp RPAREN{
        }
 
       | Exp ARELOP Exp{
-            if (($1)->type != TYPE_INT || ($3)->type != TYPE_INT){
+            if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($1)->type != TYPE_INT)){
                 //and operator is valid only on numerical variables
                 errorMismatch(yylineno);
                 exit(1);
@@ -774,7 +767,7 @@ Exp : LPAREN Exp RPAREN{
        }
 
       | Exp NARELOP Exp{
-        if ( ($1)->type != TYPE_INT || ($3)->type != TYPE_INT){
+        if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($1)->type != TYPE_INT)){
             //and operator is valid only on numerical variables
             errorMismatch(yylineno);
             exit(1);
@@ -800,7 +793,8 @@ void yyerror(std::string m)
 
 int main() {
     yydebug = 1; //todo: for debug
-    current_scope_table = new SymbolTable(NULL);
+    SymbolTable* temp_table = new SymbolTable(NULL);
+    current_scope_table = temp_table;
     offsets.push(0);
     //std::vector<FormalDeclNode*> decl_list;
     FormalDeclNode* n = new FormalDeclNode();
@@ -818,7 +812,7 @@ int main() {
     int main_counter = 0;
     for (std::vector<TableEntry*>::const_iterator it = current_scope_table->scope_table.begin(); it != current_scope_table->scope_table.end(); it++)
     {
-        if (typeid((*it)).name() == "TableEntryFunc")
+        if (((TableEntryFunc*)(*it))->type ==TYPE_FUNC)
         {
             if ((*it)->name == "main" && ((TableEntryFunc*)(*it))->return_type == TYPE_VOID && ((TableEntryFunc*)(*it))->declaration_list->size() == 0)
             {
@@ -833,9 +827,7 @@ int main() {
         exit(1);
     }
     closeScope();
-    delete(current_scope_table);
-    //todo: check if main is missing
-    //todo: delete global scope
+    delete(temp_table);
 }
 
 
@@ -851,6 +843,7 @@ void printStructTypeHelp(const string& name, vector<StructMemNode*>* fields){
 }
 //todo: (racheli) TYPE_STRUCTID
 std::string typeToString(typeName type){
+    cout<<"846"<<endl; //for debug
     switch (type){
         case(TYPE_BYTE) :
             return "BYTE";
@@ -868,6 +861,7 @@ std::string typeToString(typeName type){
 }
 
 std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec){
+    cout<<"863"<<endl; //for debug
     std::vector<string>* s_vec;
     for(int i=0; i< t_vec.size(); i++){
        s_vec->push_back(typeToString(t_vec[i]));
@@ -876,6 +870,7 @@ std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec){
 }
 
 std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*>* decls){
+    cout<<"872"<<endl; //for debug
     std::vector<typeName>* res;
     for(std::vector<FormalDeclNode*>::const_iterator it = decls->begin(); it != decls->end(); it++){
         res->push_back((*it)->type);
@@ -892,8 +887,9 @@ void closeScope() {
     //for all arguments in the scope table, print them
     for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table).begin(); it != (current_scope_table->scope_table).end(); it++) {
         if ((*it)->type == TYPE_FUNC) {
+            cout<<"887"<<endl; //for debug
             //we should print by using "makeFunctionType" in this case
-            printID((*it)->name,(*it)->offset,makeFunctionType(typeToString(((TableEntryFunc*)(*it))->return_type),*(TypeVecToString(*((declToTypes(((TableEntryFunc*)(*it))->declaration_list)))))));
+            output::printID((*it)->name,(*it)->offset,makeFunctionType(typeToString(((TableEntryFunc*)(*it))->return_type),*(TypeVecToString(*((declToTypes(((TableEntryFunc*)(*it))->declaration_list)))))));
         } else if ((*it)->type == TYPE_STRUCTID){
             //note: "+" is string concatenation operator
             printID((*it)->name,(*it)->offset,("STRUCT<"+ ((TableEntryStructType*)(*it))->structName + ">"));

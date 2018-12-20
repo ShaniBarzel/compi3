@@ -86,14 +86,15 @@ public:
         * if yes - returns it, else - returns null
     */
     TableEntry* getEntry(std::string name);
-    /*
-     * insertVariableEntry
-     * inserts an entry of a variable to the table
-     * returns true if succeeds
-     */
+
     SymbolTable* getParent(){
         return parent_table;
     }
+    /*
+    * insertVariableEntry
+    * inserts an entry of a variable to the table
+    * returns true if succeeds
+    */
     bool insertVariableEntry(std::string name, typeName type, int offset);
     /*
   * insertFunctionEntry
