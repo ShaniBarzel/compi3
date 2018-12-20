@@ -138,10 +138,11 @@ Structs :   StructsDecl Structs
 
 //i changed STRUCT ID to StrctType to avoid conflict
 StructsDecl :  M2 SC{
-        ($$)->name = ($$)->name;
-        ($$)->size = ($$)->size;
-
-        std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)(current_scope_table->scope_table.back()))->Fields;
+        StructsDeclNode* temp9 = new StructsDeclNode();
+        temp9->name = ($$)->name;
+        temp9->size = ($$)->size;
+        $$ = temp9;
+        std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table)->back()))->Fields;
                     endScope();
                     printStructTypeHelp((($1)->name), fields_list); //todo: shani fix $2
                     //popping tops of stack table and stack offsets
@@ -160,7 +161,11 @@ M2 : StructTypeDec StructMemList RBRACE {
             int current_offset = offsets.top();
             int size = 0;
             //saving a reference to "fields list" field of the struct defined
-            std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table).back()))->Fields;
+            cout<<((TableEntryStruct*)((current_scope_table->scope_table->back())))<<endl;
+                                                cout<<"RACHELI TEST 1"<<endl;
+
+            std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table)->back()))->Fields;
+
             //iterating over the fields list of the struct
             for (std::vector<StructMemNode*>::const_iterator it = ((dynamic_cast<StructMemListNode*>($2))->s_list)->begin(); it != ((dynamic_cast<StructMemListNode*>($2))->s_list)->end(); it++){
                 //increment current offset by the current field's size
@@ -178,18 +183,24 @@ M2 : StructTypeDec StructMemList RBRACE {
         ($$)->size = size;
         }
 ;
-
+// StructTypeDec marker
 StructTypeDec : STRUCT ID LBRACE{
-            ($$)->name = ($1)->name;
+            StructTypeDecNode* temp8 = new StructTypeDecNode();
+            temp8->name = ($2)->name;
+            temp8->type = ($1)->type;
+            $$ = temp8;
             //insertion to current scope's table
-            if (!(current_scope_table->insertStructEntry(($1)->name, TYPE_STRUCT))){
+            if (!(current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT))){
                     // id already defined
-                    errorDef(yylineno, (($1)->name));
+                    errorDef(yylineno, (($2)->name));
                     exit(1);
             }
+            //todo: (racheli) i added the line bellow because if we reach here we need to pop the entry inserted in the check above
+            current_scope_table->scope_table->pop_back();
             //create new scope table for the scope defined by the struct
             SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
             current_scope_table = new_scope_table;
+            current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT);
             //insert the new scope's offset to the offsets stack
             offsets.push(offsets.top());
 }
@@ -253,19 +264,23 @@ FormalDecl : Type ID {
 StructMemList : StructMem {
                         StructMemListNode* temp5 = new StructMemListNode();
                         (temp5->s_list)->push_back(dynamic_cast<StructMemNode*>($1));
+                        $$ = temp5;
                     }
                 | StructMem StructMemList{
-                        StructMemListNode* temp5 = new StructMemListNode();
-                        temp5->s_list = (dynamic_cast<StructMemListNode*>($2))->s_list;
-                        (temp5->s_list)->push_back(dynamic_cast<StructMemNode*>($1));
+                        StructMemListNode* temp6 = new StructMemListNode();
+                        temp6->s_list = (dynamic_cast<StructMemListNode*>($2))->s_list;
+                        (temp6->s_list)->push_back(dynamic_cast<StructMemNode*>($1));
+                        $$ = temp6;
                 }
 ;
 
 
 StructMem : Type ID SC{
-                ($$)->type = ($1)->type;
-                ($$)->size = 1;
-                ($$)->name = ($2)->name;
+                StructMemNode* temp7 = new StructMemNode();
+                temp7->type = ($1)->type;
+                temp7->size = 1;
+                temp7->name = ($2)->name;
+                $$ = temp7;
               }
 ;
 
@@ -815,7 +830,7 @@ int main() {
     f_printi->declaration_list->push_back(n);
     yyparse();
     int main_counter = 0;
-    for (std::vector<TableEntry*>::const_iterator it = current_scope_table->scope_table.begin(); it != current_scope_table->scope_table.end(); it++)
+    for (std::vector<TableEntry*>::const_iterator it = current_scope_table->scope_table->begin(); it != current_scope_table->scope_table->end(); it++)
     {
         if (((TableEntryFunc*)(*it))->type ==TYPE_FUNC)
         {
@@ -890,7 +905,7 @@ void closeScope() {
     //todo: should we support nested functions?
     endScope();
     //for all arguments in the scope table, print them
-    for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table).begin(); it != (current_scope_table->scope_table).end(); it++) {
+    for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table)->begin(); it != (current_scope_table->scope_table)->end(); it++) {
         if ((*it)->type == TYPE_FUNC) {
             cout<<"887"<<endl; //for debug
             //we should print by using "makeFunctionType" in this case

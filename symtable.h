@@ -74,12 +74,13 @@ public:
     //parent_table is the father of the current node in the symbol tables tree
     SymbolTable* parent_table;
     //scope_table is vector representing the current scope's symbol table
-    std::vector<TableEntry*> scope_table;
+    std::vector<TableEntry*>* scope_table;
     /*
      * c'tor
      * creates a new scope table which is the son of p
      */
-    SymbolTable(SymbolTable* p) : parent_table(p), scope_table(){};
+    SymbolTable(SymbolTable* p) : parent_table(p), scope_table(new std::vector<TableEntry*>()){};
+    ~SymbolTable(){delete(scope_table);};
     /*
         * getEntry
         * checks if a table entry whose name field is "name" already exists
