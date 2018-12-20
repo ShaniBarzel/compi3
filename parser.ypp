@@ -144,8 +144,12 @@ StructsDecl :  M2 SC{
         $$ = temp9;
         std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table)->back()))->Fields;
                     endScope();
+                    cout<<"RACHELI TEST NEW"<<endl;
+                    cout<<($1)->name<<endl;
                     printStructTypeHelp((($1)->name), fields_list); //todo: shani fix $2
                     //popping tops of stack table and stack offsets
+                                        cout<<"RACHELI TEST CONT"<<endl;
+                                        cout<<current_scope_table<<endl;
                     SymbolTable* parent = current_scope_table->getParent();
                     delete(current_scope_table);
                     current_scope_table = parent;
