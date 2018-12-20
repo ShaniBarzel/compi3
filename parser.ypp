@@ -154,26 +154,11 @@ StructsDecl :  M2 SC{
 
 // marker 2
 //todo update code to match new rule
+    //StructType LBRACE StructMemLlist RBRACE
 M2 : StructTypeDec StructMemList RBRACE {
-            ($$)->name = ($1)->name;
-            //insertion to current scope's table
-            if (!(current_scope_table->insertStructEntry(($1)->name, TYPE_STRUCT))){
-                    // id already defined
-                    errorDef(yylineno, (($1)->name));
-                    exit(1);
-            }
-            //create new scope table for the scope defined by the struct
-            SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
-            current_scope_table = new_scope_table;
-            //insert the new scope's offset to the offsets stack
-            offsets.push(offsets.top());
-            //the updating offset of the fields in the struct
-            int current_offset = offsets.top();
-            int size = 0;
-            //saving a reference to "fields list" field of the struct defined
-            std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table).back()))->Fields;
+
             //iterating over the fields list of the struct
-            for (std::vector<StructMemNode*>::const_iterator it = ((dynamic_cast<StructMemListNode*>($3))->s_list)->begin(); it != ((dynamic_cast<StructMemListNode*>($3))->s_list)->end(); it++){
+            for (std::vector<StructMemNode*>::const_iterator it = ((dynamic_cast<StructMemListNode*>($2))->s_list)->begin(); it != ((dynamic_cast<StructMemListNode*>($2))->s_list)->end(); it++){
                 //increment current offset by the current field's size
                 current_offset += (*it)->size;
                 size += (*it)->size;
@@ -191,8 +176,23 @@ M2 : StructTypeDec StructMemList RBRACE {
 ;
 
 StructTypeDec : STRUCT ID LBRACE{
-                                //todo
-}
+            ($$)->name = ($1)->name;
+            //insertion to current scope's table
+            if (!(current_scope_table->insertStructEntry(($1)->name, TYPE_STRUCT))){
+                    // id already defined
+                    errorDef(yylineno, (($1)->name));
+                    exit(1);
+            }
+            //create new scope table for the scope defined by the struct
+            SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
+            current_scope_table = new_scope_table;
+            //insert the new scope's offset to the offsets stack
+            offsets.push(offsets.top());
+            //the updating offset of the fields in the struct
+            int current_offset = offsets.top();
+            int size = 0;
+            //saving a reference to "fields list" field of the struct defined
+            std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table).back()))->Fields;}
 
 RetType : Type {
                     $$->type = $1->type;

@@ -200,6 +200,11 @@ public:
     StructTypeNode() : Node(NULL){};
     virtual ~StructTypeNode(){};
 };
+class StructTypeDecNode : public Node{
+public:
+    StructTypeDecNode() : Node(NULL){};
+    virtual ~StructTypeDecNode(){};
+};
 class FormalDeclNode : public Node{
 public:
     FormalDeclNode() : Node(NULL){};
