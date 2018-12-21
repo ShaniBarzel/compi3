@@ -21,6 +21,8 @@ public:
     typeName type;
     int size;
     int offset;
+    TableEntry(){}; //Sh
+    virtual ~TableEntry(){}; //Sh
 
 };
 
@@ -33,9 +35,9 @@ class TableEntryStruct : public TableEntry{
 public:
     //std::string name;
     //typeName type;
-    std::vector<StructMemNode*>* Fields;
-    TableEntryStruct() : Fields(new std::vector<StructMemNode*>()){};
-    ~TableEntryStruct(){delete(Fields);};
+    StructMemListNode* Fields;
+    TableEntryStruct() : TableEntry() , Fields(new StructMemListNode()){}; //Sh
+    virtual ~TableEntryStruct(){delete(Fields);}; //Sh (virtual)
     StructMemNode* getField(std::string name); //todo: shani
 
 };
@@ -45,8 +47,8 @@ public:
     //std::string name;
     typeName return_type;
     std::vector<FormalDeclNode*>* declaration_list;
-    TableEntryFunc() : return_type() ,declaration_list(new std::vector<FormalDeclNode*>()){};
-    ~TableEntryFunc(){delete(declaration_list);};
+    TableEntryFunc() : TableEntry(), return_type() ,declaration_list(new std::vector<FormalDeclNode*>()){}; //Sh
+    virtual ~TableEntryFunc(){delete(declaration_list);}; //Sh (virtual)
     /*
      * compareArgumentTypes
      * compares declaration list to argument list
@@ -58,6 +60,8 @@ public:
 class TableEntryStructType : public TableEntry{ //todo: shani
 public:
     std::string structName;
+   // TableEntryStructType() : TableEntry(){}; //Sh
+    //virtual ~TableEntryStructType(); //Sh (virtual)
 };
 
 /*
@@ -108,12 +112,12 @@ public:
     * inserts an entry of a struct to the table
     * returns true if succeeds
     */
-    bool insertStructEntry(std::string name, typeName type);
+    bool insertStructEntry(std::string name, typeName type, StructMemListNode* fields_list,int size);
     /* insertStructTypeEntry
     * inserts an entry of a struct type to the table
     * returns true if succeeds
     */
-    bool insertStructTypeEntry(std::string name, std::string s_name, typeName type, int offset); //todo: shani
+    bool insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size);
     /*
      * this function returns the latest function entry in the table
      * if exists - returns it, else - nullptr

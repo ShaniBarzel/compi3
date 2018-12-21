@@ -2,7 +2,7 @@
 // Created by Racheli on 12/3/2018.
 //
 #include "symtable.h"
-
+#include <iostream> //todo: for debug
 /*
     * remark (racheli): I didn't want to unite all the "doesExist" functions to one because
     * then we wouldve needed a struct to wrap the two entries and it complicates things
@@ -10,8 +10,11 @@
 TableEntry* SymbolTable::getEntry(std::string name) {
     for (std::vector<TableEntry *>::const_iterator it = scope_table->begin(), end = scope_table->end();
          it != end; ++it) {
-        if ((*it)->name == name)
-            return *it;
+        if ((*it)->name == name){
+            TableEntry* res = new TableEntry();//Sh
+            res = *it; //Sh
+            return res;
+        }
     }
     if(!parent_table)
         return NULL;
@@ -32,7 +35,7 @@ bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offse
     return true;
 }
 //todo: shani
-bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, typeName type, int offset){
+bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size){
     //check if an entry for variable to be inserted already exists in some scope table in the tree
     if(getEntry(name)) //entry already exist
         return false;
@@ -40,8 +43,8 @@ bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, ty
     TableEntryStructType* new_entry = new TableEntryStructType();
     new_entry->name = name;
     new_entry->type = type;
-    new_entry->offset = offset;
     new_entry->structName = s_name;
+    new_entry->size = size; //Sh
     //insertion to table of current scope
     scope_table->push_back(new_entry);
     return true;
@@ -59,19 +62,20 @@ bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type) {
     return true;
 }
 
-bool SymbolTable::insertStructEntry(std::string name, typeName type) {
+bool SymbolTable::insertStructEntry(std::string name, typeName type, StructMemListNode* fields_list,int size) {
     if(getEntry(name))
         return false; //entry alredy exist
     TableEntryStruct* new_entry = new TableEntryStruct();
     new_entry->name = name;
-    //new_entry->Fields = fields_list;
+    new_entry->Fields = fields_list; //Sh
     new_entry->type = type;
+    new_entry->size = size; //Sh
     scope_table->push_back(new_entry);
     return true;
 }
 
 StructMemNode* TableEntryStruct::getField(std::string name){
-    for (std::vector<StructMemNode*>::iterator it = Fields->begin(), end = Fields->end();
+    for (std::vector<StructMemNode*>::iterator it = Fields->s_list->begin(), end = Fields->s_list->end();
          it != end; ++it) {
         if (((*it)->name) == name)
             return *it;
@@ -82,7 +86,7 @@ StructMemNode* TableEntryStruct::getField(std::string name){
 TableEntryFunc* SymbolTable::getLastFunctionEntry() {
     for (std::vector<TableEntry *>::const_iterator it = scope_table->begin(), end = scope_table->end();
          it != end; ++it) {
-        if (typeid((*it)).name() == "TableEntryFunc")
+        if ((*it)->type == TYPE_FUNC) //Sh
             return (TableEntryFunc*)*it;
     }
     if(!parent_table)

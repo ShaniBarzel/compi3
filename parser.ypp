@@ -111,22 +111,35 @@ M1 : RetType ID LPAREN Formals RPAREN {
         //add the top value to the offsets stuck
         offsets.push(offsets.top());
         int ParamOffset = offsets.top();
-        if ((dynamic_cast<FormalsNode*>($4))){ //if the parameters list is not empty
+        if (dynamic_cast<FormalsNode*>($4)){ //if the parameters list is not empty
             for(std::vector<FormalDeclNode*>::const_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->begin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->end(); it++)
             {
-
+//cout<< (*it)->name <<endl; //for debug
                 /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
                 specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
                 ParamOffset = ParamOffset - (*it)->size;
-                if (!(current_scope_table->insertVariableEntry( (*it)->name ,(*it)->type , ParamOffset )))
-                {
-                    cout<<(*it)->name<<endl;
-                    //there is already a variable with the parameter's name
-                    errorDef(yylineno,(*it)->name);
-                    exit(1);
+                if((*it)->type != TYPE_STRUCTID){
+                        if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset )))
+                        {
+                            cout<<(*it)->name<<endl;
+                            //there is already a variable with the parameter's name
+                            errorDef(yylineno, (*it)->name);
+                            exit(1);
+                        }
+                }
+                else{ //Sh
+                    if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size )))
+                    {
+                        cout<<(*it)->name<<endl;
+                        //there is already a variable with the parameter's name
+                        errorDef(yylineno,(*it)->name);
+                        exit(1);
+                    }
                 }
                 f->declaration_list->push_back(*it);
-             }
+
+            }
+
         }
     }
 ;
@@ -137,16 +150,17 @@ Structs :   StructsDecl Structs
 ;
 
 //i changed STRUCT ID to StrctType to avoid conflict
-StructsDecl :  M2 SC{
+StructsDecl :  M2 RBRACE SC{
         StructsDeclNode* temp9 = new StructsDeclNode();
-        temp9->name = ($$)->name;
-        temp9->size = ($$)->size;
+        temp9->name = ($1)->name; //Sh it was ($$)->name
+        temp9->size = ($1)->size; //Sh it was ($$)=>name
+        temp9->s_mem_list = (dynamic_cast<StructsDeclNode*>($1))->s_mem_list;
         $$ = temp9;
-        std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table)->back()))->Fields;
+       // fields_list = (dynamic_cast<TableEntryStruct*>((((current_scope_table)->scope_table)->back())))->Fields;
                     endScope();
                     cout<<"RACHELI TEST NEW"<<endl;
                     cout<<($1)->name<<endl;
-                    printStructTypeHelp((($1)->name), fields_list); //todo: shani fix $2
+                    printStructTypeHelp((($1)->name), temp9->s_mem_list->s_list); //todo: shani fix $2
                     //popping tops of stack table and stack offsets
                                         cout<<"RACHELI TEST CONT"<<endl;
                     SymbolTable* parent = current_scope_table->getParent();
@@ -154,60 +168,63 @@ StructsDecl :  M2 SC{
                     current_scope_table = parent;
 
                     offsets.pop();
-                 }
-;
+
+        //insert struct entry to the current scope
+        current_scope_table->insertStructEntry(temp9->name, TYPE_STRUCT,temp9->s_mem_list,temp9->size); //Sh
+};
 
 // marker 2
 //todo update code to match new rule
-    //StructType LBRACE StructMemLlist RBRACE
-M2 : StructTypeDec StructMemList RBRACE {
-            //the updating offset of the fields in the struct
-            int current_offset = offsets.top();
-            int size = 0;
-            //saving a reference to "fields list" field of the struct defined
-            cout<<((TableEntryStruct*)((current_scope_table->scope_table->back())))<<endl;
-                                                cout<<"RACHELI TEST 1"<<endl;
-
-            std::vector<StructMemNode*>* fields_list = ((TableEntryStruct*)((current_scope_table->scope_table)->back()))->Fields;
-
-            //iterating over the fields list of the struct
-            for (std::vector<StructMemNode*>::const_iterator it = ((dynamic_cast<StructMemListNode*>($2))->s_list)->begin(); it != ((dynamic_cast<StructMemListNode*>($2))->s_list)->end(); it++){
-                //increment current offset by the current field's size
-                current_offset += (*it)->size;
-                size += (*it)->size;
-                //insert the field as a table entry of the current scope table
-                if (!(current_scope_table->insertVariableEntry((*it)->name, (*it)->type, current_offset))){
-                    // id already defined
-                    errorDef(yylineno,(*it)->name);
-                    exit(1);
-                }
-                //insert field to fields list of the defined struct
-                fields_list->push_back(*it);
-             }
-        ($$)->size = size;
-        }
-;
+//Sh : no need for 2 markers
 // StructTypeDec marker
-StructTypeDec : STRUCT ID LBRACE{
-            StructTypeDecNode* temp8 = new StructTypeDecNode();
+M2 : STRUCT ID LBRACE StructMemList{
+            StructsDeclNode* temp8 = new StructsDeclNode();
             temp8->name = ($2)->name;
             temp8->type = ($1)->type;
-            $$ = temp8;
             //insertion to current scope's table
-            if (!(current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT))){
+            if (!(current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT,NULL,0))){
                     // id already defined
                     errorDef(yylineno, (($2)->name));
                     exit(1);
             }
-            //todo: (racheli) i added the line bellow because if we reach here we need to pop the entry inserted in the check above
+
+             std::vector<StructMemNode*>* fields_list = new std::vector<StructMemNode*>();
+            fields_list = (dynamic_cast<StructMemListNode*>($4))->s_list;
+
+            StructMemListNode* dec_fields_list = new StructMemListNode();
+
+        //todo: (racheli) i added the line bellow because if we reach here we need to pop the entry inserted in the check above
             current_scope_table->scope_table->pop_back();
             //create new scope table for the scope defined by the struct
-            SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
+           SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
             current_scope_table = new_scope_table;
-            current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT);
+            //current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT); //Sh - this should be in the father scope
             //insert the new scope's offset to the offsets stack
             offsets.push(offsets.top());
-}
+
+        //the updating offset of the fields in the struct
+        int current_offset = offsets.top();
+        int size = 0;
+        //saving a reference to "fields list" field of the struct defined
+        //iterating over the fields list of the struct
+        for (std::vector<StructMemNode*>::const_iterator it = fields_list->begin(); it != fields_list->end(); it++){
+            //increment current offset by the current field's size
+            current_offset += (*it)->size;
+            size += (*it)->size;
+            //insert the field as a table entry of the current scope table
+            if (!(current_scope_table->insertVariableEntry((*it)->name, (*it)->type, current_offset))){
+                // id already defined
+                errorDef(yylineno,(*it)->name);
+                exit(1);
+            }
+            //insert field to s_mem_list of the StructTypeDecNode
+            dec_fields_list->s_list->push_back(*it);
+        }
+        temp8-> size = size; //Sh
+        temp8->s_mem_list = dec_fields_list; //Sh
+        $$ = temp8; //Sh
+        delete(fields_list);
+};
 
 RetType : Type {
                     $$->type = $1->type;
@@ -248,32 +265,39 @@ FormalDecl : Type ID {
                     new_node->size =1;
                     $$ = new_node;
                 }//todo: function cannot get string?
-            | StructType ID {
+            | StructType  { //Sh all
                     //s_type is "Animal"
-                    TableEntryStructType* s_type = (TableEntryStructType*)(current_scope_table->getEntry(($1)->name));
+                    /*TableEntryStructType* s_type = (TableEntryStructType*)(current_scope_table->getEntry(($1)->name));
                     if (s_type->type != TYPE_STRUCTID){
                        //no such struct
                         errorUndef(yylineno,($1)->name);
                         exit(1);
-                    }
+                    }*/ //already checked in StructType Rule
                     //RACHELI ADDITION
                     FormalDeclNode* new_node = new FormalDeclNode();
                     new_node->type = TYPE_STRUCTID;
-                    new_node->name = ($2)->name;
-                    new_node->size = ($2)->size;
+                    new_node->name = ($1)->name;
+                    new_node->size = ($1)->size;
+                    new_node->s_name = (dynamic_cast<StructTypeNode*>($1))->structName; //Sh
                     $$ = new_node;
                  }
 ;
 
 StructMemList : StructMem {
                         StructMemListNode* temp5 = new StructMemListNode();
-                        (temp5->s_list)->push_back(dynamic_cast<StructMemNode*>($1));
+                        StructMemNode* temp5_1 = new StructMemNode(); //Sh
+                        temp5_1 = dynamic_cast<StructMemNode*>($1); //Sh
+                        (temp5->s_list)->push_back(temp5_1);
                         $$ = temp5;
                     }
                 | StructMem StructMemList{
                         StructMemListNode* temp6 = new StructMemListNode();
-                        temp6->s_list = (dynamic_cast<StructMemListNode*>($2))->s_list;
-                        (temp6->s_list)->push_back(dynamic_cast<StructMemNode*>($1));
+                        StructMemNode* temp6_1 = new StructMemNode(); //Sh
+                        temp6_1 = dynamic_cast<StructMemNode*>($1); //Sh
+                        StructMemListNode* temp6_2 = new StructMemListNode(); //Sh
+                        temp6_2 = dynamic_cast<StructMemListNode*>($2); //Sh
+                        temp6->s_list = temp6_2->s_list;
+                        (temp6->s_list)->push_back(temp6_1);
                         $$ = temp6;
                 }
 ;
@@ -315,15 +339,15 @@ Statement : M3 RBRACE{
                 offsets.push(offset+1); //update offset
             }
 
-            | StructType ID SC {
+            | StructType SC {
                 int offset = offsets.top();
                 offsets.pop();
-                if (!(current_scope_table->insertStructTypeEntry(($2)->name, ($1)->name,TYPE_STRUCTID,offset))){
+                if (!(current_scope_table->insertStructTypeEntry(($1)->name, (dynamic_cast<StructTypeNode*>($1))->structName,TYPE_STRUCTID,$1->size))){
                     // Id already defined
-                    errorDef(yylineno,($2)->name);
+                    errorDef(yylineno,($1)->name);
                     exit(1);
                  }
-                offsets.push(offset+1); //update offset
+                offsets.push(offset+($1)->size); //update offset //Sh
              }
              //todo: racheli, it was STRUCT ID LBRACE StructMemList RBRACE SC , i changed it to "StructsDecl" - this is another conflict
             | StructsDecl
@@ -347,23 +371,15 @@ Statement : M3 RBRACE{
                 }
             }
 
-            | StructType ID ASSIGN Exp SC {
-                int offset = offsets.top();
-                offsets.pop();
-                if (!(current_scope_table->insertStructTypeEntry(($2)->name, ($1)->name,TYPE_STRUCTID,offset))){
-                    // Id already defined
-                    errorDef(yylineno,($2)->name);
-                    exit(1);
-                }
-                offsets.push(offset+1); //update offset
-
-                if (($4)->type != TYPE_STRUCTID){
+            | StructType ASSIGN Exp SC {
+                if (($3)->type != TYPE_STRUCTID){
                     // exp is not structType type
                     errorMismatch(yylineno);
                     exit(1);
                 }
-
-                TableEntry* s_s_type_exp = current_scope_table->getEntry(($4)->name);
+                StructTypeNode* temp11 = new StructTypeNode(""); //Sh
+                temp11=dynamic_cast<StructTypeNode*>($1); //Sh
+                //TableEntry* s_s_type_exp = current_scope_table->getEntry(($4)->name);
                 //todo: shani: i think we can assume that exp is defined, beacuse this is being checked in the defenition of exp. dont earse it though, leave it for debug
                 /* todo: for debug
                  * if(s_s_type_exp == nullptr){
@@ -372,11 +388,19 @@ Statement : M3 RBRACE{
                     exit(1);
                 }*/
 
-                if ((dynamic_cast<TableEntryStructType*>($4))->structName != ($1)->name){
+                if ((dynamic_cast<StructTypeNode*>($4))->structName != temp11->structName){
                     // exp is not the same structType type
                     errorMismatch(yylineno);
                     exit(1);
                 }
+                int offset = offsets.top();
+                offsets.pop();
+                if (!(current_scope_table->insertStructTypeEntry(temp11->name, temp11->structName,TYPE_STRUCTID,temp11->size))){
+                    // Id already defined
+                    errorDef(yylineno,($1)->name);
+                    exit(1);
+                }
+                offsets.push(offset+(temp11->size)); //update offset //Sh
 
              }
 //todo: RACHELI from here
@@ -413,14 +437,26 @@ Statement : M3 RBRACE{
             | ID PERIOD ID ASSIGN Exp SC
             {
                 //check if $1 is struct name and $3 is its field
-                TableEntryStruct* s = (TableEntryStruct*)current_scope_table->getEntry(($1)->name);
-                if (!s || s->type != TYPE_STRUCTID)
-                {
+                TableEntryStructType* sType = new TableEntryStructType();
+                sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name)); //Sh
+                if (!sType || sType->type != TYPE_STRUCTID)
+                { //no such structid
                     errorUndef(yylineno, ($1)->name);
                     exit(1);
                 }
-                StructMemNode* field = s->getField(($3)->name);
-                if (!s)
+
+                TableEntryStruct* s = new TableEntryStruct();
+                s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName)); //Sh
+                if (!s || s->type != TYPE_STRUCT)
+                { //no such struct
+                    errorUndef(yylineno, ($1)->name);
+                    exit(1);
+                }
+
+                StructMemNode* field = new StructMemNode();
+                field= s->getField(($3)->name); //Sh
+
+                if (!field)
                 {
                     errorUndefStructMember(yylineno, ($3)->name);
                     exit(1);
@@ -625,15 +661,18 @@ Type :   INT{($$)->type = TYPE_INT;}
         | BOOL{($$)->type = TYPE_BOOL;}
 ;
 
-StructType : STRUCT ID{
+StructType : STRUCT ID ID{ //Sh all
                 TableEntryStruct* IdVariable = (TableEntryStruct*)current_scope_table->getEntry(($2)->name);
                 if(!IdVariable){
-                    //the variable was never defined
+                    //the struct was never defined
                     errorUndef(yylineno,($2)->name);
                     exit(1);
                 }
-                ($$)->type = TYPE_STRUCT; //todo: to delete?
-                ($$)->name = ($2)->name;
+                StructTypeNode* temp10 = new StructTypeNode($2->name);
+                temp10->type = TYPE_STRUCTID;
+                temp10->name = ($3)->name;
+                temp10->size = IdVariable->size;
+                $$ = temp10;
             }
 ;
 
@@ -692,25 +731,31 @@ Exp : LPAREN Exp RPAREN{
         }
 
       | ID PERIOD ID{
-            //we need to check if this variable is defined in the upper or current scopes
-            //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
-            TableEntry* IdVariable = current_scope_table->getEntry(($1)->name);
-            if ((!IdVariable || (IdVariable->type != TYPE_STRUCTID) ) ){
-                //the variable was never defined or it's type is not a struct type (no such var name dog or dog is not struct animal type)
-                errorUndef(yylineno,(dynamic_cast<IdNode*>($1))->name);
+            //check if $1 is struct name and $3 is its field
+            TableEntryStructType* sType = new TableEntryStructType();
+            sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name)); //Sh
+            if (!sType || sType->type != TYPE_STRUCTID)
+            { //no such structid
+                errorUndef(yylineno, ($1)->name);
                 exit(1);
             }
 
-            //s_type is "Animal"
-            TableEntryStruct* s_type = (TableEntryStruct*)(current_scope_table->getEntry(IdVariable->name));
-
-            StructMemNode* field = s_type->getField(($3)->name);
-            if (!field){
-                // no such field
-                errorUndefStructMember(yylineno,(dynamic_cast<IdNode*>($1))->name);
+            TableEntryStruct* s = new TableEntryStruct();
+            s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName)); //Sh
+            if (!s || s->type != TYPE_STRUCT)
+            { //no such struct
+                errorUndef(yylineno, sType->structName);
                 exit(1);
             }
-            //else
+
+            StructMemNode* field = new StructMemNode();
+            field= s->getField(($3)->name); //Sh
+
+            if (!field)
+            {
+                errorUndefStructMember(yylineno, ($3)->name);
+                exit(1);
+            }
             ($$)->type = field->type;
             ($$)->size = ($1)->size;
         }
@@ -887,7 +932,6 @@ std::string typeToString(typeName type){
 }
 
 std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec){
-    cout<<"863"<<endl; //for debug
     std::vector<string>* s_vec = new std::vector<string>();
     for(int i=0; i< t_vec.size(); i++){
        s_vec->push_back(typeToString(t_vec[i]));
@@ -896,7 +940,6 @@ std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec){
 }
 
 std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*>* decls){
-    cout<<"872"<<endl; //for debug
     std::vector<typeName>* res = new std::vector<typeName>();
     for(std::vector<FormalDeclNode*>::const_iterator it = decls->begin(); it != decls->end(); it++){
         res->push_back((*it)->type);
@@ -921,7 +964,7 @@ void closeScope() {
             printID((*it)->name,(*it)->offset,("STRUCT<"+ ((TableEntryStructType*)(*it))->structName + ">"));
         } else if ((*it)->type == TYPE_STRUCT){
             TableEntryStruct* structInfo = (TableEntryStruct*)(*it);
-            printStructTypeHelp(structInfo->name, structInfo->Fields);
+            printStructTypeHelp(structInfo->name, structInfo->Fields->s_list);
         }
         else{
             printID((*it)->name,(*it)->offset,typeToString((*it)->type));

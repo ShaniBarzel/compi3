@@ -9,7 +9,6 @@ void output::endScope(){
 }
 
 void output::printID(const string& id, int offset, const string& type) {
-    cout<<"12"<<endl; //for debug
     cout << id << " " << type <<  " " << offset <<  endl;
 }
 
@@ -50,7 +49,6 @@ string typeAndNameListsToString(const std::vector<string>& memTypes, const std::
 
 string output::makeFunctionType(const string& retType, std::vector<string>& argTypes)
 {
-    cout<<"51"<<endl; //for debug
     stringstream res;
     res << typeListToString(argTypes) << "->" << retType;
     return res.str();

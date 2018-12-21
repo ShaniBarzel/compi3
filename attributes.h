@@ -197,16 +197,20 @@ public:
 
 class StructTypeNode : public Node{
 public:
-    StructTypeNode() : Node(NULL){};
+    std::string structName; //Sh
+    StructTypeNode(std::string structName) : Node(NULL), structName(structName){}; //Sh
     virtual ~StructTypeNode(){};
 };
+/*
 class StructTypeDecNode : public Node{
 public:
     StructTypeDecNode() : Node(NULL){};
     virtual ~StructTypeDecNode(){};
 };
+*/
 class FormalDeclNode : public Node{
 public:
+    std::string s_name; //Sh for when we have structType in the parameters list
     FormalDeclNode() : Node(NULL){};
     virtual ~FormalDeclNode(){};
 };
@@ -244,10 +248,10 @@ public:
 class StructsDeclNode : public Node{
 public:
     //todo: (racheli) I changed call to IdNode ctor with yytext_array
-    StructsDeclNode() : Node(NULL),/* s(StructNode(NULL)), identifier(IdNode(yytext_array))*/s_mem_list(StructMemListNode()){};
+    StructsDeclNode() : Node(NULL),/* s(StructNode(NULL)), identifier(IdNode(yytext_array))*/s_mem_list(new StructMemListNode()){};
     //StructNode s;
     //IdNode identifier;
-    StructMemListNode s_mem_list;
+    StructMemListNode* s_mem_list;
 };
 
 class RetTypeNode : public Node{
