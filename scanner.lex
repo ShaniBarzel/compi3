@@ -47,65 +47,65 @@ whitespace	                    (\x09|\x20)
 newline                         (\n)
 
 %%
-{VOID}								  { yylval=new VoidNode(yytext); printf("VOID ");
+{VOID}								  { yylval=new VoidNode(yytext);
                                            return VOID;}
-{INT}								  { yylval=new IntNode(yytext); printf("INT ");
+{INT}								  { yylval=new IntNode(yytext);
                                            return INT;}
-{BYTE}								  { yylval=new ByteNode(yytext); printf("BYTE ");
+{BYTE}								  { yylval=new ByteNode(yytext);
                                            return BYTE;}
-{B}								      { yylval=new BNode(yytext); printf("B ");
+{B}								      { yylval=new BNode(yytext);
                                            return B;}
-{BOOL}								  { yylval=new BoolNode(yytext); printf("BOOL ");
+{BOOL}								  { yylval=new BoolNode(yytext);
                                            return BOOL;}
-{STRUCT}							  { yylval=new StructNode(yytext); printf("STRUCT ");
+{STRUCT}							  { yylval=new StructNode(yytext);
                                            return STRUCT;}
-{AND}							      { yylval=new AndNode(yytext); printf("AND ");
+{AND}							      { yylval=new AndNode(yytext);
                                            return AND;}
-{OR}							      { yylval=new OrNode(yytext); printf("OR ");
+{OR}							      { yylval=new OrNode(yytext);
                                            return OR;}
-{NOT}							      { yylval=new NotNode(yytext); printf("NOT ");
+{NOT}							      { yylval=new NotNode(yytext);
                                            return NOT;}
-{TRUE}							      { yylval=new TrueNode(yytext); printf("TRUE ");
+{TRUE}							      { yylval=new TrueNode(yytext);
                                            return TRUE;}
-{FALSE}							      { yylval=new FalseNode(yytext); printf("FALSE ");
+{FALSE}							      { yylval=new FalseNode(yytext);
                                            return FALSE;}
-{RETURN}							  { yylval=new ReturnNode(yytext); printf("RETURN ");
+{RETURN}							  { yylval=new ReturnNode(yytext);
                                            return RETURN;}
-{IF}				                  { yylval=new IfNode(yytext); printf("IF ");
+{IF}				                  { yylval=new IfNode(yytext);
                                            return IF;}
-{ELSE}							      { yylval=new ElseNode(yytext); printf("ELSE ");
+{ELSE}							      { yylval=new ElseNode(yytext);
                                            return ELSE;}
-{WHILE}							      { yylval=new WhileNode(yytext); printf("WHILE ");
+{WHILE}							      { yylval=new WhileNode(yytext);
                                            return WHILE;}
-{BREAK}							      { yylval=new BreakNode(yytext); printf("BREAK ");
+{BREAK}							      { yylval=new BreakNode(yytext);
                                            return BREAK;}
-{CONTINUE}							  { yylval=new ContinueNode(yytext); printf("CONTINUE ");
+{CONTINUE}							  { yylval=new ContinueNode(yytext);
                                            return CONTINUE;}
-{SC}							      { yylval=new ScNode(yytext); printf("SC ");
+{SC}							      { yylval=new ScNode(yytext);
                                            return SC;}
-{COMMA}							      { yylval=new CommaNode(yytext); printf("COMMA ");
+{COMMA}							      { yylval=new CommaNode(yytext);
                                            return COMMA;}
-{PERIOD}							  { yylval=new PeriodNode(yytext); printf("PERIOD ");
+{PERIOD}							  { yylval=new PeriodNode(yytext);
                                            return PERIOD;}
-{LPAREN}							  { yylval=new LparenNode(yytext); printf("LPAREN ");
+{LPAREN}							  { yylval=new LparenNode(yytext);
                                            return LPAREN;}
-{RPAREN}							  { yylval=new RparenNode(yytext); printf("RPAREN ");
+{RPAREN}							  { yylval=new RparenNode(yytext);
                                            return RPAREN;}
-{LBRACE}							  { yylval=new LbraceNode(yytext); printf("LBRACE ");
+{LBRACE}							  { yylval=new LbraceNode(yytext);
                                            return LBRACE;}
-{RBRASCE}							  { yylval=new RbraceNode(yytext); printf("RBRACE ");
+{RBRASCE}							  { yylval=new RbraceNode(yytext);
                                            return RBRACE;}
-{ASSIGN}							  { yylval=new AssignNode(yytext); printf("ASSIGN ");
+{ASSIGN}							  { yylval=new AssignNode(yytext);
                                            return ASSIGN;}
-{ARELOP}							  { yylval=new RelopNode(yytext); printf("ARELOP ");
+{ARELOP}							  { yylval=new RelopNode(yytext);
                                            return ARELOP;}
-{NARELOP}							  { yylval=new RelopNode(yytext); printf("NARELOP ");
+{NARELOP}							  { yylval=new RelopNode(yytext);
                                             return NARELOP;}
-{ID}							      { yylval=new IdNode(yytext); printf("ID ");
+{ID}							      { yylval=new IdNode(yytext);
                                            return ID;}
-{NUM}							      { yylval=new NumNode(yytext); printf("NUM ");
+{NUM}							      { yylval=new NumNode(yytext);
                                            return NUM;}
-{STRING}							  { yylval=new StringNode(yytext); printf("STRING ");
+{STRING}							  { yylval=new StringNode(yytext);
                                            return STRING;}
 {whitespace}							 ;
 {newline}                               {};

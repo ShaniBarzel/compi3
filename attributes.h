@@ -172,7 +172,7 @@ public:
 //non terminals
 class ExpNode : public Node{
 public:
-    ExpNode() : Node(NULL), value(){};
+    ExpNode(std::string v) : Node(NULL), value(v=""){};
     virtual ~ExpNode(){};
     std::string value;
 };

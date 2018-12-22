@@ -30,6 +30,7 @@ bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offse
     new_entry->name = name;
     new_entry->type = type;
     new_entry->offset = offset;
+    new_entry->size =1;
     //insertion to table of current scope
     scope_table->push_back(new_entry); //shani: maybe we should cast this to regular entry because scope table is a vector of pointers to tableEntry. i'll wait to see is it works like this
     return true;
