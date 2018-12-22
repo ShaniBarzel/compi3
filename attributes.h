@@ -152,9 +152,13 @@ class RelopNode : public Node{
 public:
     RelopNode(char* yytext_a):Node(yytext_a){};
 };
-class BinopNode : public Node{
+class LbinopNode : public Node{
 public:
-    BinopNode(char* yytext_a):Node(yytext_a){};
+    LbinopNode(char* yytext_a):Node(yytext_a){};
+};
+class SbinopNode : public Node{
+public:
+    SbinopNode(char* yytext_a):Node(yytext_a){};
 };
 class IdNode : public Node{
 public:
@@ -176,6 +180,7 @@ public:
     virtual ~ExpNode(){};
     std::string value;
 };
+
 class ExpListNode : public Node{
 public:
     std::vector<ExpNode*>* exp_list;

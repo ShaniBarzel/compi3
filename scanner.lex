@@ -107,6 +107,12 @@ newline                         (\n)
                                            return NUM;}
 {STRING}							  { yylval=new StringNode(yytext);
                                            return STRING;}
+{LBINOP}                              { yylval = new LbinopNode(yytext);
+                                            return LBINOP;
+                                                    }
+{SBINOP}                               { yylval = new SbinopNode(yytext);
+                                         return SBINOP;
+                                        }
 {whitespace}							 ;
 {newline}                               {};
 .                                      {printf("Error %c\n", yytext[yyleng-1]); output::errorLex(yylineno);}
