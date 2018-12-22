@@ -196,6 +196,7 @@ StructsDecl :  M2 RBRACE SC{
 //Sh : no need for 2 markers
 // StructTypeDec marker
 M2 : STRUCT ID LBRACE StructMemList{
+            cout<<"racheli1: "<<yylineno<<endl;
             StructsDeclNode* temp8 = new StructsDeclNode();
             temp8->name = ($2)->name;
             temp8->type = ($1)->type;
@@ -309,19 +310,45 @@ FormalDecl : Type ID {
 ;
 
 StructMemList : StructMem {
+                        cout<<"racheli NEW"<<", "<<($1)->name<<endl;
                         StructMemListNode* temp5 = new StructMemListNode();
                         StructMemNode* temp5_1 = new StructMemNode(); //Sh
                         temp5_1 = dynamic_cast<StructMemNode*>($1); //Sh
+                        //check if errorDef:
+                        cout<<"racheli test * lineno "<<yylineno<<endl;
+                        for (std::vector<StructMemNode*>::const_iterator it = temp5->s_list->begin(); it!=temp5->s_list->end(); ++it)
+                        {
+                            cout<<"here 2"<<(*it)->name<<", "<<temp5_1->name<<endl;
+                            if ((*it)->name == temp5_1->name)
+                            {
+                                cout<<"bye"<<yylineno<<endl;
+                                errorDef(yylineno, (*it)->name);
+                                exit(0);
+                            }
+                        }
                         (temp5->s_list)->push_back(temp5_1);
                         $$ = temp5;
                     }
                 | StructMem StructMemList{
+                     //check if errorDef:
+                        cout<<"racheli test ** lineno "<<yylineno<<endl;
+
                         StructMemListNode* temp6 = new StructMemListNode();
                         StructMemNode* temp6_1 = new StructMemNode(); //Sh
                         temp6_1 = dynamic_cast<StructMemNode*>($1); //Sh
                         StructMemListNode* temp6_2 = new StructMemListNode(); //Sh
                         temp6_2 = dynamic_cast<StructMemListNode*>($2); //Sh
                         temp6->s_list = temp6_2->s_list;
+                        for (std::vector<StructMemNode*>::const_iterator it = temp6->s_list->begin(); it!=temp6->s_list->end(); ++it)
+                        {
+                            cout<<"here "<<(*it)->name<<", "<<temp6_1->name<<endl;
+                            if ((*it)->name == temp6_1->name)
+                            {
+                                cout<<"hi"<<yylineno<<endl;
+                                errorDef(yylineno, (*it)->name);
+                                exit(0);
+                            }
+                        }
                         (temp6->s_list)->push_back(temp6_1);
                         $$ = temp6;
                 }

@@ -46,6 +46,8 @@ STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
 whitespace	                    (\x09|\x20)
 newline                         (\n)
 
+
+
 %%
 {VOID}								  { yylval=new VoidNode(yytext);
                                            return VOID;}
@@ -114,6 +116,6 @@ newline                         (\n)
                                          return SBINOP;
                                         }
 {whitespace}							 ;
-{newline}                               {};
+{newline}                               ;
 .                                      {printf("Error %c\n", yytext[yyleng-1]); output::errorLex(yylineno);}
 %%
