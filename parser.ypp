@@ -80,6 +80,7 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
                 temp1->type = TYPE_FUNC;
                 temp1->return_type = ($1)->type; //passed from marker
                 $$ = temp1;
+             //   cout<<"test 4: (shold be int)"<<($$)->type<<endl;
                 //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
                 closeScope();
                 //return the current scope to be the outer scope
@@ -88,6 +89,8 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
                  current_scope_table = parent;
                 //back to the outer scope pffset
                  offsets.pop();
+                                                 cout<<"racheli debug 2: "<<yylineno<<endl;
+
            }
 ;
 
@@ -95,6 +98,7 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
 M1 : RetType ID LPAREN Formals RPAREN {
         //to pass return typeto funcDecl   //todo: Shani
             ($$)->type = ($1)->type; //todo: Shani
+           // cout<<"test 3: (shold be int)"<<typeToString(($$)->type)<<endl;
          //try to insert to the current symbol table
         if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type)))
         {
@@ -114,27 +118,34 @@ M1 : RetType ID LPAREN Formals RPAREN {
         if (dynamic_cast<FormalsNode*>($4)){ //if the parameters list is not empty
             for(std::vector<FormalDeclNode*>::const_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->begin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->end(); it++)
             {
-//cout<< (*it)->name <<endl; //for debug
+        //cout<< (*it)->name <<endl; //for debug
                 /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
                 specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
                 ParamOffset = ParamOffset - (*it)->size;
+                                // cout<<"racheli test strat"<<endl;
+                                 //       cout<<"name: "<<(*it)->name<<endl;
+                                  //      cout<<"size: "<<(*it)->size<<endl;
+                                   //     cout<<"type: "<<(*it)->type<<endl;
+                                   //     cout<<"offset: "<<ParamOffset<<endl;
+                                   //     cout<<"racheli test end"<<endl;
                 if((*it)->type != TYPE_STRUCTID){
                         if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset )))
                         {
-                            cout<<(*it)->name<<endl;
+                         //   cout<<(*it)->name<<endl;
                             //there is already a variable with the parameter's name
                             errorDef(yylineno, (*it)->name);
                             exit(1);
                         }
                 }
                 else{ //Sh
-                    if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size )))
+                    if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size)))
                     {
-                        cout<<(*it)->name<<endl;
+
                         //there is already a variable with the parameter's name
                         errorDef(yylineno,(*it)->name);
                         exit(1);
                     }
+                    current_scope_table->getEntry((*it)->name)->offset = ParamOffset;
                 }
                 f->declaration_list->push_back(*it);
 
@@ -157,12 +168,12 @@ StructsDecl :  M2 RBRACE SC{
         temp9->s_mem_list = (dynamic_cast<StructsDeclNode*>($1))->s_mem_list;
         $$ = temp9;
        // fields_list = (dynamic_cast<TableEntryStruct*>((((current_scope_table)->scope_table)->back())))->Fields;
-                    endScope();
-                    cout<<"RACHELI TEST NEW"<<endl;
-                    cout<<($1)->name<<endl;
-                    printStructTypeHelp((($1)->name), temp9->s_mem_list->s_list); //todo: shani fix $2
+                    //endScope();
+                    cout<<"RACHELI DEBUG"<<endl;
+                  //  cout<<($1)->name<<endl;
+                   // printStructTypeHelp((($1)->name), temp9->s_mem_list->s_list); //todo: shani fix $2
                     //popping tops of stack table and stack offsets
-                                        cout<<"RACHELI TEST CONT"<<endl;
+                                    //    cout<<"RACHELI TEST CONT"<<endl;
                     SymbolTable* parent = current_scope_table->getParent();
                     delete(current_scope_table);
                     current_scope_table = parent;
@@ -171,6 +182,8 @@ StructsDecl :  M2 RBRACE SC{
 
         //insert struct entry to the current scope
         current_scope_table->insertStructEntry(temp9->name, TYPE_STRUCT,temp9->s_mem_list,temp9->size); //Sh
+                      //      closeScope();
+
 };
 
 // marker 2
@@ -220,17 +233,21 @@ M2 : STRUCT ID LBRACE StructMemList{
             //insert field to s_mem_list of the StructTypeDecNode
             dec_fields_list->s_list->push_back(*it);
         }
-        temp8-> size = size; //Sh
+        temp8->size = size; //Sh
         temp8->s_mem_list = dec_fields_list; //Sh
         $$ = temp8; //Sh
-        delete(fields_list);
+        //delete(fields_list);
 };
 
 RetType : Type {
-                    $$->type = $1->type;
+                    RetTypeNode* rt_node = new RetTypeNode();
+                    rt_node->type = $1->type;
+                    $$ = rt_node;
             }
           | VOID {
-                    $$->type = TYPE_VOID;
+                    RetTypeNode* rt_node = new RetTypeNode();
+                    rt_node->type = TYPE_VOID;
+                    $$ = rt_node;
                  }
 ;
 
@@ -260,8 +277,8 @@ FormalDecl : Type ID {
                     FormalDeclNode* new_node = new FormalDeclNode();
                     new_node->type = ($1)->type;
                     new_node->name = ($2)->name;
-                    cout<<"RACHELI TEST"<<endl;
-                    cout<<new_node->name<<endl;
+                  //  cout<<"RACHELI TEST"<<endl;
+                  //  cout<<new_node->name<<endl;
                     new_node->size =1;
                     $$ = new_node;
                 }//todo: function cannot get string?
@@ -317,17 +334,26 @@ Statements : Statement
             | Statement Statements
 ;
 
-Statement : M3 RBRACE{
-    //todo: shani
-                    //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
-                    closeScope();
-                    //return the current scope to be the outer scope
-                    SymbolTable* parent = current_scope_table->getParent();
-                    delete(current_scope_table);
-                    current_scope_table = parent;
-                    //back to the outer scope pffset
-                    offsets.pop();
-                }
+Statement : LBRACE{
+                //todo: shani: has to seperate the open scope and the close scope
+                    //create new scope table for the scope
+                    SymbolTable* new_scope = new SymbolTable(current_scope_table);
+                    //the current scope is the new scope now
+                    current_scope_table = new_scope;
+                    //add the top value to the offsets stuck
+                    offsets.push(offsets.top());
+            }
+                     Statements RBRACE
+                     {
+                                //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
+                                closeScope();
+                                //return the current scope to be the outer scope
+                                SymbolTable* parent = current_scope_table->getParent();
+                                delete(current_scope_table);
+                                current_scope_table = parent;
+                                //back to the outer scope pffset
+                                offsets.pop();
+                     }
             | Type ID SC{
                 int offset = offsets.top();
                 offsets.pop();
@@ -360,6 +386,8 @@ Statement : M3 RBRACE{
                     errorDef(yylineno,($2)->name);
                     exit(1);
                 }
+                cout<<"racheli test new:"<<endl;
+                cout<<($2)->name<<endl;
                 offsets.push(offset+1); //update offset
 
                 if (($4)->type != ($1)->type){
@@ -493,6 +521,9 @@ Statement : M3 RBRACE{
             | RETURN Exp SC {
                 TableEntryFunc* current_function = current_scope_table->getLastFunctionEntry();
                 //check if Exp type can be assigned to the functions' return type
+               // cout<<"test: "<<endl;
+               // cout<<"current_function->return_type = "<<typeToString(current_function->return_type)<<endl;
+               // cout<<"function name (shouldnt be main)"<<current_function->name<<endl;
                 if (current_function->return_type != ($2)->type && !(current_function->return_type == TYPE_INT && ($2)->type == TYPE_BYTE))
                 {
                     errorMismatch(yylineno);
@@ -550,14 +581,13 @@ M4  :  IF LPAREN Exp RPAREN {
         }
 //marker M5
 M5  :  /*epsilon*/  %prec IF
-        | ELSE M6
+        | ELSE
         {
             SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
             current_scope_table = new_scope_table;
             offsets.push(offsets.top());
         }
-//marker M6
-M6  :   Statement{
+        Statement{
             closeScope();
             SymbolTable* p = current_scope_table->getParent();
             delete(current_scope_table);
@@ -594,7 +624,7 @@ Call : ID LPAREN ExpList RPAREN
                 errorUndef(yylineno, ($1)->name);
                 exit(1);
             }
-                                    cout<<"RACHELI NEW TEST"<<endl;
+                                   // cout<<"RACHELI NEW TEST"<<endl;
 
             //compare arguament list to declaration list
             if (!(f->compareArgumentTypes((dynamic_cast<ExpListNode*>($3))->exp_list)))
@@ -656,9 +686,23 @@ ExpList : Exp {
             }
 ;
 
-Type :   INT{($$)->type = TYPE_INT;}
-        | BYTE{($$)->type = TYPE_BYTE;}
-        | BOOL{($$)->type = TYPE_BOOL;}
+Type :   INT{
+                TypeNode* t_node = new TypeNode();
+                t_node->type = TYPE_INT;
+                t_node->value = TYPE_INT;
+                $$ = t_node;
+             }
+        | BYTE{
+                TypeNode* t_node = new TypeNode();
+                t_node->type = TYPE_BYTE;
+                t_node->value = TYPE_BYTE;
+                $$ = t_node;
+                }
+        | BOOL{                TypeNode* t_node = new TypeNode();
+                               t_node->type = TYPE_BOOL;
+                               t_node->value = TYPE_BOOL;
+                               $$ = t_node;
+                    }
 ;
 
 StructType : STRUCT ID ID{ //Sh all
@@ -676,15 +720,6 @@ StructType : STRUCT ID ID{ //Sh all
             }
 ;
 
-M3 : LBRACE Statements {
-    //todo: shani: has to seperate the open scope and the close scope
-        //create new scope table for the scope
-        SymbolTable* new_scope = new SymbolTable(current_scope_table);
-        //the current scope is the new scope now
-        current_scope_table = new_scope;
-        //add the top value to the offsets stuck
-        offsets.push(offsets.top());
-};
 
 Exp : LPAREN Exp RPAREN{
             $$->type = $2->type;
@@ -757,6 +792,7 @@ Exp : LPAREN Exp RPAREN{
                 exit(1);
             }
             ($$)->type = field->type;
+            //cout<<"test2:"<<typeToString(($$)->type)<<endl;
             ($$)->size = ($1)->size;
         }
 
@@ -797,7 +833,7 @@ Exp : LPAREN Exp RPAREN{
         }
 
       | NOT Exp {
-            if(($1)->type != TYPE_BOOL){
+            if(($2)->type != TYPE_BOOL){
                 //not operator is valid only on bool variables
                 errorMismatch(yylineno);
                 exit(1);
@@ -855,6 +891,7 @@ Exp : LPAREN Exp RPAREN{
 
 void yyerror(std::string m)
 {
+    endScope();
     //todo: why do we need an input to this function?
     errorSyn(yylineno);
     exit(0);
@@ -903,18 +940,18 @@ int main() {
 void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields){
     std::vector<typeName>* Types = new std::vector<typeName>();
     std::vector<string>* Names = new std::vector<string>();
-    if (*(fields->begin()))
-        cout<<"OK"<<endl;
-    for(std::vector<StructMemNode*>::const_iterator it = fields->begin();it!=fields->end();it++){
+    //if (*(fields->begin()))
+       // cout<<"OK"<<endl;
+    for(std::vector<StructMemNode*>::reverse_iterator it = fields->rbegin();it!=fields->rend();it++){
         Types->push_back((*it)->type);
         Names->push_back((*it)->name);
     }
-    cout<<"RACHELI TEST CONT 2"<<endl;
+   // cout<<"RACHELI TEST CONT 2"<<endl;
     printStructType(name, *(TypeVecToString(*Types)), *Names);
 }
 //todo: (racheli) TYPE_STRUCTID
 std::string typeToString(typeName type){
-    cout<<"846"<<endl; //for debug
+    //cout<<"846"<<endl; //for debug
     switch (type){
         case(TYPE_BYTE) :
             return "BYTE";
@@ -950,18 +987,22 @@ std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*>* decls){
 
 //todo: shani
 void closeScope() {
+        endScope();
+
     //note: type will never be struct (//todo: shani: racheli, i did not implimanted it for struct because you already did in another function)) 11.12 change: i changed it because of the FAQ
     //todo: should we support nested functions?
-    endScope();
     //for all arguments in the scope table, print them
     for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table)->begin(); it != (current_scope_table->scope_table)->end(); it++) {
+        cout<<"test new"<<endl;
+        if ((*it)->name == "x")
+            cout<<"good"<<endl;
         if ((*it)->type == TYPE_FUNC) {
-            cout<<"887"<<endl; //for debug
+            //cout<<"887"<<endl; //for debug
             //we should print by using "makeFunctionType" in this case
             output::printID((*it)->name,(*it)->offset,makeFunctionType(typeToString(((TableEntryFunc*)(*it))->return_type),*(TypeVecToString(*((declToTypes(((TableEntryFunc*)(*it))->declaration_list)))))));
         } else if ((*it)->type == TYPE_STRUCTID){
             //note: "+" is string concatenation operator
-            printID((*it)->name,(*it)->offset,("STRUCT<"+ ((TableEntryStructType*)(*it))->structName + ">"));
+            printID((*it)->name,(*it)->offset,("struct "+ ((TableEntryStructType*)(*it))->structName));
         } else if ((*it)->type == TYPE_STRUCT){
             TableEntryStruct* structInfo = (TableEntryStruct*)(*it);
             printStructTypeHelp(structInfo->name, structInfo->Fields->s_list);
@@ -970,4 +1011,5 @@ void closeScope() {
             printID((*it)->name,(*it)->offset,typeToString((*it)->type));
         }
     }
+
 }

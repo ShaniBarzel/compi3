@@ -190,7 +190,7 @@ public:
 //types:
 class TypeNode : public Node{
 public:
-    TypeNode(char* yytext_a):Node(yytext_a), value(){};
+    TypeNode():Node(NULL), value(){};
     typeName value;
     virtual ~TypeNode(){};
 };

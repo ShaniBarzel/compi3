@@ -44,6 +44,7 @@ ID							     [a-zA-Z][a-zA-Z0-9]*
 NUM							     0|[1-9][0-9]*
 STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
 whitespace	                    (\x09|\x20)
+newline                         (\n)
 
 %%
 {VOID}								  { yylval=new VoidNode(yytext); printf("VOID ");
@@ -64,8 +65,8 @@ whitespace	                    (\x09|\x20)
                                            return OR;}
 {NOT}							      { yylval=new NotNode(yytext); printf("NOT ");
                                            return NOT;}
-{TRUE}							      { yylval=new TrueNode(yytext); printf("STRUCT ");
-                                           return STRUCT;}
+{TRUE}							      { yylval=new TrueNode(yytext); printf("TRUE ");
+                                           return TRUE;}
 {FALSE}							      { yylval=new FalseNode(yytext); printf("FALSE ");
                                            return FALSE;}
 {RETURN}							  { yylval=new ReturnNode(yytext); printf("RETURN ");
@@ -107,5 +108,6 @@ whitespace	                    (\x09|\x20)
 {STRING}							  { yylval=new StringNode(yytext); printf("STRING ");
                                            return STRING;}
 {whitespace}							 ;
+{newline}                               {};
 .                                      {printf("Error %c\n", yytext[yyleng-1]); output::errorLex(yylineno);}
 %%

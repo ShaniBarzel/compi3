@@ -84,14 +84,23 @@ StructMemNode* TableEntryStruct::getField(std::string name){
 }
 
 TableEntryFunc* SymbolTable::getLastFunctionEntry() {
-    for (std::vector<TableEntry *>::const_iterator it = scope_table->begin(), end = scope_table->end();
-         it != end; ++it) {
+    //std::cout<<"test in getLastFunctionEntry:"<<std::endl;
+    //todo (racheli new) i changed this to reverse_iterator
+    for (std::vector<TableEntry *>::reverse_iterator it = scope_table->rbegin();
+         it != scope_table->rend(); ++it) {
+
         if ((*it)->type == TYPE_FUNC) //Sh
-            return (TableEntryFunc*)*it;
+        {
+            //std::cout << "?" << (*it)->name << std::endl;
+            return (TableEntryFunc *) *it;
+        }
     }
+   // std::cout<<"test in getLastFunctionEntry end."<<std::endl;
+
     if(!parent_table)
         return NULL;
     return parent_table->getLastFunctionEntry();
+
 }
 
 bool TableEntryFunc::compareArgumentTypes(std::vector<ExpNode*>* args) {

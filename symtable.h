@@ -60,7 +60,7 @@ public:
 class TableEntryStructType : public TableEntry{ //todo: shani
 public:
     std::string structName;
-   // TableEntryStructType() : TableEntry(){}; //Sh
+    //TableEntryStructType() : TableEntry(){}; //Sh
     //virtual ~TableEntryStructType(); //Sh (virtual)
 };
 
