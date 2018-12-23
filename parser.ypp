@@ -643,8 +643,8 @@ M4  :  IF LPAREN Exp RPAREN {
            // cout<<"test: "<<typeToString(($3)->type)<<endl;
             if (($3)->type != TYPE_BOOL)
             {
-                ($1)->err = true;
-                ($1)->line_num = yylineno;
+                ($$)->err = true;
+                ($$)->line_num = yylineno;
                // errorMismatch(yylineno);
                // exit(0);
             }
