@@ -249,8 +249,10 @@ public:
 };
 class StructMemListNode : public Node{
 public:
+    //racheli addition
+    int lineNumberStart;
     std::vector<StructMemNode*>* s_list;
-    StructMemListNode() :Node(NULL),  s_list(new std::vector<StructMemNode*>){};
+    StructMemListNode() :Node(NULL),  lineNumberStart(),s_list(new std::vector<StructMemNode*>){};
     virtual ~StructMemListNode(){delete(s_list);};
 };
 

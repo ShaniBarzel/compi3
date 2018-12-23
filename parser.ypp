@@ -196,7 +196,7 @@ M2 : STRUCT ID LBRACE StructMemList{
             //insertion to current scope's table
             if (!(current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT,NULL,0))){
                     // id already defined
-                    errorDef(yylineno, (($2)->name));
+                    errorDef((dynamic_cast<StructMemListNode*>($4))->lineNumberStart, (($2)->name));
                     exit(0);
             }
 
@@ -303,7 +303,6 @@ FormalDecl : Type ID {
 ;
 
 StructMemList : StructMem {
-                      // // cout<<"racheli NEW"<<", "<<($1)->name<<endl;
                         StructMemListNode* temp5 = new StructMemListNode();
                         StructMemNode* temp5_1 = new StructMemNode(); //Sh
                         temp5_1 = dynamic_cast<StructMemNode*>($1); //Sh
@@ -314,12 +313,15 @@ StructMemList : StructMem {
                          //   cout<<"here 2"<<(*it)->name<<", "<<temp5_1->name<<endl;
                             if ((*it)->name == temp5_1->name)
                             {
-                           //     cout<<"bye"<<yylineno<<endl;
-                                errorDef(yylineno, (*it)->name);
+                             // cout<<"bye"<<yylineno<<endl;
+                                errorDef(($1)->line_num, (*it)->name);
                                 exit(0);
                             }
                         }
                         (temp5->s_list)->push_back(temp5_1);
+                        temp5->line_num = ($1)->line_num;
+                     //   cout<<"racheli test new: line 324 "<<yylineno<<endl;
+                        temp5->lineNumberStart = ($1)->line_num - ($1)->size;
                         $$ = temp5;
                     }
                 | StructMem StructMemList{
@@ -327,7 +329,7 @@ StructMemList : StructMem {
                     //    cout<<"racheli test ** lineno "<<yylineno<<endl;
 
                         StructMemListNode* temp6 = new StructMemListNode();
-                        StructMemNode* temp6_1 = new StructMemNode(); //Sh
+                        StructMemNode* temp6_1 = necoutw StructMemNode(); //Sh
                         temp6_1 = dynamic_cast<StructMemNode*>($1); //Sh
                         StructMemListNode* temp6_2 = new StructMemListNode(); //Sh
                         temp6_2 = dynamic_cast<StructMemListNode*>($2); //Sh
@@ -337,22 +339,25 @@ StructMemList : StructMem {
                            // cout<<"here "<<(*it)->name<<", "<<temp6_1->name<<endl;
                             if ((*it)->name == temp6_1->name)
                             {
-                             //   cout<<"hi"<<yylineno<<endl;
-                                errorDef(yylineno, (*it)->name);
+                               // cout<<"hi"<<yylineno<<endl;
+                                errorDef(($2)->line_num, (*it)->name);
                                 exit(0);
                             }
                         }
                         (temp6->s_list)->push_back(temp6_1);
+
                         $$ = temp6;
                 }
 ;
 
 
 StructMem : Type ID SC{
+                //cout<<"racheli new: "<<yylineno<<endl;
                 StructMemNode* temp7 = new StructMemNode();
                 temp7->type = ($1)->type;
                 temp7->size = 1;
                 temp7->name = ($2)->name;
+                temp7->line_num = yylineno;
                 $$ = temp7;
               }
 ;
