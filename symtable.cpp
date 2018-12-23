@@ -115,22 +115,21 @@ bool TableEntryFunc::compareArgumentTypes(std::vector<ExpNode*>* args) {
     for (int i = 0; i < args->size(); i++) {
         if ((*it_a) && (*it_b) && (*it_a)->type != (*it_b)->type) {
             //an assignment of byte to int is allowed
-                //SHANI 2
-                if ((*it_a) && (*it_b) && ((*it_a)->type == TYPE_STRUCTID)) {
-                    if ((*it_b)->s_name != (*it_a)->s_name){
-                        return false;
-                    }
-
-
+            //SHANI 2
+            if ((*it_a) && (*it_b) && ((*it_a)->type == TYPE_STRUCTID)) {
+                if ((*it_b)->s_name != (*it_a)->s_name) {
+                    return false;
                 }
-                else if ((*it_a)->type != (*it_b)->type) {
-                    if (!((*it_b)->type == TYPE_INT && (*it_a)->type == TYPE_BYTE))
-                        return false;
-                }
-       }
-            it_a++;
-            it_b++;
 
-        return true;
+
+            } else if ((*it_a)->type != (*it_b)->type) {
+                if (!((*it_b)->type == TYPE_INT && (*it_a)->type == TYPE_BYTE))
+                    return false;
+            }
+        }
+        it_a++;
+        it_b++;
     }
+        return true;
+
 }

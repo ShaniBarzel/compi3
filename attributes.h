@@ -31,13 +31,16 @@ public:
     //char* name;
     typeName type;
     char* yytext_array;
-
-    Node() : size(0), name(), type(), yytext_array(){};
+    bool err;
+    int line_num;
+    Node() : size(0), name(), type(), yytext_array(), err(false), line_num(0){};
     Node(char* yytext_a){
         size = 0;
         yytext_array = yytext_a;
         if (yytext_a)
             name = std::string(yytext_a);
+        err = false;
+        line_num = 0;
     };
     virtual ~Node(){};
     //todo: check if need to add enum for token names (i/o section, 2.a)

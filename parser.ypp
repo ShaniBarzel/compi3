@@ -392,7 +392,7 @@ Statement : LBRACE ML Statements RBRACE
                     errorDef(yylineno,($1)->name);
                     exit(0);
                  }
-        current_scope_table->getEntry(($1)->name)->offset = offsets.top(); //SHANI S
+       // current_scope_table->getEntry(($1)->name)->offset = offsets.top(); //SHANI S
                  offsets.push(offset+1); //update offset //Sh //SHANI s
 
              }
@@ -576,13 +576,20 @@ Statement : LBRACE ML Statements RBRACE
                     exit(0);
                 }
             }
-            | M4 Statement M_close M5{
-                //closeScope();
-                //SymbolTable* current_parent = current_scope_table->getParent();
-                //delete(current_scope_table);
-                //current_scope_table = current_parent;
-                //offsets.pop();
+            | M4 Statement{
+                closeScope();
+                SymbolTable* current_parent = current_scope_table->getParent();
+                delete(current_scope_table);
+                current_scope_table = current_parent;
+                offsets.pop();
+                if (($1)->err)
+                {
+                                   errorMismatch(($1)->line_num);
+                                   exit(0);
+                }
+
             }
+            M5
             | WHILE LPAREN Exp RPAREN
                {
                     //turn on flag of loop
@@ -626,11 +633,15 @@ Statement : LBRACE ML Statements RBRACE
 ;
 //marker M4
 M4  :  IF LPAREN Exp RPAREN {
+           // Node* temp_n = new Node($1);
+
            // cout<<"test: "<<typeToString(($3)->type)<<endl;
             if (($3)->type != TYPE_BOOL)
             {
-                errorMismatch(yylineno);
-                exit(0);
+                ($1)->err = true;
+                ($1)->line_num = yylineno;
+               // errorMismatch(yylineno);
+               // exit(0);
             }
             SymbolTable* new_table = new SymbolTable(current_scope_table);
             current_scope_table = new_table;
@@ -665,12 +676,7 @@ M7  :   Statement
             inside_while = false;
         }
 */
-M_close : { /* epsilon */ closeScope();
-        SymbolTable* current_parent = current_scope_table->getParent();
-        delete(current_scope_table);
-        current_scope_table = current_parent;
-        offsets.pop();
-};
+
 
 Call : ID LPAREN ExpList RPAREN
         {
@@ -700,7 +706,7 @@ Call : ID LPAREN ExpList RPAREN
                         {
                             //SHANI s
                             if((*it)->type == TYPE_STRUCTID){
-                                types.push_back("struct"+(*it)->s_name);
+                                types.push_back("struct "+(*it)->s_name);
                             }
                              else   //    cout<<"RACHELI NEW TEST 2"<<endl;
                                 types.push_back(typeToString((*it)->type));
@@ -1145,25 +1151,7 @@ std::vector<std::string>* declToStrings(std::vector<FormalDeclNode*>* decl)
         if (typeToString(type_temp) != "STRUCTID")
             res->push_back(typeToString(type_temp));
         else
-            res->push_back("struct " + (*it)->s_name);
-       /* switch (type_temp)
-        {
-            case(TYPE_BYTE) :
-                res->push_back("BYTE");
-            case(TYPE_BOOL) :
-                res->push_back("BOOL");
-            case(TYPE_INT) :
-                res->push_back("INT");
-            case(TYPE_STRING) :
-                res->push_back("STRING");
-            case(TYPE_STRUCT) :
-                res->push_back("STRUCT");
-            case(TYPE_STRUCTID) :
-                res->push_back((*it)->s_name);
-            case(TYPE_VOID) :
-                res->push_back("VOID");
-        }
-        */
+            res->push_back("struct "+(*it)->s_name);
     }
     return res;
 }
