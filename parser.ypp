@@ -329,7 +329,7 @@ StructMemList : StructMem {
                     //    cout<<"racheli test ** lineno "<<yylineno<<endl;
 
                         StructMemListNode* temp6 = new StructMemListNode();
-                        StructMemNode* temp6_1 = necoutw StructMemNode(); //Sh
+                        StructMemNode* temp6_1 = new StructMemNode(); //Sh
                         temp6_1 = dynamic_cast<StructMemNode*>($1); //Sh
                         StructMemListNode* temp6_2 = new StructMemListNode(); //Sh
                         temp6_2 = dynamic_cast<StructMemListNode*>($2); //Sh
@@ -696,7 +696,7 @@ Call : ID LPAREN ExpList RPAREN
             TableEntryFunc* f = (TableEntryFunc*)current_scope_table->getEntry(($1)->name);
             if (!f)
             {
-                errorUndef(yylineno, ($1)->name);
+                errorUndefFunc(yylineno, ($1)->name);
                 exit(0);
             }
                                    // cout<<"RACHELI NEW TEST"<<endl;
