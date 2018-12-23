@@ -179,6 +179,7 @@ public:
     ExpNode(std::string v) : Node(NULL), value(v=""){};
     virtual ~ExpNode(){};
     std::string value;
+    std::string s_name; //SHANI s
 };
 
 class ExpListNode : public Node{

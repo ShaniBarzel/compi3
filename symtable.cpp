@@ -36,7 +36,7 @@ bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offse
     return true;
 }
 //todo: shani
-bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size){
+bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size, int offset){
     //check if an entry for variable to be inserted already exists in some scope table in the tree
     if(getEntry(name)) //entry already exist
         return false;
@@ -47,6 +47,7 @@ bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, ty
     new_entry->structName = s_name;
     new_entry->size = size; //Sh
     //insertion to table of current scope
+            new_entry->offset = offset; //SHANI s
     scope_table->push_back(new_entry);
     return true;
 }
@@ -114,14 +115,22 @@ bool TableEntryFunc::compareArgumentTypes(std::vector<ExpNode*>* args) {
     for (int i = 0; i < args->size(); i++) {
         if ((*it_a) && (*it_b) && (*it_a)->type != (*it_b)->type) {
             //an assignment of byte to int is allowed
-            if ((*it_a)->type != (*it_b)->type) {
-                if (!((*it_b)->type == TYPE_INT && (*it_a)->type == TYPE_BYTE))
-                    return false;
-            }
+                //SHANI 2
+                if ((*it_a) && (*it_b) && ((*it_a)->type == TYPE_STRUCTID)) {
+                    if ((*it_b)->s_name != (*it_a)->s_name){
+                        return false;
+                    }
+
+
+                }
+                else if ((*it_a)->type != (*it_b)->type) {
+                    if (!((*it_b)->type == TYPE_INT && (*it_a)->type == TYPE_BYTE))
+                        return false;
+                }
+       }
             it_a++;
             it_b++;
 
-        }
-    }
         return true;
     }
+}

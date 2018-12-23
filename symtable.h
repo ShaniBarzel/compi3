@@ -117,7 +117,7 @@ public:
     * inserts an entry of a struct type to the table
     * returns true if succeeds
     */
-    bool insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size);
+    bool insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size,int offset);
     /*
      * this function returns the latest function entry in the table
      * if exists - returns it, else - nullptr
