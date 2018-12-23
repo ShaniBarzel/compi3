@@ -631,7 +631,7 @@ Statement : LBRACE ML Statements RBRACE
                 {
                     if (!inside_while)
                     {
-                        errorUnexpectedBreak(yylineno);
+                        errorUnexpectedContinue(yylineno);
                         exit(0);
                     }
                 }
