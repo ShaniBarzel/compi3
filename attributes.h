@@ -47,6 +47,9 @@ public:
 
 extern YYSTYPE yyval;
 // terminals classes
+class CommentNode : public Node {
+
+};
 class VoidNode : public Node {
 public:
     VoidNode(char* yytext_a):Node(yytext_a){};
