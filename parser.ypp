@@ -1,6 +1,6 @@
 %{
 /*USER DECLERATIONS*/
-#define YYERROR_VERBOSE 1 //todo: for degig
+//#define YYERROR_VERBOSE 1 //todo: for degbug
 #define YYDEBUG 1 //todo: for debug
 #include <iostream>
 #include "symtable.h"
@@ -31,8 +31,8 @@ bool main_def = false;
 void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields);
 std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec);
 std::string typeToString(typeName type);
-void closeScope(); //todo: shani
-std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls); //todo: shani
+void closeScope();
+std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls);
 
 %}
 /*DECLERATIONS*/
@@ -54,13 +54,14 @@ std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls); //todo: 
 %token ID
 %token NUM
 %token STRING
-%left LPAREN RPAREN LBRACE RBRACE ARELOP
-%left LBINOP
-%left SBINOP
+%left LPAREN RPAREN LBRACE RBRACE
 %right NOT ASSIGN
 %left AND
 %left OR
-%nonassoc NARELOP
+%nonassoc NARELOP //Fixed
+%left ARELOP //Fixed
+%left LBINOP //Fixed
+%left SBINOP
 %nonassoc IF
 %nonassoc ELSE
 
@@ -76,13 +77,12 @@ Funcs :   FuncDecl Funcs
           | /*epsilon*/
 ;
 
-// todo: SHANI
+
 FuncDecl :  M1 LBRACE Statements RBRACE{
                 FuncDeclNode* temp1 = new FuncDeclNode();
                 temp1->type = TYPE_FUNC;
                 temp1->return_type = ($1)->type; //passed from marker
                 $$ = temp1;
-             //   cout<<"test 4: (shold be int)"<<($$)->type<<endl;
                 //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
                 closeScope();
                 //return the current scope to be the outer scope
@@ -91,16 +91,13 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
                  current_scope_table = parent;
                 //back to the outer scope pffset
                  offsets.pop();
-                                             //    cout<<"racheli debug 2: "<<yylineno<<endl;
-
            }
 ;
 
 /* marker 1 */
 M1 : RetType ID LPAREN Formals RPAREN {
-        //to pass return typeto funcDecl   //todo: Shani
-            ($$)->type = ($1)->type; //todo: Shani
-           // cout<<"test 3: (shold be int)"<<typeToString(($$)->type)<<endl;
+        //to pass return typeto funcDecl
+         ($$)->type = ($1)->type;
          //try to insert to the current symbol table
         if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type)))
         {
@@ -123,29 +120,21 @@ M1 : RetType ID LPAREN Formals RPAREN {
         if (!($4->size == -1)){ //if the parameters list is not empty
             for(std::vector<FormalDeclNode*>::reverse_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->rbegin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->rend(); it++)
             {
-        //cout<< (*it)->name <<endl; //for debug
                 /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
-                specipicaly, the "decleration" order in the outer scope is from the right variab;e in the agruments list, to the right. */
+                specipicaly, the "decleration" order in the outer scope is from the right variable in the agruments list, to the right. */
                 ParamOffset = ParamOffset - (*it)->size;
-                                // cout<<"racheli test strat"<<endl;
-                                 //       cout<<"name: "<<(*it)->name<<endl;
-                                  //      cout<<"size: "<<(*it)->size<<endl;
-                                   //     cout<<"type: "<<(*it)->type<<endl;
-                                   //     cout<<"offset: "<<ParamOffset<<endl;
-                                   //     cout<<"racheli test end"<<endl;
+
                 if((*it)->type != TYPE_STRUCTID){
                         if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset )))
                         {
-                         //   cout<<(*it)->name<<endl;
                             //there is already a variable with the parameter's name
                             errorDef(yylineno, (*it)->name);
                             exit(0);
                         }
                 }
-                else{ //Sh
+                else{
                     if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size,ParamOffset)))
                     {
-
                         //there is already a variable with the parameter's name
                         errorDef(yylineno,(*it)->name);
                         exit(0);
@@ -167,29 +156,22 @@ Structs :   StructsDecl Structs
 
 StructsDecl :  M2 RBRACE SC{
         StructsDeclNode* temp9 = new StructsDeclNode();
-        temp9->name = ($1)->name; //Sh it was ($$)->name
-        temp9->size = ($1)->size; //Sh it was ($$)=>name
+        temp9->name = ($1)->name;
+        temp9->size = ($1)->size;
         temp9->s_mem_list = (dynamic_cast<StructsDeclNode*>($1))->s_mem_list;
         $$ = temp9;
-
-                    SymbolTable* parent = current_scope_table->getParent();
-                    delete(current_scope_table);
-                    current_scope_table = parent;
-
-                    offsets.pop();
+        SymbolTable* parent = current_scope_table->getParent();
+        delete(current_scope_table);
+        current_scope_table = parent;
+        offsets.pop();
 
         //insert struct entry to the current scope
-        current_scope_table->insertStructEntry(temp9->name, TYPE_STRUCT,temp9->s_mem_list,temp9->size); //Sh
-
+        current_scope_table->insertStructEntry(temp9->name, TYPE_STRUCT,temp9->s_mem_list,temp9->size);
 
 };
 
 // marker 2
-//todo update code to match new rule
-//Sh : no need for 2 markers
-// StructTypeDec marker
 M2 : STRUCT ID LBRACE StructMemList{
-        //    cout<<"racheli1: "<<yylineno<<endl;
             StructsDeclNode* temp8 = new StructsDeclNode();
             temp8->name = ($2)->name;
             temp8->type = ($1)->type;
@@ -205,12 +187,10 @@ M2 : STRUCT ID LBRACE StructMemList{
 
             StructMemListNode* dec_fields_list = new StructMemListNode();
 
-        //todo: (racheli) i added the line bellow because if we reach here we need to pop the entry inserted in the check above
             current_scope_table->scope_table->pop_back();
             //create new scope table for the scope defined by the struct
-           SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
+            SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
             current_scope_table = new_scope_table;
-            //current_scope_table->insertStructEntry(($2)->name, TYPE_STRUCT); //Sh - this should be in the father scope
             //insert the new scope's offset to the offsets stack
             offsets.push(offsets.top());
 
@@ -232,10 +212,9 @@ M2 : STRUCT ID LBRACE StructMemList{
             //insert field to s_mem_list of the StructTypeDecNode
             dec_fields_list->s_list->push_back(*it);
         }
-        temp8->size = size; //Sh
-        temp8->s_mem_list = dec_fields_list; //Sh
-        $$ = temp8; //Sh
-        //delete(fields_list);
+        temp8->size = size;
+        temp8->s_mem_list = dec_fields_list;
+        $$ = temp8;
 };
 
 RetType : Type {
@@ -275,71 +254,51 @@ FormalsList : FormalDecl {
                };
 
 FormalDecl : Type ID {
-                    //RACHELI ADDITION
+
                     FormalDeclNode* new_node = new FormalDeclNode();
                     new_node->type = ($1)->type;
                     new_node->name = ($2)->name;
-                  //  cout<<"RACHELI TEST"<<endl;
-                  //  cout<<new_node->name<<endl;
                     new_node->size =1;
                     $$ = new_node;
-                }//todo: function cannot get string?
-            | StructType  { //Sh all
-                    //s_type is "Animal"
-                    /*TableEntryStructType* s_type = (TableEntryStructType*)(current_scope_table->getEntry(($1)->name));
-                    if (s_type->type != TYPE_STRUCTID){
-                       //no such struct
-                        errorUndef(yylineno,($1)->name);
-                        exit(0);
-                    }*/ //already checked in StructType Rule
-                    //RACHELI ADDITION
+                }
+            | StructType  {
                     FormalDeclNode* new_node = new FormalDeclNode();
                     new_node->type = TYPE_STRUCTID;
                     new_node->name = ($1)->name;
                     new_node->size = ($1)->size;
-                    new_node->s_name = (dynamic_cast<StructTypeNode*>($1))->structName; //Sh
+                    new_node->s_name = (dynamic_cast<StructTypeNode*>($1))->structName;
                     $$ = new_node;
                  }
 ;
 
 StructMemList : StructMem {
                         StructMemListNode* temp5 = new StructMemListNode();
-                        StructMemNode* temp5_1 = new StructMemNode(); //Sh
-                        temp5_1 = dynamic_cast<StructMemNode*>($1); //Sh
-                        //check if errorDef:
-                     //   cout<<"racheli test * lineno "<<yylineno<<endl;
+                        StructMemNode* temp5_1 = new StructMemNode();
+                        temp5_1 = dynamic_cast<StructMemNode*>($1);
                         for (std::vector<StructMemNode*>::const_iterator it = temp5->s_list->begin(); it!=temp5->s_list->end(); ++it)
                         {
-                         //   cout<<"here 2"<<(*it)->name<<", "<<temp5_1->name<<endl;
                             if ((*it)->name == temp5_1->name)
                             {
-                             // cout<<"bye"<<yylineno<<endl;
                                 errorDef(($1)->line_num, (*it)->name);
                                 exit(0);
                             }
                         }
                         (temp5->s_list)->push_back(temp5_1);
                         temp5->line_num = ($1)->line_num;
-                     //   cout<<"racheli test new: line 324 "<<yylineno<<endl;
                         temp5->lineNumberStart = ($1)->line_num - ($1)->size;
                         $$ = temp5;
                     }
                 | StructMem StructMemList{
-                     //check if errorDef:
-                    //    cout<<"racheli test ** lineno "<<yylineno<<endl;
-
                         StructMemListNode* temp6 = new StructMemListNode();
-                        StructMemNode* temp6_1 = new StructMemNode(); //Sh
-                        temp6_1 = dynamic_cast<StructMemNode*>($1); //Sh
-                        StructMemListNode* temp6_2 = new StructMemListNode(); //Sh
-                        temp6_2 = dynamic_cast<StructMemListNode*>($2); //Sh
+                        StructMemNode* temp6_1 = new StructMemNode();
+                        temp6_1 = dynamic_cast<StructMemNode*>($1);
+                        StructMemListNode* temp6_2 = new StructMemListNode();
+                        temp6_2 = dynamic_cast<StructMemListNode*>($2);
                         temp6->s_list = temp6_2->s_list;
                         for (std::vector<StructMemNode*>::const_iterator it = temp6->s_list->begin(); it!=temp6->s_list->end(); ++it)
                         {
-                           // cout<<"here "<<(*it)->name<<", "<<temp6_1->name<<endl;
                             if ((*it)->name == temp6_1->name)
                             {
-                               // cout<<"hi"<<yylineno<<endl;
                                 errorDef(($2)->line_num, (*it)->name);
                                 exit(0);
                             }
@@ -350,9 +309,7 @@ StructMemList : StructMem {
                 }
 ;
 
-
 StructMem : Type ID SC{
-                //cout<<"racheli new: "<<yylineno<<endl;
                 StructMemNode* temp7 = new StructMemNode();
                 temp7->type = ($1)->type;
                 temp7->size = 1;
@@ -368,16 +325,16 @@ Statements : Statement
 ;
 
 Statement : LBRACE ML Statements RBRACE
-                     {// cout<<"SHANI"<<endl;
-                                //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
-                                closeScope();
-                                //return the current scope to be the outer scope
-                                SymbolTable* parent = current_scope_table->getParent();
-                                delete(current_scope_table);
-                                current_scope_table = parent;
-                                //back to the outer scope pffset
-                                offsets.pop();
-                     }
+                  {
+                      //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
+                      closeScope();
+                      //return the current scope to be the outer scope
+                      SymbolTable* parent = current_scope_table->getParent();
+                      delete(current_scope_table);
+                      current_scope_table = parent;
+                      //back to the outer scope offset
+                      offsets.pop();
+                  }
             | Type ID SC{
                 int offset = offsets.top();
                 offsets.pop();
@@ -397,11 +354,10 @@ Statement : LBRACE ML Statements RBRACE
                     errorDef(yylineno,($1)->name);
                     exit(0);
                  }
-       // current_scope_table->getEntry(($1)->name)->offset = offsets.top(); //SHANI S
-                 offsets.push(offset+1); //update offset //Sh //SHANI s
+                 offsets.push(offset+($1)->size); //update offset //Fixed
 
              }
-             //todo: racheli, it was STRUCT ID LBRACE StructMemList RBRACE SC , i changed it to "StructsDecl" - this is another conflict
+
             | StructsDecl
 
             | Type ID ASSIGN Exp SC{
@@ -412,12 +368,9 @@ Statement : LBRACE ML Statements RBRACE
                     errorDef(yylineno,($2)->name);
                     exit(0);
                 }
-               // cout<<"racheli test new:"<<endl;
-               // cout<<($2)->name<<endl;
                 offsets.push(offset+1); //update offset
                 if (($4)->type != ($1)->type){
-              //  cout<<"test: "<<endl;
-                                    // exp is not the same type as id
+                    // exp is not the same type as id
                     if ((($4)->type != TYPE_BYTE) || (($1)->type != TYPE_INT)){ // assignment of byte to int is ok
                         errorMismatch(yylineno);
                         exit(0);
@@ -426,23 +379,13 @@ Statement : LBRACE ML Statements RBRACE
             }
 
             | StructType ASSIGN Exp SC {
-              //  cout<<"test: "<<typeToString(($3)->type)<<endl;
                 if (($3)->type != TYPE_STRUCTID){
                     // exp is not structType type
                     errorMismatch(yylineno);
                     exit(0);
                 }
-                StructTypeNode* temp11 = new StructTypeNode(""); //Sh
-                temp11=dynamic_cast<StructTypeNode*>($1); //Sh
-                //TableEntry* s_s_type_exp = current_scope_table->getEntry(($4)->name);
-                //todo: shani: i think we can assume that exp is defined, beacuse this is being checked in the defenition of exp. dont earse it though, leave it for debug
-                /* todo: for debug
-                 * if(s_s_type_exp == nullptr){
-                    //the variable exp was never defined
-                    errorUndef(yylineno,(dynamic_cast<IdNode*>($1))->name);
-                    exit(0);
-                }*/
-
+                StructTypeNode* temp11 = new StructTypeNode("");
+                temp11=dynamic_cast<StructTypeNode*>($1);
                 if ((dynamic_cast<StructTypeNode*>($4))->structName != temp11->structName){
                     // exp is not the same structType type
                     errorMismatch(yylineno);
@@ -455,15 +398,14 @@ Statement : LBRACE ML Statements RBRACE
                     errorDef(yylineno,($1)->name);
                     exit(0);
                 }
-                offsets.push(offset+1); //update offset //Sh
+                offsets.push(offset+($1)->size); //update offset //Fixed
 
              }
-//todo: RACHELI from here
+
             | ID ASSIGN Exp SC
             {
                 TableEntry* entry = current_scope_table->getEntry(($1)->name);
-                //TableEntryVariable* entry = (TableEntryVariable*)(current_scope_table->getEntry(($1)->name));
-                if (!entry)
+                if (!entry || entry->type == TYPE_FUNC || entry->type == TYPE_STRUCT) //Fixed: func and struct are not assigenable
                 {
                     errorUndef(yylineno, ($1)->name);
                     exit(0);
@@ -498,11 +440,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
 
                 //check if type of var entry is byte and
-                //todo: check if strtol is ok (converts string to long int)
-                //const char * c = str.c_str();
-
                 const char * c = ((dynamic_cast<ExpNode*>($3))->value).c_str();
-            //cout<<"SEGF"<<endl; //debug
                 if (entry->type == TYPE_BYTE && std::strtol(c, NULL, 0) > 255)
                 {
                     errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($3))->value);
@@ -513,7 +451,7 @@ Statement : LBRACE ML Statements RBRACE
             {
                 //check if $1 is struct name and $3 is its field
                 TableEntryStructType* sType = new TableEntryStructType();
-                sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name)); //Sh
+                sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name));
                 if (!sType || sType->type != TYPE_STRUCTID)
                 { //no such structid
                     errorUndef(yylineno, ($1)->name);
@@ -521,7 +459,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
 
                 TableEntryStruct* s = new TableEntryStruct();
-                s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName)); //Sh
+                s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName));
                 if (!s || s->type != TYPE_STRUCT)
                 { //no such struct
                     errorUndef(yylineno, ($1)->name);
@@ -529,7 +467,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
 
                 StructMemNode* field = new StructMemNode();
-                field= s->getField(($3)->name); //Sh
+                field= s->getField(($3)->name);
 
                 if (!field)
                 {
@@ -546,10 +484,7 @@ Statement : LBRACE ML Statements RBRACE
                     }
                 }
 
-                //cout<<"RACHELI BEGIN"<<endl;
-                //check if legal case type byte
                 const char* c = ((dynamic_cast<ExpNode*>($5))->value).c_str();
-                //cout<<"RACHELI END"<<endl;
                 if (($5)->type == TYPE_BYTE && std::strtol(c, NULL, 0) > 255) {
                     errorByteTooLarge(yylineno, (dynamic_cast<ExpNode *>($5))->value);
                     exit(0);
@@ -572,9 +507,6 @@ Statement : LBRACE ML Statements RBRACE
             | RETURN Exp SC {
                 TableEntryFunc* current_function = current_scope_table->getLastFunctionEntry();
                 //check if Exp type can be assigned to the functions' return type
-               // cout<<"test: "<<endl;
-               // cout<<"current_function->return_type = "<<typeToString(current_function->return_type)<<endl;
-               // cout<<"function name (shouldnt be main)"<<current_function->name<<endl;
                 if (current_function->return_type != ($2)->type && !(current_function->return_type == TYPE_INT && ($2)->type == TYPE_BYTE))
                 {
                     errorMismatch(yylineno);
@@ -589,8 +521,8 @@ Statement : LBRACE ML Statements RBRACE
                 offsets.pop();
                 if (($1)->err)
                 {
-                                   errorMismatch(($1)->line_num);
-                                   exit(0);
+                   errorMismatch(($1)->line_num);
+                   exit(0);
                 }
 
             }
@@ -638,15 +570,10 @@ Statement : LBRACE ML Statements RBRACE
 ;
 //marker M4
 M4  :  IF LPAREN Exp RPAREN {
-           // Node* temp_n = new Node($1);
-
-           // cout<<"test: "<<typeToString(($3)->type)<<endl;
             if (($3)->type != TYPE_BOOL)
             {
                 ($$)->err = true;
                 ($$)->line_num = yylineno;
-               // errorMismatch(yylineno);
-               // exit(0);
             }
             SymbolTable* new_table = new SymbolTable(current_scope_table);
             current_scope_table = new_table;
@@ -668,20 +595,6 @@ M5  :  /*epsilon*/  %prec IF
             offsets.pop();
         }
         %prec ELSE
-/*
-//marker M7
-M7  :   Statement
-        {
-            closeScope();
-            SymbolTable* p = current_scope_table->getParent();
-            delete(current_scope_table);
-            current_scope_table = p;
-            offsets.pop();
-            //turn off boolean marking that we're out of the while loop
-            inside_while = false;
-        }
-*/
-
 
 Call : ID LPAREN ExpList RPAREN
         {
@@ -689,7 +602,6 @@ Call : ID LPAREN ExpList RPAREN
 
             if (($1)->name == "main")
             {
-                //todo: email (what error should we return?) (main should not have parameters list)
                 errorMismatch(yylineno);
                 exit(0);
             }
@@ -699,7 +611,6 @@ Call : ID LPAREN ExpList RPAREN
                 errorUndefFunc(yylineno, ($1)->name);
                 exit(0);
             }
-                                   // cout<<"RACHELI NEW TEST"<<endl;
 
             //compare arguament list to declaration list
             if (!(f->compareArgumentTypes((dynamic_cast<ExpListNode*>($3))->exp_list)))
@@ -709,11 +620,10 @@ Call : ID LPAREN ExpList RPAREN
                 for (std::vector<FormalDeclNode*>::const_iterator it = f->declaration_list->begin();
                      it != f->declaration_list->end(); it++)
                         {
-                            //SHANI s
                             if((*it)->type == TYPE_STRUCTID){
                                 types.push_back("struct "+(*it)->s_name);
                             }
-                             else   //    cout<<"RACHELI NEW TEST 2"<<endl;
+                             else
                                 types.push_back(typeToString((*it)->type));
                         }
                 errorPrototypeMismatch(yylineno, ($1)->name, types);
@@ -726,7 +636,7 @@ Call : ID LPAREN ExpList RPAREN
         | ID LPAREN RPAREN
         {
             TableEntryFunc* f = (TableEntryFunc*)current_scope_table->getEntry(($1)->name);
-            if (!f)
+            if (!f || (f->type != TYPE_FUNC)) //Fixed
             {
                 errorUndefFunc(yylineno, ($1)->name);
                 exit(0);
@@ -750,7 +660,6 @@ Call : ID LPAREN ExpList RPAREN
             $$ = tempC;
         }
 ;
-//todo: RACHELI to here here
 
 ExpList : Exp {
                 // add the experssion to the expression list
@@ -778,15 +687,16 @@ Type :   INT{
                 t_node->type = TYPE_BYTE;
                 t_node->value = TYPE_BYTE;
                 $$ = t_node;
-                }
-        | BOOL{                TypeNode* t_node = new TypeNode();
-                               t_node->type = TYPE_BOOL;
-                               t_node->value = TYPE_BOOL;
-                               $$ = t_node;
-                    }
+              }
+        | BOOL{
+                TypeNode* t_node = new TypeNode();
+                t_node->type = TYPE_BOOL;
+                t_node->value = TYPE_BOOL;
+                $$ = t_node;
+              }
 ;
 
-StructType : STRUCT ID ID{ //Sh all
+StructType : STRUCT ID ID{
                 TableEntryStruct* IdVariable = (TableEntryStruct*)current_scope_table->getEntry(($2)->name);
                 if(!IdVariable){
                     //the struct was never defined
@@ -797,19 +707,17 @@ StructType : STRUCT ID ID{ //Sh all
                 temp10->type = TYPE_STRUCTID;
                 temp10->name = ($3)->name;
                 temp10->size = IdVariable->size;
-               // temp10->offset = offsets.top();
                 $$ = temp10;
             }
 ;
 
 ML :  { /* epsilon */
-    //todo: shani: has to seperate the open scope and the close scope
-    //create new scope table for the scope
-    SymbolTable* new_scope = new SymbolTable(current_scope_table);
-    //the current scope is the new scope now
-    current_scope_table = new_scope;
-    //add the top value to the offsets stuck
-    offsets.push(offsets.top());
+         //create new scope table for the scope
+        SymbolTable* new_scope = new SymbolTable(current_scope_table);
+        //the current scope is the new scope now
+        current_scope_table = new_scope;
+        //add the top value to the offsets stuck
+        offsets.push(offsets.top());
 };
 
 Exp : LPAREN Exp RPAREN{
@@ -852,13 +760,12 @@ Exp : LPAREN Exp RPAREN{
                 errorUndef(yylineno,($1)->name);
                 exit(0);
             }
-            //SHANI S
 
             // the exp type and size is the variable type and size
             ExpNode* tempID = new ExpNode($1->name);
             if (IdVariable->type == TYPE_STRUCTID){
                     TableEntryStructType* sType = new TableEntryStructType();
-                    sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name)); //Sh
+                    sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name));
                     if (!sType || sType->type != TYPE_STRUCTID)
                     { //no such structid
                         errorUndef(yylineno, ($1)->name);
@@ -866,14 +773,14 @@ Exp : LPAREN Exp RPAREN{
                     }
 
                     TableEntryStruct* s = new TableEntryStruct();
-                    s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName)); //Sh
+                    s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName));
                     if (!s || s->type != TYPE_STRUCT)
                     { //no such struct
                         errorUndef(yylineno, sType->structName);
                         exit(0);
                     }
 
-                    tempID->s_name = sType->structName; //Sh
+                    tempID->s_name = sType->structName;
             }
             tempID->type = IdVariable->type;
             tempID->size = IdVariable->size;
@@ -884,7 +791,7 @@ Exp : LPAREN Exp RPAREN{
       | ID PERIOD ID{
             //check if $1 is struct name and $3 is its field
             TableEntryStructType* sType = new TableEntryStructType();
-            sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name)); //Sh
+            sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name));
             if (!sType || sType->type != TYPE_STRUCTID)
             { //no such structid
                 errorUndef(yylineno, ($1)->name);
@@ -892,7 +799,7 @@ Exp : LPAREN Exp RPAREN{
             }
 
             TableEntryStruct* s = new TableEntryStruct();
-            s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName)); //Sh
+            s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName));
             if (!s || s->type != TYPE_STRUCT)
             { //no such struct
                 errorUndef(yylineno, sType->structName);
@@ -900,7 +807,7 @@ Exp : LPAREN Exp RPAREN{
             }
 
             StructMemNode* field = new StructMemNode();
-            field= s->getField(($3)->name); //Sh
+            field= s->getField(($3)->name);
 
             if (!field)
             {
@@ -909,7 +816,6 @@ Exp : LPAREN Exp RPAREN{
             }
             ExpNode* tempIDID = new ExpNode("");
             tempIDID->type = field->type;
-            //cout<<"test2:"<<typeToString(($$)->type)<<endl;
             tempIDID->size = ($1)->size;
             $$ = tempIDID;
         }
@@ -919,7 +825,6 @@ Exp : LPAREN Exp RPAREN{
             //todo: call should have ReturnType field
                 ExpNode* tempCall = new ExpNode("");
             tempCall->type = (dynamic_cast<CallNode*>($1))->return_type;
-           // tempCall->size = (dynamic_cast<CallNode*>($1))->size;
             $$=tempCall;
         }
 
@@ -1010,17 +915,14 @@ Exp : LPAREN Exp RPAREN{
        }
 
       | Exp ARELOP Exp{
-            //cout<<"types: "<<typeToString(($1)->type)<<", "<<typeToString(($3)->type)<<endl;
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
-               // cout<<"Test: "<<endl;
-                //and operator is valid only on numerical variables
                 errorMismatch(yylineno);
                 exit(0);
             }
             ExpNode* tempEx2 = new ExpNode("");
             tempEx2->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx2->size = 1; //bool size is 1
-                    $$=tempEx2;
+            $$=tempEx2;
        }
 
       | Exp NARELOP Exp{
@@ -1041,12 +943,9 @@ Exp : LPAREN Exp RPAREN{
 
 /*USER ROUTINES*/
 
-//todo: RACHELI
 
 void yyerror(std::string m)
 {
-   // endScope();
-    //todo: why do we need an input to this function?
     errorSyn(yylineno);
     exit(0);
 }
@@ -1056,7 +955,6 @@ int main() {
     SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);
-    //std::vector<FormalDeclNode*> decl_list;
     FormalDeclNode* n = new FormalDeclNode();
     n->name = "";
     n->type = TYPE_STRING;
@@ -1097,18 +995,14 @@ int main() {
 void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields){
     std::vector<typeName>* Types = new std::vector<typeName>();
     std::vector<string>* Names = new std::vector<string>();
-    //if (*(fields->begin()))
-       // cout<<"OK"<<endl;
     for(std::vector<StructMemNode*>::reverse_iterator it = fields->rbegin();it!=fields->rend();it++){
         Types->push_back((*it)->type);
         Names->push_back((*it)->name);
     }
-   // cout<<"RACHELI TEST CONT 2"<<endl;
     printStructType(name, *(TypeVecToString(*Types)), *Names);
 }
-//todo: (racheli) TYPE_STRUCTID
+
 std::string typeToString(typeName type){
-    //cout<<"846"<<endl; //for debug
     switch (type){
         case(TYPE_BYTE) :
             return "BYTE";
@@ -1141,7 +1035,6 @@ std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*>* decls){
     std::vector<typeName>* res = new std::vector<typeName>();
     for(std::vector<FormalDeclNode*>::const_iterator it = decls->begin(); it != decls->end(); it++){
         if (typeToString((*it)->type) == "STRUCTID")
-        //    cout<<"test: struct " << (*it)->s_name<<endl;
         res->push_back((*it)->type);
     }
     return res;
@@ -1161,21 +1054,13 @@ std::vector<std::string>* declToStrings(std::vector<FormalDeclNode*>* decl)
     return res;
 }
 
-//todo: shani
-void closeScope() {
-        endScope();
 
-    //note: type will never be struct (//todo: shani: racheli, i did not implimanted it for struct because you already did in another function)) 11.12 change: i changed it because of the FAQ
-    //todo: should we support nested functions?
+void closeScope() {
+    endScope();
+
     //for all arguments in the scope table, print them
     for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table)->begin(); it != (current_scope_table->scope_table)->end(); it++) {
-        // cout<<"test new"<<endl;
-        //if ((*it)->name == "x")
-        // cout<<"good"<<endl;
         if ((*it)->type == TYPE_FUNC) {
-            //cout<<"887"<<endl; //for debug
-            //we should print by using "makeFunctionType" in this case
-           // cout<<"TEST: "<<typeToString((dynamic_cast<TableEntryFunc*>(*it))->return_type)<<endl;
             output::printID((*it)->name, (*it)->offset,
                             makeFunctionType(typeToString(dynamic_cast<TableEntryFunc*>((*it))->return_type), *(declToStrings
                                                 (((TableEntryFunc *) (*it))->declaration_list))));

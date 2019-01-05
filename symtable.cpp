@@ -2,7 +2,7 @@
 // Created by Racheli on 12/3/2018.
 //
 #include "symtable.h"
-#include <iostream> //todo: for debug
+//#include <iostream>
 /*
     * remark (racheli): I didn't want to unite all the "doesExist" functions to one because
     * then we wouldve needed a struct to wrap the two entries and it complicates things
@@ -11,8 +11,8 @@ TableEntry* SymbolTable::getEntry(std::string name) {
     for (std::vector<TableEntry *>::const_iterator it = scope_table->begin(), end = scope_table->end();
          it != end; ++it) {
         if ((*it)->name == name){
-            TableEntry* res = new TableEntry();//Sh
-            res = *it; //Sh
+            TableEntry* res = new TableEntry();
+            res = *it;
             return res;
         }
     }
@@ -32,10 +32,10 @@ bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offse
     new_entry->offset = offset;
     new_entry->size =1;
     //insertion to table of current scope
-    scope_table->push_back(new_entry); //shani: maybe we should cast this to regular entry because scope table is a vector of pointers to tableEntry. i'll wait to see is it works like this
+    scope_table->push_back(new_entry);
     return true;
 }
-//todo: shani
+
 bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size, int offset){
     //check if an entry for variable to be inserted already exists in some scope table in the tree
     if(getEntry(name)) //entry already exist
@@ -45,9 +45,9 @@ bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, ty
     new_entry->name = name;
     new_entry->type = type;
     new_entry->structName = s_name;
-    new_entry->size = size; //Sh
+    new_entry->size = size;
     //insertion to table of current scope
-            new_entry->offset = offset; //SHANI s
+    new_entry->offset = offset;
     scope_table->push_back(new_entry);
     return true;
 }
@@ -56,9 +56,8 @@ bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type) {
     if(getEntry(name)) //entry already exist
         return false;
     TableEntryFunc* new_entry = new TableEntryFunc();
-    new_entry->type = TYPE_FUNC; //todo: shani
+    new_entry->type = TYPE_FUNC;
     new_entry->name = name;
-   // new_entry->declaration_list = dec_list;
     new_entry->return_type = return_type;
     scope_table->push_back(new_entry);
     return true;
@@ -69,9 +68,9 @@ bool SymbolTable::insertStructEntry(std::string name, typeName type, StructMemLi
         return false; //entry alredy exist
     TableEntryStruct* new_entry = new TableEntryStruct();
     new_entry->name = name;
-    new_entry->Fields = fields_list; //Sh
+    new_entry->Fields = fields_list;
     new_entry->type = type;
-    new_entry->size = size; //Sh
+    new_entry->size = size;
     scope_table->push_back(new_entry);
     return true;
 }
@@ -91,13 +90,11 @@ TableEntryFunc* SymbolTable::getLastFunctionEntry() {
     for (std::vector<TableEntry *>::reverse_iterator it = scope_table->rbegin();
          it != scope_table->rend(); ++it) {
 
-        if ((*it)->type == TYPE_FUNC) //Sh
+        if ((*it)->type == TYPE_FUNC)
         {
-            //std::cout << "?" << (*it)->name << std::endl;
             return (TableEntryFunc *) *it;
         }
     }
-   // std::cout<<"test in getLastFunctionEntry end."<<std::endl;
 
     if(!parent_table)
         return NULL;
@@ -115,12 +112,10 @@ bool TableEntryFunc::compareArgumentTypes(std::vector<ExpNode*>* args) {
     for (int i = 0; i < args->size(); i++) {
         if ((*it_a) && (*it_b) && (*it_a)->type != (*it_b)->type) {
             //an assignment of byte to int is allowed
-            //SHANI 2
             if ((*it_a) && (*it_b) && ((*it_a)->type == TYPE_STRUCTID)) {
                 if ((*it_b)->s_name != (*it_a)->s_name) {
                     return false;
                 }
-
 
             } else if ((*it_a)->type != (*it_b)->type) {
                 if (!((*it_b)->type == TYPE_INT && (*it_a)->type == TYPE_BYTE))

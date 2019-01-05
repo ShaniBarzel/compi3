@@ -44,6 +44,7 @@ ID							     [a-zA-Z][a-zA-Z0-9]*
 NUM							     0|[1-9][0-9]*
 STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
 whitespace	                    (\x09|\x20)
+comment                         \/\/[^\r\n]*[\r|\n|\r\n]?
 newline                         (\n)
 
 
@@ -117,5 +118,6 @@ newline                         (\n)
                                         }
 {whitespace}							 ;
 {newline}                               ;
-.                                      {printf("Error %c\n", yytext[yyleng-1]); output::errorLex(yylineno);}
+{comment}                               ;
+.                                      {output::errorLex(yylineno); exit(0);} //Fixed
 %%

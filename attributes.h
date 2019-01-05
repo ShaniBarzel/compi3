@@ -13,22 +13,21 @@
 
 
 typedef enum{
-    TYPE_BYTE, //todo: shani
+    TYPE_BYTE,
     TYPE_INT,
     TYPE_BOOL,
     TYPE_STRING,
     TYPE_VOID,
-    TYPE_STRUCT,     //todo: RACHELI
-    TYPE_STRUCTID, //todo: shani
-    TYPE_FUNC //todo: shani
+    TYPE_STRUCT,
+    TYPE_STRUCTID,
+    TYPE_FUNC
 } typeName;
 
 
 class Node {
 public:
-    int size; //todo: why name is int?
+    int size;
     std::string name;
-    //char* name;
     typeName type;
     char* yytext_array;
     bool err;
@@ -43,9 +42,6 @@ public:
         line_num = 0;
     };
     virtual ~Node(){};
-    //todo: check if need to add enum for token names (i/o section, 2.a)
-    // virtual string printID(int id, int offset, yytokentype type){};
-
 };
 #define YYSTYPE Node*
 
@@ -182,7 +178,7 @@ public:
     ExpNode(std::string v) : Node(NULL), value(v=""){};
     virtual ~ExpNode(){};
     std::string value;
-    std::string s_name; //SHANI s
+    std::string s_name;
 };
 
 class ExpListNode : public Node{
@@ -191,7 +187,6 @@ public:
    ExpListNode() :Node(NULL), exp_list(new std::vector<ExpNode*>){};
 
     virtual ~ExpListNode() {delete(exp_list);};
-//todo shani
     std::vector<ExpNode*>* getList(){
         return exp_list;
     }
@@ -206,20 +201,14 @@ public:
 
 class StructTypeNode : public Node{
 public:
-    std::string structName; //Sh
-    StructTypeNode(std::string structName) : Node(NULL), structName(structName){}; //Sh
+    std::string structName;
+    StructTypeNode(std::string structName) : Node(NULL), structName(structName){};
     virtual ~StructTypeNode(){};
 };
-/*
-class StructTypeDecNode : public Node{
-public:
-    StructTypeDecNode() : Node(NULL){};
-    virtual ~StructTypeDecNode(){};
-};
-*/
+
 class FormalDeclNode : public Node{
 public:
-    std::string s_name; //Sh for when we have structType in the parameters list
+    std::string s_name; // for when we have structType in the parameters list
     FormalDeclNode() : Node(NULL){};
     virtual ~FormalDeclNode(){};
 };
@@ -249,7 +238,6 @@ public:
 };
 class StructMemListNode : public Node{
 public:
-    //racheli addition
     int lineNumberStart;
     std::vector<StructMemNode*>* s_list;
     StructMemListNode() :Node(NULL),  lineNumberStart(),s_list(new std::vector<StructMemNode*>){};
@@ -258,10 +246,7 @@ public:
 
 class StructsDeclNode : public Node{
 public:
-    //todo: (racheli) I changed call to IdNode ctor with yytext_array
-    StructsDeclNode() : Node(NULL),/* s(StructNode(NULL)), identifier(IdNode(yytext_array))*/s_mem_list(new StructMemListNode()){};
-    //StructNode s;
-    //IdNode identifier;
+    StructsDeclNode() : Node(NULL),s_mem_list(new StructMemListNode()){};
     StructMemListNode* s_mem_list;
 };
 

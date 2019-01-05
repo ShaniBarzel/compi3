@@ -10,8 +10,7 @@ namespace output{
     void endScope();
     void printID(const string& id, int offset, const string& type);
 
- /* todo: racheli, i couldent find the implimentation. i implemented it in parser.ypp
- * auciliary function for converting typeName to string
+ /* auxiliary function for converting typeName to string
  /*
     string convertTypeNameToString(typeName t);
  */

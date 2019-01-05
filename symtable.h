@@ -21,8 +21,8 @@ public:
     typeName type;
     int size;
     int offset;
-    TableEntry(){}; //Sh
-    virtual ~TableEntry(){}; //Sh
+    TableEntry(){};
+    virtual ~TableEntry(){};
 
 };
 
@@ -33,22 +33,19 @@ class TableEntryVariable : public TableEntry{
 //todo: shani: racheli: typeNme and name are inherited from TableEntry
 class TableEntryStruct : public TableEntry{
 public:
-    //std::string name;
-    //typeName type;
     StructMemListNode* Fields;
-    TableEntryStruct() : TableEntry() , Fields(new StructMemListNode()){}; //Sh
-    virtual ~TableEntryStruct(){delete(Fields);}; //Sh (virtual)
-    StructMemNode* getField(std::string name); //todo: shani
+    TableEntryStruct() : TableEntry() , Fields(new StructMemListNode()){};
+    virtual ~TableEntryStruct(){delete(Fields);};
+    StructMemNode* getField(std::string name);
 
 };
 
 class TableEntryFunc : public TableEntry{
 public:
-    //std::string name;
     typeName return_type;
     std::vector<FormalDeclNode*>* declaration_list;
-    TableEntryFunc() : TableEntry(), return_type() ,declaration_list(new std::vector<FormalDeclNode*>()){}; //Sh
-    virtual ~TableEntryFunc(){delete(declaration_list);}; //Sh (virtual)
+    TableEntryFunc() : TableEntry(), return_type() ,declaration_list(new std::vector<FormalDeclNode*>()){};
+    virtual ~TableEntryFunc(){delete(declaration_list);};
     /*
      * compareArgumentTypes
      * compares declaration list to argument list
@@ -60,8 +57,6 @@ public:
 class TableEntryStructType : public TableEntry{ //todo: shani
 public:
     std::string structName;
-    //TableEntryStructType() : TableEntry(){}; //Sh
-    //virtual ~TableEntryStructType(); //Sh (virtual)
 };
 
 /*
@@ -72,7 +67,7 @@ class SymbolTable {
 
 public:
     /*
- * remark(racheli): we don't need to have a scope_offset field since the current scope's offset is accessible
+ * remark: we don't need to have a scope_offset field since the current scope's offset is accessible
  * from the top of the offsets stack
  */
     //parent_table is the father of the current node in the symbol tables tree
