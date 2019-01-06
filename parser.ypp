@@ -295,15 +295,16 @@ StructMemList : StructMem {
                         StructMemListNode* temp6_2 = new StructMemListNode();
                         temp6_2 = dynamic_cast<StructMemListNode*>($2);
                         temp6->s_list = temp6_2->s_list;
-                        for (std::vector<StructMemNode*>::const_iterator it = temp6->s_list->begin(); it!=temp6->s_list->end(); ++it)
-                        {
-                            if ((*it)->name == temp6_1->name)
-                            {
-                                errorDef((*it)->line_num, (*it)->name);  //fixed racheli appeal
-                                exit(0);
-                            }
-                        }
-                        (temp6->s_list)->push_back(temp6_1);
+                      //  for (std::vector<StructMemNode*>::const_iterator it = temp6->s_list->begin(); it!=temp6->s_list->end(); ++it)
+                        //{
+                          //  if ((*it)->name == temp6_1->name)
+                            //{ cout<<(*it)->name<<endl;
+                              //  errorDef((*it)->line_num, (*it)->name);  //fixed racheli appeal
+                           //     exit(0);
+                            //}
+                        //}
+                        std::vector<StructMemNode*>::const_iterator it = temp6->s_list->begin();
+                        (temp6->s_list)->insert(it, temp6_1);
 
                         $$ = temp6;
                 }
@@ -951,7 +952,7 @@ void yyerror(std::string m)
 }
 
 int main() {
-   //yydebug = 1; //todo: for debug
+   yydebug = 1; //todo: for debug
     SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);
