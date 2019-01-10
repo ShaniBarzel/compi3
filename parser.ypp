@@ -34,6 +34,22 @@ std::string typeToString(typeName type);
 void closeScope();
 std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls);
 
+//09.01.2019
+std::vector<bool> AvailRegs(NUM_OF_TEMP_REGS,true); //init all register to be free to use
+// this function both finds the first avil register and marks it as used
+TempReg getAvailReg(){
+    for(int i=0; i< NUM_OF_TEMP_REGS; i++){
+        if (AvailRegs[i]){
+            AvailRegs[i] = false;
+            return (TempReg)i;
+        }
+
+    }
+}
+// this function marks a register as unused
+void returnTempReg(TempReg ret){AvailRegs[ret]=false;}
+
+
 %}
 /*DECLERATIONS*/
 %token VOID
@@ -58,10 +74,10 @@ std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls);
 %right NOT ASSIGN
 %left AND
 %left OR
-%nonassoc NARELOP //Fixed
-%left ARELOP //Fixed
-%left LBINOP //Fixed
-%left SBINOP
+%nonassoc SMALLER BIGGER BEQ SEQ
+%left EQUAL NOTEQUAL
+%left PLUS MINUS
+%left MUL DIV
 %nonassoc IF
 %nonassoc ELSE
 
@@ -283,7 +299,8 @@ StructMemList : StructMem {
                                 exit(0);
                             }
                         }
-                        (temp5->s_list)->push_back(temp5_1);
+                            std::vector<StructMemNode*>::iterator it = temp5->s_list->begin();
+                        (temp5->s_list)->insert(it, temp5_1);
                         temp5->line_num = ($1)->line_num;
                         temp5->lineNumberStart = ($1)->line_num - ($1)->size;
                         $$ = temp5;
@@ -295,17 +312,8 @@ StructMemList : StructMem {
                         StructMemListNode* temp6_2 = new StructMemListNode();
                         temp6_2 = dynamic_cast<StructMemListNode*>($2);
                         temp6->s_list = temp6_2->s_list;
-                      //  for (std::vector<StructMemNode*>::const_iterator it = temp6->s_list->begin(); it!=temp6->s_list->end(); ++it)
-                        //{
-                          //  if ((*it)->name == temp6_1->name)
-                            //{ cout<<(*it)->name<<endl;
-                              //  errorDef((*it)->line_num, (*it)->name);  //fixed racheli appeal
-                           //     exit(0);
-                            //}
-                        //}
-                        std::vector<StructMemNode*>::const_iterator it = temp6->s_list->begin();
-                        (temp6->s_list)->insert(it, temp6_1);
-
+                        std::vector<StructMemNode*>::iterator it = temp6->s_list->begin();
+                        (temp6->s_list)->push_back( temp6_1);
                         $$ = temp6;
                 }
 ;
@@ -726,7 +734,7 @@ Exp : LPAREN Exp RPAREN{
             $$->size = $2->size;
       }
 
-      | Exp SBINOP Exp{
+      | Exp MUL Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
                 errorMismatch(yylineno);
@@ -739,7 +747,20 @@ Exp : LPAREN Exp RPAREN{
             else
                 ($$)->type = TYPE_BYTE;
         }
-      | Exp LBINOP Exp{
+    | Exp DIV Exp{
+            //binops is defined on int and byte only (among the types that we are using in this project)
+            if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
+                errorMismatch(yylineno);
+                exit(0);
+            }
+            ($$)->size = 1; //both INT  and BYTE are size 1
+            //the exp type is the type of the bigger of the $1 and $3 expressions
+            if (($1)->type == TYPE_INT  || ($3)->type == TYPE_INT)
+                ($$)->type = TYPE_INT;
+            else
+                ($$)->type = TYPE_BYTE;
+         }
+       | Exp MINUS Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
                 errorMismatch(yylineno);
@@ -749,6 +770,19 @@ Exp : LPAREN Exp RPAREN{
             //the exp type is the type of the bigger of the $1 and $3 expressions
             if (($1)->type == TYPE_INT  || ($3)->type == TYPE_INT)
                     ($$)->type = TYPE_INT;
+            else
+                ($$)->type = TYPE_BYTE;
+        }
+        | Exp PLUS Exp{
+            //binops is defined on int and byte only (among the types that we are using in this project)
+            if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
+                errorMismatch(yylineno);
+                exit(0);
+            }
+            ($$)->size = 1; //both INT  and BYTE are size 1
+            //the exp type is the type of the bigger of the $1 and $3 expressions
+            if (($1)->type == TYPE_INT  || ($3)->type == TYPE_INT)
+                ($$)->type = TYPE_INT;
             else
                 ($$)->type = TYPE_BYTE;
         }
@@ -915,7 +949,7 @@ Exp : LPAREN Exp RPAREN{
                     $$ = tempEx3;
        }
 
-      | Exp ARELOP Exp{
+      | Exp EQUAL Exp{
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
                 errorMismatch(yylineno);
                 exit(0);
@@ -925,18 +959,65 @@ Exp : LPAREN Exp RPAREN{
             tempEx2->size = 1; //bool size is 1
             $$=tempEx2;
        }
+        | Exp NOTEQUAL Exp{
+            if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
+                errorMismatch(yylineno);
+                exit(0);
+            }
+            ExpNode* tempEx2 = new ExpNode("");
+            tempEx2->type = TYPE_BOOL; // return type of relop operator is bool
+            tempEx2->size = 1; //bool size is 1
+            $$=tempEx2;
+        }
 
-      | Exp NARELOP Exp{
+      | Exp BIGGER Exp{
         if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
             //and operator is valid only on numerical variables
             errorMismatch(yylineno);
             exit(0);
         }
+
         ExpNode* tempEx1 = new ExpNode("");
         tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
         tempEx1->size = 1; //bool size is 1
                 $$ = tempEx1;
        }
+        | Exp SMALLER Exp{
+            if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
+                //and operator is valid only on numerical variables
+                errorMismatch(yylineno);
+                exit(0);
+            }
+
+            ExpNode* tempEx1 = new ExpNode("");
+            tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
+            tempEx1->size = 1; //bool size is 1
+            $$ = tempEx1;
+        }
+        | Exp SEQ Exp{
+            if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
+                //and operator is valid only on numerical variables
+                errorMismatch(yylineno);
+                exit(0);
+            }
+
+            ExpNode* tempEx1 = new ExpNode("");
+            tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
+            tempEx1->size = 1; //bool size is 1
+            $$ = tempEx1;
+        }
+        | Exp BEQ Exp{
+            if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
+                //and operator is valid only on numerical variables
+                errorMismatch(yylineno);
+                exit(0);
+            }
+
+            ExpNode* tempEx1 = new ExpNode("");
+            tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
+            tempEx1->size = 1; //bool size is 1
+            $$ = tempEx1;
+        }
 ;
 
 
@@ -952,7 +1033,7 @@ void yyerror(std::string m)
 }
 
 int main() {
-   yydebug = 1; //todo: for debug
+   //yydebug = 1; //todo: for debug
     SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);

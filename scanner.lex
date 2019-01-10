@@ -36,10 +36,16 @@ RPAREN							 (\))
 LBRACE							 (\{)
 RBRASCE							 (\})
 ASSIGN							 (\=)
-ARELOP							 ((\=\=)|(\!\=))
-NARELOP                          ((\<)|(\>)|(\<\=)|(\>\=))
-LBINOP					         (\+)|(\-)
-SBINOP                           (\*)|(\/)
+EQUAL							 (\=\=)
+NOTEQUAL                         (\!\=)
+SMALLER                          (\<)
+BIGGER                           (\>)
+BEQ                              (\>\=)
+SEQ                              (\<\=)
+PLUS					         (\+)
+MINUS                            (\-)
+MUL                              (\*)
+DIV                              (\/)
 ID							     [a-zA-Z][a-zA-Z0-9]*
 NUM							     0|[1-9][0-9]*
 STRING							 (\")([^\n\r\"\\]|\\[rnt"\\])+(\")
@@ -100,24 +106,34 @@ newline                         (\n)
                                            return RBRACE;}
 {ASSIGN}							  { yylval=new AssignNode(yytext);
                                            return ASSIGN;}
-{ARELOP}							  { yylval=new RelopNode(yytext);
-                                           return ARELOP;}
-{NARELOP}							  { yylval=new RelopNode(yytext);
-                                            return NARELOP;}
+{EQUAL}							      { yylval=new EqualNode(yytext);
+                                           return EQUAL;}
+{NOTEQUAL}							  { yylval=new NotEqualNode(yytext);
+                                           return NOTEQUAL;}
+{SMALLER}							  { yylval=new SmallerNode(yytext);
+                                            return SMALLER;}
+{BIGGER}							  { yylval=new BiggerNode(yytext);
+                                            return BIGGER;}
+{BEQ}							      { yylval=new BeqNode(yytext);
+                                            return BEQ;}
+{SEQ}							      { yylval=new SeqNode(yytext);
+                                            return SEQ;}
 {ID}							      { yylval=new IdNode(yytext);
                                            return ID;}
 {NUM}							      { yylval=new NumNode(yytext);
                                            return NUM;}
 {STRING}							  { yylval=new StringNode(yytext);
                                            return STRING;}
-{LBINOP}                              { yylval = new LbinopNode(yytext);
-                                            return LBINOP;
-                                                    }
-{SBINOP}                               { yylval = new SbinopNode(yytext);
-                                         return SBINOP;
-                                        }
-{whitespace}							 ;
-{newline}                               ;
-{comment}                               ;
-.                                      {output::errorLex(yylineno); exit(0);} //Fixed
+{MINUS}                               { yylval = new MinusNode(yytext);
+                                           return MINUS;}
+{PLUS}                                { yylval = new PlusNode(yytext);
+                                           return PLUS;}
+{MUL}                                 { yylval = new MulNode(yytext);
+                                           return MUL;}
+{DIV}                                 { yylval = new DivNode(yytext);
+                                           return DIV;}
+{whitespace}				          ;
+{newline}                             ;
+{comment}                             ;
+.                                     {output::errorLex(yylineno); exit(0);}
 %%

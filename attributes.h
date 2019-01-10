@@ -23,6 +23,29 @@ typedef enum{
     TYPE_FUNC
 } typeName;
 
+//09.01.2019
+typedef enum{
+    T0,
+    T1,
+    T2,
+    T3,
+    T4,
+    T5,
+    T6,
+    T7,
+    T8,
+    T9,
+    S0,
+    S1,
+    S2,
+    S3,
+    S4,
+    S5,
+    S6,
+    S7,
+    NUM_OF_TEMP_REGS
+} TempReg;
+///
 
 class Node {
 public:
@@ -150,17 +173,45 @@ class AssignNode : public Node{
 public:
     AssignNode(char* yytext_a):Node(yytext_a){};
 };
-class RelopNode : public Node{
+class EqualNode : public Node{
 public:
-    RelopNode(char* yytext_a):Node(yytext_a){};
+    EqualNode(char* yytext_a):Node(yytext_a){};
 };
-class LbinopNode : public Node{
+class NotEqualNode : public Node{
 public:
-    LbinopNode(char* yytext_a):Node(yytext_a){};
+    NotEqualNode(char* yytext_a):Node(yytext_a){};
 };
-class SbinopNode : public Node{
+class SeqNode : public Node{
 public:
-    SbinopNode(char* yytext_a):Node(yytext_a){};
+    SeqNode(char* yytext_a):Node(yytext_a){};
+};
+class BeqNode : public Node{
+public:
+    BeqNode(char* yytext_a):Node(yytext_a){};
+};
+class SmallerNode : public Node{
+public:
+    SmallerNode(char* yytext_a):Node(yytext_a){};
+};
+class BiggerNode : public Node{
+public:
+    BiggerNode(char* yytext_a):Node(yytext_a){};
+};
+class MinusNode : public Node{
+public:
+    MinusNode(char* yytext_a):Node(yytext_a){};
+};
+class PlusNode : public Node{
+public:
+    PlusNode(char* yytext_a):Node(yytext_a){};
+};
+class DivNode : public Node{
+public:
+    DivNode(char* yytext_a):Node(yytext_a){};
+};
+class MulNode : public Node{
+public:
+    MulNode(char* yytext_a):Node(yytext_a){};
 };
 class IdNode : public Node{
 public:
@@ -270,5 +321,7 @@ public:
     CallNode() : Node(NULL), return_type(){};
     typeName return_type;
 };
+
+
 
 #endif //COMPI3_ATTRIBUTES_H
