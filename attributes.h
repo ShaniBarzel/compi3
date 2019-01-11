@@ -1,7 +1,3 @@
-//
-// Created by Racheli on 12/3/2018.
-//
-
 #ifndef COMPI3_ATTRIBUTES_H
 #define COMPI3_ATTRIBUTES_H
 
@@ -10,6 +6,7 @@
 #include <typeinfo>
 #include <cstddef>
 #include <string>
+#include <sstream> //for num to string convert
 
 
 typedef enum{
@@ -47,6 +44,24 @@ typedef enum{
 } TempReg;
 ///
 
+std::string intToString(int num){
+    std::ostringstream s;
+    s << num;
+    return s.str();
+}
+
+std::string regToString(TempReg r_num){
+    if ((int)r_num < 10){
+        //reg is t type
+        return "$t"+intToString((int)r_num);
+    }
+    else {
+        //res is s type
+        return "$s"+intToString((int)(r_num)-10);
+    }
+}
+
+
 class Node {
 public:
     int size;
@@ -55,6 +70,7 @@ public:
     char* yytext_array;
     bool err;
     int line_num;
+    TempReg reg;
     Node() : size(0), name(), type(), yytext_array(), err(false), line_num(0){};
     Node(char* yytext_a){
         size = 0;
@@ -231,6 +247,8 @@ class ExpNode : public Node{
 public:
     ExpNode(std::string v) : Node(NULL), value(v=""){};
     virtual ~ExpNode(){};
+    std::vector<int> trueList;
+    std::vector<int> falseList;
     std::string value;
     std::string s_name;
 };
@@ -322,6 +340,10 @@ public:
     typeName return_type;
 };
 
-
+class lbNode : public Node{
+public:
+    lbNode(std::string lable) : lable(lable);
+    std::string lable;
+};
 
 #endif //COMPI3_ATTRIBUTES_H

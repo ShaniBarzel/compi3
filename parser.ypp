@@ -8,6 +8,7 @@
 #include "output.hpp"
 #include <stack>
 #include <cstdlib> //for exit
+#include "bp.h"
 using namespace output; //errors defined inside the neamespace
 
 extern int yylex();
@@ -43,7 +44,7 @@ TempReg getAvailReg(){
             AvailRegs[i] = false;
             return (TempReg)i;
         }
-
+        return (TempReg)i; //no available registers
     }
 }
 // this function marks a register as unused
@@ -854,39 +855,75 @@ Exp : LPAREN Exp RPAREN{
             tempIDID->size = ($1)->size;
             $$ = tempIDID;
         }
-
+        //DONE-------------------------------
       | Call {
             //if the exp derives a function call, it's value will be the return type
-            //todo: call should have ReturnType field
-                ExpNode* tempCall = new ExpNode("");
+            ExpNode* tempCall = new ExpNode("");
             tempCall->type = (dynamic_cast<CallNode*>($1))->return_type;
-            $$=tempCall;
+            tempCall->reg = getAvailReg();
+            //todo: debug
+            if (tempCall->reg == NUM_OF_TEMP_REGS){
+                cout<<"no temp regs aviliable in Call"<<endl;
+                exit(0);
+            }
+            //the return value is stored in $v0 as requested
+            CodeBuffer::instance().emit("move " + regToString(tempCall->reg) + ", $v0");
+            //if the return value is bool habdle it now. it is forbidden to store boolean variables in tmp regs
+            if ((dynamic_cast<CallNode*>($1))->return_type == TYPE_BOOL){
+                // exp = f() (func_ans) - bool
+                //save this line: "beq func_ans , 1 , (label)" in order to later perform backpatch to the lable
+                std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempCall->reg) + ", 1, "));
+                CodeBuffer::instance().genLabel();                              //false:
+                (tempCall)->falseList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
+                std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
+                (tempCall)->trueList.push_back(CodeBuffer::instance().emit("j "));  //goto ___
+                CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
+                returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
+                (tempCall)->reg = NUM_OF_TEMP_REGS;
+            }
+            $$ = tempCall;
         }
-
+        //DONE--------------------------
       | NUM {
             ExpNode* tempE1 = new ExpNode(($1)->name);
             //exp type = num type = int
             tempE1->type = TYPE_INT;
             tempE1->size = 1; //Int size is 1
             tempE1->value = ($1)->name;
+            tempE1->reg = getAvailReg();
+            //put the num in temp reg for future calculations
+            if (tempE1->reg == NUM_OF_TEMP_REGS) {
+                //todo: debug
+                cout<< "debug: out of regs in NUM"<< endl;
+                exit(0);
+            }
+            CodeBuffer::instance.emit("li "+regToString(tempE1->reg)+", "+intToString(tempE1->value));
             $$ = tempE1;
         }
-
+        //DONE-----------------------------
       | NUM B {
-                const char * c = ((($1))->name).c_str();
-                              if (std::strtol(c, NULL, 0) > 255)
-                              {
-                                  errorByteTooLarge(yylineno, (($1))->name);
-                                  exit(0);
-                              }
+            const char * c = ((($1))->name).c_str();
+            if (std::strtol(c, NULL, 0) > 255)
+            {
+                errorByteTooLarge(yylineno, (($1))->name);
+                exit(0);
+            }
             //exp type = num type = byte
             ExpNode* tempE2 = new ExpNode(($1)->name);
             tempE2->type = TYPE_BYTE;
             tempE2->size = 1; //byte size is 1
             tempE2->value = ($1)->name;
+            //put the num in temp reg for future calaulations
+            tempE2->reg = getAvailReg();
+             if (tempE2->reg == NUM_OF_TEMP_REGS) {
+                //todo: debug
+                 cout<< "debug: out of regs in NUM B"<<endl;
+                 exit(0);
+             }
+             CodeBuffer::instance.emit("li "+regToString(tempE1->reg)+", "+intToString(tempE1->value));
              $$ = tempE2;
           }
-
+//TODO ==========================================
       | STRING{
             ExpNode* tempE3 = new ExpNode(($1)->name);
             //exp type = num type = string
@@ -895,25 +932,35 @@ Exp : LPAREN Exp RPAREN{
             tempE3->value = ($1)->name;
             ($$)=tempE3;
         }
-
+        //DONE---------------------
       | TRUE{
             //exp type = true type = bool
             ExpNode* tempE4 = new ExpNode(($1)->name);
             tempE4->type = TYPE_BOOL;
             tempE4->size = 1; //bool size is 1
             tempE4->value = ($1)->name;
+            tempE4->reg = NUM_OF_TEMP_REGS;
+            /*when we will no what supposed to happend (which code part should be running) when this exp is true,
+             we will backpatch the address of the code to the empty space in the goto__ */
+            tempE4->trueList.pushback(CodeBuffer::instance().emit("j ")); //goto ___
+            //no false list, the exp is true therefor the code when he will jump to when the exp is false is irrelevent
             ($$)=tempE4;
         }
-
+        //DONE--------------------
       | FALSE{
             ExpNode* tempE5 = new ExpNode(($1)->name);
             //exp type = false type = bool
             tempE5->type = TYPE_BOOL;
             tempE5->size = 1; //bool size is 1
             tempE5->value = ($1)->name;
+            tempE5->reg = NUM_OF_TEMP_REGS;
+            /*when we will no what supposed to happend (which code part should be running) when this exp is false,
+             we will backpatch the address of the code to the empty space in the goto__ */
+            tempE5->falseList.pushback(CodeBuffer::instance().emit("j ")); //goto ___
+            //no true list, the exp is false therefor the code when he will jump to when the wxp is true is irrelevent
             ($$)=tempE5;
         }
-
+        //DONE----------------------
       | NOT Exp {
             if(($2)->type != TYPE_BOOL){
                 //not operator is valid only on bool variables
@@ -923,10 +970,15 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx5 = new ExpNode("");
             tempEx5->type = TYPE_BOOL;
             tempEx5->size = 1; //bool size is 1
-                    $$=tempEx5;
+            tempEx5->reg = NUM_OF_TEMP_REGS;
+            //exp = not exp1 --> exp false list is exp1 true list. exp false list is exp1 true list.
+            std::vector<int> tmpList = (tempEx5)->trueList;
+            (tempEx5)->trueList = (dynamic_cast<ExpNode*>$2)->falseList;
+            (tempEx5)->falseList = tmpList;
+            $$=tempEx5;
           }
-
-      | Exp AND Exp{
+        //DONE-------------------------------
+      | Exp AND LB Exp{
             if(($1)->type != TYPE_BOOL || ($3)->type != TYPE_BOOL){
                 //and operator is valid only on bool variables
                 errorMismatch(yylineno);
@@ -935,9 +987,17 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx4 = new ExpNode("");
             tempEx4->type = TYPE_BOOL;
             tempEx4->size = 1; //bool size is 1
-                    $$=tempEx4;
+            //exp = exp1 and (lable) exp2
+            //if exp1 is true, goto label
+            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1))->trueList, (dynamic_cast<lbNode*>$3)->label);
+            //if exp2 if true then go to the true lable of exp2
+            (tempEx4)->trueList = (dynamic_cast<ExpNode*>$4)->trueList;
+            //if exp1 if false goto the exp false lable. if exp2 if false goto the exp false lable.
+            (tempEx4)->falseList = CodeBuffer::merge((dynamic_cast<ExpNode*>$1)->falseList,(dynamic_cast<ExpNode*>$4)->falseList);
+            $$ = tempEx4;
         }
-      | Exp OR Exp{
+      //DONE-------------------------------
+      | Exp OR LB Exp{
             if (($1)->type != TYPE_BOOL || ($3)->type != TYPE_BOOL){
             //or operator is valid only on bool variables
                 errorMismatch(yylineno);
@@ -946,9 +1006,16 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx3 = new ExpNode("");
             tempEx3->type = TYPE_BOOL;
             tempEx3->size = 1; //bool size is 1
-                    $$ = tempEx3;
+            //exp = exp1 or (lable) exp2
+            //if exp1 if false goto lable
+            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1)->falseList, (dynamic_cast<lbNode*>$3)->label);
+            //if exp1 if true goto the exp true label, if exp2 is true goto the exp true lable.
+            (tempEx3)->trueList = CodeBuffer::merge(dynamic_cast<ExpNode*>$1)->trueList,(dynamic_cast<ExpNode*>$4)->trueList);
+            //if exp2 is false then goto the exp false lable
+            (tempEx3)->falseList = (dynamic_cast<ExpNode*>$4)->falseList;
+            $$ = tempEx3;
        }
-
+      //DONE------------------------------
       | Exp EQUAL Exp{
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
                 errorMismatch(yylineno);
@@ -957,8 +1024,17 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx2 = new ExpNode("");
             tempEx2->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx2->size = 1; //bool size is 1
+            tempEx2->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            // exp = exp1 == exp2
+            //in buffer: beq exp1, exp2, ___ (true lable)
+            //            ___(false lable)
+            (tempEx2)->trueList.push_back(CodeBuffer::instance().emit("beq "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx2)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 != exp2 goto___ (false lable)
+            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$=tempEx2;
        }
+       //DONE------------------------
         | Exp NOTEQUAL Exp{
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
                 errorMismatch(yylineno);
@@ -967,9 +1043,17 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx2 = new ExpNode("");
             tempEx2->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx2->size = 1; //bool size is 1
+            tempEx2->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            // exp = exp1 != exp2
+            //in buffer: bne exp1, exp2, ___ (true lable)
+            //            ___(false lable)
+            (tempEx2)->trueList.push_back(CodeBuffer::instance().emit("bne "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx2)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$=tempEx2;
         }
-
+        //DONE---------------------------
       | Exp BIGGER Exp{
         if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
             //and operator is valid only on numerical variables
@@ -980,8 +1064,20 @@ Exp : LPAREN Exp RPAREN{
         ExpNode* tempEx1 = new ExpNode("");
         tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
         tempEx1->size = 1; //bool size is 1
-                $$ = tempEx1;
+        tempEx1->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+        // exp = exp1 > exp2
+        //in buffer: bgt exp1, exp2, ___ (true lable)
+        //            ___(false lable)
+        if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgtu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+        else //regular comapare
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+        (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+        returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+        returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+        $$ = tempEx1;
        }
+       //DONE----------------------------------
         | Exp SMALLER Exp{
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
                 //and operator is valid only on numerical variables
@@ -992,8 +1088,20 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx1 = new ExpNode("");
             tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx1->size = 1; //bool size is 1
+            tempEx1->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            // exp = exp1 < exp2
+            //in buffer: blt exp1, exp2, ___ (true lable)
+            //            ___(false lable)
+            if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
+                (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bltu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            else //regular comapare
+                (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("blt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$ = tempEx1;
         }
+        //DONE-------------------------------------
         | Exp SEQ Exp{
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
                 //and operator is valid only on numerical variables
@@ -1004,8 +1112,20 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx1 = new ExpNode("");
             tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx1->size = 1; //bool size is 1
+            tempEx1->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            // exp = exp1 <= exp2
+            //in buffer: ble exp1, exp2, ___ (true lable)
+            //            ___(false lable)
+            if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bleu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            else //regular comapare
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("ble "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$ = tempEx1;
         }
+        //DONE-----------------------------------------
         | Exp BEQ Exp{
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
                 //and operator is valid only on numerical variables
@@ -1016,10 +1136,25 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx1 = new ExpNode("");
             tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx1->size = 1; //bool size is 1
+            tempEx1->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            // exp = exp1 => exp2
+            //in buffer: bge exp1, exp2, ___ (true lable)
+            //            ___(false lable)
+            if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgeu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            else //regular comapare
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bge "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$ = tempEx1;
         }
 ;
 
+LB: {
+    lbNode* Templb = new lbNode(CodeBuffer::instance().genLable());
+    $$ = Templb;
+};
 
 %%
 
