@@ -730,63 +730,140 @@ ML :  { /* epsilon */
         offsets.push(offsets.top());
 };
 
+//=======================================DONE BY SHANI 11.01.2019========================================================
+    //DONE----------------------------------
 Exp : LPAREN Exp RPAREN{
-            $$->type = $2->type;
-            $$->size = $2->size;
+        ExpNode* Exp = new ExpNode("");
+        Exp = dynamic_cast<ExpNode*>($2);
+        $$ = Exp;
       }
 
+      //DONE-----------------------------------
       | Exp MUL Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
                 errorMismatch(yylineno);
                 exit(0);
             }
-            ($$)->size = 1; //both INT  and BYTE are size 1
+            ExpNode* tempMul = new ExpNode("");
+            tempMul->size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
             if (($1)->type == TYPE_INT  || ($3)->type == TYPE_INT)
-                ($$)->type = TYPE_INT;
+                tempMul->type = TYPE_INT;
             else
-                ($$)->type = TYPE_BYTE;
+                tempMul->type = TYPE_BYTE;
+
+            TempReg reg1 = dynamic_cast<ExpNode*>($1)->reg;
+            TempReg reg3 = dynamic_cast<ExpNode*>($3)->reg;
+            tempMul->reg = reg1;
+            std:string reg1_s = regToString(reg1);
+            std:string reg3_s = regToString(reg3);
+            std:string reg_s = regToString(reg1); //reg1 = reg
+            //note: no such thing as "mulu"
+            CodeBuffer::instance().emit("mul " + reg_s + ", " + reg1_s + ", " + reg3_s;
+             if ( $1->type == TYPE_BYTE && $3->type == TYPE_BYTE){ //if it was bits multiplication
+                CodeBuffer::instance().emit("and " + reg_s + ", " + reg_s + ", 255"); //take first 8 bits of the answer
+            returnTempReg(reg3);
+            $$=tempMul;
         }
+
+    //DONE--------------------------------------------
     | Exp DIV Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
                 errorMismatch(yylineno);
                 exit(0);
             }
-            ($$)->size = 1; //both INT  and BYTE are size 1
+            ExpNode* tempDiv = new ExpNode("");
+            tempDiv->size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
             if (($1)->type == TYPE_INT  || ($3)->type == TYPE_INT)
-                ($$)->type = TYPE_INT;
+                tempDiv->type = TYPE_INT;
             else
-                ($$)->type = TYPE_BYTE;
+                tempDiv->type = TYPE_BYTE;
+
+            TempReg reg1 = dynamic_cast<ExpNode*>($1)->reg;
+            TempReg reg3 = dynamic_cast<ExpNode*>($3)->reg;
+            tempDiv->reg = reg1;
+            std:string reg1_s = regToString(reg1);
+            std:string reg3_s = regToString(reg3);
+            std:string reg_s = regToString(reg1); //reg1 = reg
+            //if the second expression is zero, then goto zero handeling code
+            CodeBuffer::instance().emit("beq " + reg3_s + ", 0, zero_handler"); //zero handler is the name of the lable of the div in zero handler code
+            //if the devision is between bytes is unsigned
+            if ( $1->type == TYPE_BYTE && $3->type == TYPE_BYTE){
+                CodeBuffer::instance().emit("divu " + reg_s + ", " + reg1_s + ", " + reg3_s;
+                CodeBuffer::instance().emit("and " + reg_s + ", " + reg_s + ", 255"); //take first 8 bits of the answer
+            }else {
+                CodeBuffer::instance().emit("div " + reg_s + ", " + reg1_s + ", " + reg3_s; //devition with int involved is signed
+            }
+            returnTempReg(reg3);
+            $$=tempDiv;
          }
+        //DONE--------------------------
        | Exp MINUS Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
                 errorMismatch(yylineno);
                 exit(0);
             }
-            ($$)->size = 1; //both INT  and BYTE are size 1
+            ExpNode* tempMin = new ExpNode("");
+            tempMin->size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
             if (($1)->type == TYPE_INT  || ($3)->type == TYPE_INT)
-                    ($$)->type = TYPE_INT;
+                    tempMin->type = TYPE_INT;
             else
-                ($$)->type = TYPE_BYTE;
+                tempMin->type = TYPE_BYTE;
+
+            TempReg reg1 = dynamic_cast<ExpNode*>($1)->reg;
+            TempReg reg3 = dynamic_cast<ExpNode*>($3)->reg;
+            tempDiv->reg = reg1;
+            std:string reg1_s = regToString(reg1);
+            std:string reg3_s = regToString(reg3);
+            std:string reg_s = regToString(reg1); //reg1 = reg
+            //if the sub is between bytes it is unsigned
+            if ( $1->type == TYPE_BYTE && $3->type == TYPE_BYTE){
+                CodeBuffer::instance().emit("subu " + reg_s + ", " + reg1_s + ", " + reg3_s;
+                CodeBuffer::instance().emit("and " + reg_s + ", " + reg_s + ", 255"); //take first 8 bits of the answer
+            }else {
+                CodeBuffer::instance().emit("sub " + reg_s + ", " + reg1_s + ", " + reg3_s; //sub with int involved is signed
+            }
+            returnTempReg(reg3);
+            $$=tempMin;
         }
+        //DONE------------------------------------------------
         | Exp PLUS Exp{
             //binops is defined on int and byte only (among the types that we are using in this project)
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_INT && ($3)->type != TYPE_BYTE)) {
                 errorMismatch(yylineno);
                 exit(0);
             }
-            ($$)->size = 1; //both INT  and BYTE are size 1
+            ExpNode* tempPlu = new ExpNode("");
+            tempPlu->size = 1; //both INT  and BYTE are size 1
             //the exp type is the type of the bigger of the $1 and $3 expressions
             if (($1)->type == TYPE_INT  || ($3)->type == TYPE_INT)
-                ($$)->type = TYPE_INT;
+                tempPlu->type = TYPE_INT;
             else
-                ($$)->type = TYPE_BYTE;
+                tempPlu->type = TYPE_BYTE;
+
+            TempReg reg1 = dynamic_cast<ExpNode*>($1)->reg;
+            TempReg reg3 = dynamic_cast<ExpNode*>($3)->reg;
+            tempDiv->reg = reg1;
+            std:string reg1_s = regToString(reg1);
+            std:string reg3_s = regToString(reg3);
+            std:string reg_s = regToString(reg1); //reg1 = reg
+            //if the add is between bytes it is unsigned
+            if ( $1->type == TYPE_BYTE && $3->type == TYPE_BYTE){
+                CodeBuffer::instance().emit("addu " + reg_s + ", " + reg1_s + ", " + reg3_s;
+                CodeBuffer::instance().emit("and " + reg_s + ", " + reg_s + ", 255"); //take first 8 bits of the answer
+            }else {
+                CodeBuffer::instance().emit("add " + reg_s + ", " + reg1_s + ", " + reg3_s; //add with int involved is signed
+            }
+            returnTempReg(reg3);
+            $$=tempPlu;
         }
+
+        //DONE BUT MAYBE NEED FIX ---------------------------
         | ID {
             //we need to check if this variable is defined in the upper or current scopes
             //if this variable is defined, we want to use it, therefore $1.type is not right, because we want the type of the variable, not the type of the token
@@ -821,9 +898,37 @@ Exp : LPAREN Exp RPAREN{
             tempID->type = IdVariable->type;
             tempID->size = IdVariable->size;
             tempID->name = IdVariable->name;
+            tempID->reg = getAvailReg();
+            if (tempID->reg == NUM_OF_TEMP_REGS){ //todo: debug
+                cout<<"no temp regs aviliable in ID"<<endl;
+                exit(0);
+            }
+//todo : why offset in minus? what about local vars?
+            int offset = 4 + (IdVariable->offset)*4; //todo: check if offset is updated in all time
+            if (IdVariable->tupe == TYPE_STRUCTID)){
+                //load the *address* of the start of the struct in the stuct to the temp reg
+                CodeBuffer::instance().emit("subu " + regToString(tempID->reg) + ", $fp, " + intToString(offset));
+            }else{
+                offset = -offset;
+                //buffer: "lw id_reg, -offset($fp)"
+                CodeBuffer::instance().emit("lw " + regToString(tempID->reg) + " , " + intToString(offset) + "($fp)");
+            }
+
+            //if the id value is bool handle it now. it is forbidden to store boolean variables in tmp regs
+            if ((dynamic_cast<IdNode*>($1))->return_type == TYPE_BOOL){
+                //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
+                std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempID->reg) + ", 1, "));
+                CodeBuffer::instance().genLabel();                              //false:
+                (tempID)->falseList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
+                std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
+                (tempID)->trueList.push_back(CodeBuffer::instance().emit("j "));  //goto ___
+                CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
+                returnTempReg(tempID->reg); //we already used the return value , no need for this temp reg no more
+                (tempID)->reg = NONE;
+            }
             $$ = tempID;
         }
-
+        //DONE but maby need fix-----------------------------
       | ID PERIOD ID{
             //check if $1 is struct name and $3 is its field
             TableEntryStructType* sType = new TableEntryStructType();
@@ -853,6 +958,29 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempIDID = new ExpNode("");
             tempIDID->type = field->type;
             tempIDID->size = ($1)->size;
+
+            if (tempIDID->reg == NUM_OF_TEMP_REGS){ //todo: debug
+                cout<<"no temp regs aviliable in IDID"<<endl;
+                exit(0);
+            }
+            //todo : why offset in minus? what about local vars?
+            int srtuct_offset = -(4 + (s->offset)*4); //todo: check if offset is updated in all time
+            int field_offset = struct_offset + (field->offset)*4;//todo: check if right
+            //buffer: "lw id_reg, field_offset($fp)" - load the field value to the ID temp buffer
+            CodeBuffer::instance().emit("lw " + regToString(tempIDID->reg) + " , " + intToString(field_offset) + "($fp)");
+
+            //if the field value is bool handle it now. it is forbidden to store boolean variables in tmp regs
+            if ((dynamic_cast<IDNode*>($3))->type == TYPE_BOOL){
+                //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
+                std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempIDID->reg) + ", 1, "));
+                CodeBuffer::instance().genLabel();                              //false:
+                (tempIDID)->falseList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
+                std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
+                (tempIDID)->trueList.push_back(CodeBuffer::instance().emit("j "));  //goto ___
+                CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
+                returnTempReg(tempIDID->reg); //we already used the return value , no need for this temp reg no more
+                (tempIDID)->reg = NONE;
+            }
             $$ = tempIDID;
         }
         //DONE-------------------------------
@@ -879,7 +1007,7 @@ Exp : LPAREN Exp RPAREN{
                 (tempCall)->trueList.push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                 returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
-                (tempCall)->reg = NUM_OF_TEMP_REGS;
+                (tempCall)->reg = NONE;
             }
             $$ = tempCall;
         }
@@ -897,6 +1025,7 @@ Exp : LPAREN Exp RPAREN{
                 cout<< "debug: out of regs in NUM"<< endl;
                 exit(0);
             }
+            //load num value to register (li = load immidiate)
             CodeBuffer::instance.emit("li "+regToString(tempE1->reg)+", "+intToString(tempE1->value));
             $$ = tempE1;
         }
@@ -920,16 +1049,26 @@ Exp : LPAREN Exp RPAREN{
                  cout<< "debug: out of regs in NUM B"<<endl;
                  exit(0);
              }
+             //load num value to register (li = load immidiate)
              CodeBuffer::instance.emit("li "+regToString(tempE1->reg)+", "+intToString(tempE1->value));
              $$ = tempE2;
           }
-//TODO ==========================================
+       //DONE BUY MAYBE NEED FIX
       | STRING{
             ExpNode* tempE3 = new ExpNode(($1)->name);
             //exp type = num type = string
             tempE3->type = TYPE_STRING;
             tempE3->size = 1; //string size is 1
             tempE3->value = ($1)->name;
+            tempE3->reg = getAvailReg();
+            if (tempE3->reg == NUM_OF_TEMP_REGS) {
+                cout<< "debug: out of regs in STRING"<<endl;
+                exit(0);
+            }
+            //load string ascii value to register from the data buffer (la = load address)
+            CodeBuffer::instance().emit("la " + regToString(tempE3->reg) + ", " + CodeBuffer::instance().genDLabel());
+            //load string value to data buffer to store it's ascii string value
+            CodeBuffer::instance().emitData("	.asciiz " + tempE3->value);
             ($$)=tempE3;
         }
         //DONE---------------------
@@ -939,7 +1078,7 @@ Exp : LPAREN Exp RPAREN{
             tempE4->type = TYPE_BOOL;
             tempE4->size = 1; //bool size is 1
             tempE4->value = ($1)->name;
-            tempE4->reg = NUM_OF_TEMP_REGS;
+            tempE4->reg = NONE;
             /*when we will no what supposed to happend (which code part should be running) when this exp is true,
              we will backpatch the address of the code to the empty space in the goto__ */
             tempE4->trueList.pushback(CodeBuffer::instance().emit("j ")); //goto ___
@@ -953,7 +1092,7 @@ Exp : LPAREN Exp RPAREN{
             tempE5->type = TYPE_BOOL;
             tempE5->size = 1; //bool size is 1
             tempE5->value = ($1)->name;
-            tempE5->reg = NUM_OF_TEMP_REGS;
+            tempE5->reg = NONE;
             /*when we will no what supposed to happend (which code part should be running) when this exp is false,
              we will backpatch the address of the code to the empty space in the goto__ */
             tempE5->falseList.pushback(CodeBuffer::instance().emit("j ")); //goto ___
@@ -970,7 +1109,7 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx5 = new ExpNode("");
             tempEx5->type = TYPE_BOOL;
             tempEx5->size = 1; //bool size is 1
-            tempEx5->reg = NUM_OF_TEMP_REGS;
+            tempEx5->reg = NONE;
             //exp = not exp1 --> exp false list is exp1 true list. exp false list is exp1 true list.
             std::vector<int> tmpList = (tempEx5)->trueList;
             (tempEx5)->trueList = (dynamic_cast<ExpNode*>$2)->falseList;
@@ -1024,7 +1163,7 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx2 = new ExpNode("");
             tempEx2->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx2->size = 1; //bool size is 1
-            tempEx2->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            tempEx2->reg = NONE; //no temp reg yet
             // exp = exp1 == exp2
             //in buffer: beq exp1, exp2, ___ (true lable)
             //            ___(false lable)
@@ -1043,7 +1182,7 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx2 = new ExpNode("");
             tempEx2->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx2->size = 1; //bool size is 1
-            tempEx2->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            tempEx2->reg = NONE; //no temp reg yet
             // exp = exp1 != exp2
             //in buffer: bne exp1, exp2, ___ (true lable)
             //            ___(false lable)
@@ -1064,7 +1203,7 @@ Exp : LPAREN Exp RPAREN{
         ExpNode* tempEx1 = new ExpNode("");
         tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
         tempEx1->size = 1; //bool size is 1
-        tempEx1->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+        tempEx1->reg = NONE; //no temp reg yet
         // exp = exp1 > exp2
         //in buffer: bgt exp1, exp2, ___ (true lable)
         //            ___(false lable)
@@ -1088,7 +1227,7 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx1 = new ExpNode("");
             tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx1->size = 1; //bool size is 1
-            tempEx1->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            tempEx1->reg = NONE; //no temp reg yet
             // exp = exp1 < exp2
             //in buffer: blt exp1, exp2, ___ (true lable)
             //            ___(false lable)
@@ -1112,7 +1251,7 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx1 = new ExpNode("");
             tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx1->size = 1; //bool size is 1
-            tempEx1->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            tempEx1->reg = NONE; //no temp reg yet
             // exp = exp1 <= exp2
             //in buffer: ble exp1, exp2, ___ (true lable)
             //            ___(false lable)
@@ -1136,7 +1275,7 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempEx1 = new ExpNode("");
             tempEx1->type = TYPE_BOOL; // return type of relop operator is bool
             tempEx1->size = 1; //bool size is 1
-            tempEx1->reg = NUM_OF_TEMP_REGS; //no temp reg yet
+            tempEx1->reg = NONE; //no temp reg yet
             // exp = exp1 => exp2
             //in buffer: bge exp1, exp2, ___ (true lable)
             //            ___(false lable)

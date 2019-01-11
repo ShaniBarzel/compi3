@@ -26,4 +26,4 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
 
 
 ADD_EXECUTABLE(yahani ${BISON_Parser_OUTPUTS} ${FLEX_Lexer_OUTPUTS}
-        output.hpp output.cpp symtable.h symtable.cpp attributes.h scanner.lex parser.ypp) # Change this
+        output.hpp output.cpp symtable.h symtable.cpp attributes.h scanner.lex) # Change this

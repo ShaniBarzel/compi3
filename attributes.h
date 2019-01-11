@@ -40,7 +40,8 @@ typedef enum{
     S5,
     S6,
     S7,
-    NUM_OF_TEMP_REGS
+    NUM_OF_TEMP_REGS,
+    NONE
 } TempReg;
 ///
 
