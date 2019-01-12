@@ -22,28 +22,10 @@ SymbolTable* current_scope_table;
 //to the variable to be inserted next
 std::stack<int> offsets;
 
-//RACHELI addition
 //a boolean for knowing if we're inside a while loop
 bool inside_while = false;
 //a boolean for knowing weather main is defined
 bool main_def = false;
-
-std::string intToString(int num){
-    std::ostringstream s;
-    s << num;
-    return s.str();
-}
-
-std::string regToString(TempReg r_num){
-    if ((int)r_num < 10){
-        //reg is t type
-        return "$t"+intToString((int)r_num);
-    }
-    else {
-        //res is s type
-        return "$s"+intToString((int)(r_num)-10);
-    }
-}
 
 
 //implemented at the end of the file
@@ -52,22 +34,11 @@ std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec);
 std::string typeToString(typeName type);
 void closeScope();
 std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls);
-
-//09.01.2019
 std::vector<bool> AvailRegs(NUM_OF_TEMP_REGS,true); //init all register to be free to use
-// this function both finds the first avail register and marks it as used
-TempReg getAvailReg(){
-    for(int i=0; i< NUM_OF_TEMP_REGS; i++){
-        if (AvailRegs[i]){
-            AvailRegs[i] = false;
-            return (TempReg)i;
-        }
-        return (TempReg)i; //no available registers
-    }
-}
-// this function marks a register as unused
-void returnTempReg(TempReg ret){AvailRegs[ret]=false;}
-
+TempReg getAvailReg();
+void returnTempReg(TempReg ret);
+std::string intToString(int num);
+std::string regToString(TempReg r_num);
 
 %}
 /*DECLERATIONS*/
@@ -183,7 +154,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
         }
     }
 ;
-
+//=========================no need for assembly code==============================================================================================
 //no semantic needed
 Structs :   StructsDecl Structs
             | /*epsilon*/
@@ -217,7 +188,10 @@ M2 : STRUCT ID LBRACE StructMemList{
                     exit(0);
             }
 
-             std::vector<StructMemNode*>* fields_list = new std::vector<StructMemNode*>();
+            //note: there is no need to save the struct in the stuck, because it saves no data.
+
+
+            std::vector<StructMemNode*>* fields_list = new std::vector<StructMemNode*>();
             fields_list = (dynamic_cast<StructMemListNode*>($4))->s_list;
 
             StructMemListNode* dec_fields_list = new StructMemListNode();
@@ -237,14 +211,14 @@ M2 : STRUCT ID LBRACE StructMemList{
         //iterating over the fields list of the struct
         for (std::vector<StructMemNode*>::const_iterator it = fields_list->begin(); it != fields_list->end(); it++){
             (*it)->relative_offset = relative_offset; //shani hw4
-            relative_offset+=(*it)->size; //shani hw4
+            relative_offset += (*it)->size; //shani hw4
             //increment current offset by the current field's size
             current_offset += (*it)->size;
             size += (*it)->size;
             //insert the field as a table entry of the current scope table
-            if (!(current_scope_table->insertVariableEntry((*it)->name, (*it)->type, current_offset))){
+            if (!(current_scope_table->insertVariableEntry((*it)->name, (*it)->type, current_offset))) {
                 // id already defined
-                errorDef(yylineno,(*it)->name);
+                errorDef(yylineno, (*it)->name);
                 exit(0);
             }
             //insert field to s_mem_list of the StructTypeDecNode
@@ -255,6 +229,49 @@ M2 : STRUCT ID LBRACE StructMemList{
         $$ = temp8;
 };
 
+
+StructMemList : StructMem {
+                    StructMemListNode* temp5 = new StructMemListNode();
+                    StructMemNode* temp5_1 = new StructMemNode();
+                    temp5_1 = dynamic_cast<StructMemNode*>($1);
+                    for (std::vector<StructMemNode*>::const_iterator it = temp5->s_list->begin(); it!=temp5->s_list->end(); ++it){
+                        if ((*it)->name == temp5_1->name){
+                            errorDef(($1)->line_num, (*it)->name);
+                            exit(0);
+                         }
+                    }
+                    std::vector<StructMemNode*>::iterator it = temp5->s_list->begin();
+                    (temp5->s_list)->insert(it, temp5_1);
+                    temp5->line_num = ($1)->line_num;
+                    temp5->lineNumberStart = ($1)->line_num - ($1)->size;
+                    $$ = temp5;
+                }
+
+            | StructMem StructMemList{
+                    StructMemListNode* temp6 = new StructMemListNode();
+                    StructMemNode* temp6_1 = new StructMemNode();
+                    temp6_1 = dynamic_cast<StructMemNode*>($1);
+                    StructMemListNode* temp6_2 = new StructMemListNode();
+                    temp6_2 = dynamic_cast<StructMemListNode*>($2);
+                    temp6->s_list = temp6_2->s_list;
+                    std::vector<StructMemNode*>::iterator it = temp6->s_list->begin();
+                    (temp6->s_list)->push_back( temp6_1);
+                    $$ = temp6;
+                }
+;
+
+StructMem : Type ID SC{
+                    //no data will be saved in this variable, it is only represents name of the field therefor no need to save it in the stuck
+                    StructMemNode* temp7 = new StructMemNode();
+                    temp7->type = ($1)->type;
+                    temp7->size = 1;
+                    temp7->name = ($2)->name;
+                    temp7->line_num = yylineno;
+                    $$ = temp7;
+            }
+;
+
+//============================================================================================================================================
 RetType : Type {
                     RetTypeNode* rt_node = new RetTypeNode();
                     rt_node->type = $1->type;
@@ -307,47 +324,6 @@ FormalDecl : Type ID {
                     new_node->s_name = (dynamic_cast<StructTypeNode*>($1))->structName;
                     $$ = new_node;
                  }
-;
-
-StructMemList : StructMem {
-                        StructMemListNode* temp5 = new StructMemListNode();
-                        StructMemNode* temp5_1 = new StructMemNode();
-                        temp5_1 = dynamic_cast<StructMemNode*>($1);
-                        for (std::vector<StructMemNode*>::const_iterator it = temp5->s_list->begin(); it!=temp5->s_list->end(); ++it)
-                        {
-                            if ((*it)->name == temp5_1->name)
-                            {
-                                errorDef(($1)->line_num, (*it)->name);
-                                exit(0);
-                            }
-                        }
-                            std::vector<StructMemNode*>::iterator it = temp5->s_list->begin();
-                        (temp5->s_list)->insert(it, temp5_1);
-                        temp5->line_num = ($1)->line_num;
-                        temp5->lineNumberStart = ($1)->line_num - ($1)->size;
-                        $$ = temp5;
-                    }
-                | StructMem StructMemList{
-                        StructMemListNode* temp6 = new StructMemListNode();
-                        StructMemNode* temp6_1 = new StructMemNode();
-                        temp6_1 = dynamic_cast<StructMemNode*>($1);
-                        StructMemListNode* temp6_2 = new StructMemListNode();
-                        temp6_2 = dynamic_cast<StructMemListNode*>($2);
-                        temp6->s_list = temp6_2->s_list;
-                        std::vector<StructMemNode*>::iterator it = temp6->s_list->begin();
-                        (temp6->s_list)->push_back( temp6_1);
-                        $$ = temp6;
-                }
-;
-
-StructMem : Type ID SC{
-                StructMemNode* temp7 = new StructMemNode();
-                temp7->type = ($1)->type;
-                temp7->size = 1;
-                temp7->name = ($2)->name;
-                temp7->line_num = yylineno;
-                $$ = temp7;
-              }
 ;
 
 //no semantics needed
@@ -407,6 +383,37 @@ Statement : LBRACE ML Statements RBRACE
                         exit(0);
                     }
                 }
+//SHANI: i accedently wrote this and eventualy has no need in this, i put is here in case you did not reach here yet
+                /*if ($1->type == TYPE_BOOL){
+                    //get Avail temp register
+                    TempReg r = getAvailReg();
+                    if (r == NUM_OF_TEMP_REGS) {
+                        //todo: debug
+                        cout<< "debug: out of regs in Type ID ASSIGN Exp SC"<< endl;
+                        exit(0);
+                    }
+                    /* the purpose of this code is to prevent use in temp regs to save bool vars.
+                     * we would like to do: "if var is true then true->reg else false->reg" we would do it be backpatch to the true and palse list of the var:
+                     * true: li reg, 1
+                     *       j ____ (goto label)
+                     * false: li reg, 0
+                     * label:
+                     *   *put reg value is stuck*
+                     * */
+                  /*  CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$4)->trueList, CodeBuffer::instance().genLabel()); //gen true:
+                    CodeBuffer::instance().emit("li "+r+", 1");
+                    std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); // gen j ____
+                    CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$4)->falseList,CodeBuffer::instance().genLabel()); //gen false
+                    CodeBuffer::instance().emit("li "+r+", 0");
+                    CodeBuffer::instance().bpatch(line_with_quad, CodeBuffer::instance().genLabel()); //gen label: and backpatch to the "____" place
+                    CodeBuffer::instance().emit("subu $sp, $sp, 4"); //increase stuck space by one (stuck is growing torwards the lower address)
+                    CodeBuffer::instance().emit("sw "+r+", ($sp)"); //store the temp reg data in the head of the stuck
+                    returnTempReg(r);
+                }else{
+                    CodeBuffer::instance().emit("subu $sp, $sp, 4"); //increase stuck space by one (stuck is grouing towrards the lower address)
+                    CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>$4)->reg) +", ($sp)"); //store the temp reg data in the head of the stuck
+                    returnTempReg((dynamic_cast<ExpNode*>$4)->reg);
+                }*/
             }
 
             | StructType ASSIGN Exp SC {
@@ -738,6 +745,14 @@ StructType : STRUCT ID ID{
                 temp10->type = TYPE_STRUCTID;
                 temp10->name = ($3)->name;
                 temp10->size = IdVariable->size;
+                temp10->offset = offsets.top(); //shani addition, i need this, do not erase
+                /*shani:
+                //make place for all the future data of the struct instatce in the stuck
+                int num_of_fields = IdVariable->Fields->s_list->size();
+                for ( int i = 0 ; i <num_of_fields  ; i++){
+                    CodeBuffer::instance().emit("subu $sp, $sp, 4"); //increase stuck space by one (stuck is grouing towrards the lower address)
+                    CodeBuffer::instance().emit("sw $zero, ($sp)"); //init stuct space of the variable by null
+                }*/
                 $$ = temp10;
             }
 ;
@@ -924,13 +939,12 @@ Exp : LPAREN Exp RPAREN{
                 cout<<"no temp regs aviliable in ID"<<endl;
                 exit(0);
             }
-//todo : why offset in minus? what about local vars?
             int offset = 4 + (IdVariable->offset)*4; //todo: check if offset is updated in all time
             if (IdVariable->type == TYPE_STRUCTID){
                 //load the *address* of the start of the struct in the stuct to the temp reg
-                CodeBuffer::instance().emit("subu " + regToString(tempID->reg) + ", $fp, " + intToString(offset));
+                CodeBuffer::instance().emit("subu " + regToString(tempID->reg) + ", $fp, " + intToString(offset)); //stuck is growing towrards the lower address
             }else{
-                offset = -offset;
+                offset = -offset; //stuck is growing towrards the lower address
                 //buffer: "lw id_reg, -offset($fp)"
                 CodeBuffer::instance().emit("lw " + regToString(tempID->reg) + " , " + intToString(offset) + "($fp)");
             }
@@ -984,9 +998,8 @@ Exp : LPAREN Exp RPAREN{
                 cout<<"no temp regs aviliable in IDID"<<endl;
                 exit(0);
             }
-            //todo : why offset in minus? what about local vars?
-            int struct_offset = -(4 + (s->offset)*4); //todo: check if offset is updated in all time
-            int field_offset = struct_offset + (field->relative_offset)*4;//todo: check if right
+            int struct_offset = -(4 + (sType->offset)*4); //struct_offset($fp) is the place of the start of the struct fields in the stuck
+            int field_offset = struct_offset - (field->relative_offset)*4;
             //buffer: "lw id_reg, field_offset($fp)" - load the field value to the ID temp buffer
             CodeBuffer::instance().emit("lw " + regToString(tempIDID->reg) + " , " + intToString(field_offset) + "($fp)");
 
@@ -1368,7 +1381,7 @@ int main() {
     delete(temp_table);
 }
 
-
+//=======================================================CPP HELP FUNCTIONS=====================================================================
 void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields){
     std::vector<typeName>* Types = new std::vector<typeName>();
     std::vector<string>* Names = new std::vector<string>();
@@ -1460,4 +1473,35 @@ void closeScope() {
             }
     }
 
+}
+
+// this function both finds the first avail register and marks it as used
+TempReg getAvailReg(){
+    for(int i=0; i< NUM_OF_TEMP_REGS; i++){
+        if (AvailRegs[i]){
+            AvailRegs[i] = false;
+            return (TempReg)i;
+        }
+        return (TempReg)i; //no available registers
+    }
+}
+
+// this function marks a register as unused
+void returnTempReg(TempReg ret){AvailRegs[ret]=false;}
+
+std::string intToString(int num){
+    std::ostringstream s;
+    s << num;
+    return s.str();
+}
+
+std::string regToString(TempReg r_num){
+    if ((int)r_num < 10){
+        //reg is t type
+        return "$t"+intToString((int)r_num);
+    }
+    else {
+        //res is s type
+        return "$s"+intToString((int)(r_num)-10);
+    }
 }

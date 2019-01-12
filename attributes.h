@@ -258,6 +258,7 @@ public:
 class StructTypeNode : public Node{
 public:
     std::string structName;
+    int offset;
     StructTypeNode(std::string structName) : Node(NULL), structName(structName){};
     virtual ~StructTypeNode(){};
 };
