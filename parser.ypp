@@ -51,7 +51,7 @@ TempReg getAvailReg(){
      }
     //(racheli)no available regs
     //return NONE; *** the following line will return NUM_OF_TEMP_REGS, this is how i used it in akk of my code
-    return (TempReg)i; //no available registers
+    return NONE; //no available registers
 }
 // this function marks a register as used
 void returnTempReg(TempReg ret){AvailRegs[ret]=false;}
@@ -151,7 +151,7 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
                 //back to the outer scope pffset
                  offsets.pop();
                  if ($1)->name == "main") {
-   						CodeBuffer::instance().emit("li $v0, 10"); // ***why 10?
+   						CodeBuffer::instance().emit("li $v0, 0");
    						CodeBuffer::instance().emit("syscall");
    				} else {
    				    CodeBuffer::instance().emit("jr $ra"); //jump to the adress in the ra register (return address)
@@ -214,10 +214,14 @@ M1 : RetType ID LPAREN Formals RPAREN {
 
         }
         //*** please explain, i have no idea what is going on. look at my code for reference :P
+        //emits appropriate code for main function declaration
+        //making frame pointer to point to the stack pointer where the frame of main function should be placed
         if ((($2)->name == "main") && (($1)->type == TYPE_VOID)) {
           CodeBuffer::instance().emit(($2)->name + ":");
           CodeBuffer::instance().emit("move $fp, $sp");
           CodeBuffer::instance().emit("subu $fp, $fp, 4");
+          //emits code for regular function declaration
+          //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
         } else {
           CodeBuffer::instance().emit("_" + ($2)->name + ":");
         }
@@ -442,7 +446,7 @@ Statement : LBRACE ML Statements RBRACE
                 //save var on stack
   				storeVariable(temp, offset, 1);
                 //mark temp reg as free
-                //AvailRegs[temp] = true; *** there is a function for that :)
+                AvailRegs[temp] = true;
                 returnTempReg(temp);
             }
             | StructType SC {
@@ -577,7 +581,8 @@ Statement : LBRACE ML Statements RBRACE
   				//store id value (currently in temp register) in stuck
   				CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($3))->reg) + ", " + intToString(-4*(scope_table->getEntry(($1)->name))->offset) + "($fp)");
                 //set reg of exp to be none
-                ($3)->reg = NONE; //*** why cant we return it? ut hes no use from now on...
+                AvailRegs[($3)->reg] = true;
+                ($3)->reg = NONE;
             }
             //====================================DONE(racheli)=============================
             | ID PERIOD ID ASSIGN Exp SC
@@ -629,7 +634,8 @@ Statement : LBRACE ML Statements RBRACE
   				//*** need to fox: we wil have to go to the *field* storage in the stuck, means, find the offset of the struct in the stuct and add the field "relative offset" (i added it ) to get to the field offset
   				CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($5))->Name) + ", " + intToString(-4*(scope_table->getEntry(($3)->name))->offset) + "($fp)");
                 //set reg of exp to be none
-                ($5)->reg = NONE; //***why cant we return it? it has no use from now on
+                AvailRegs[($5)->reg] = true;
+                ($5)->reg = NONE; //***why cant we return it? it has no use from now on (racheli) what do you mean? I set it to true in the previous line
             }
             //====================================DONE(racheli)=============================
             | Call SC
@@ -649,7 +655,8 @@ Statement : LBRACE ML Statements RBRACE
                     exit(0);
                 }
                 //*** i would love some explanation
-                ($$)->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                //we want the return list of statement to include only "jump" instruction
+                (dynamic_cast<StatementNode*>($$))->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
 
             }
             //====================================DONE(racheli)=============================
@@ -665,8 +672,12 @@ Statement : LBRACE ML Statements RBRACE
   					boolTypeEval($2);
   				}
   				//*** i would love some explanations
-  				CodeBuffer::instance().emit("move $v0, " + regToString((dynamic_cast<ExpNode*>($2))->reg));
-                returnTempReg($2->reg);
+          //as you know registers $v0-$v1 hold the returned values of a function
+          //at first we move the returned expression to reg v0
+          // then it's the same explenation as abvove in the previous rule
+  				CodeBuffer::instance().emit("move $v0, " + regToString(($2)->reg));
+            //    returnTempReg($2->reg); why? we need to free it
+            AvailRegs[($2)->reg] = true;
   				dynamic_cast<ExpNode*>($$)->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
             }
             //====================================DONE(racheli)=============================
@@ -682,6 +693,8 @@ Statement : LBRACE ML Statements RBRACE
                    exit(0);
                 }
 //*** i would love some explanations
+              //we want to insert M's quad as the target label for each of the instructions on the true list of M4
+              //meaning M would be the target for when the expression in M4 is true
                 CodeBuffer::instance().bpatch(($1)->trueList, (dynamic_cast<MNode*>($2))->quad);
             }
             //(racheli) changed name of marker
@@ -703,8 +716,12 @@ Statement : LBRACE ML Statements RBRACE
                //====================================DONE(racheli)=============================
               M Statement
                        {//*** i would love some explanations
+                         //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
                          CodeBuffer::instance().bpatch(($4)->trueList, ($6)->quad);
+                         //setting 1st M's label as the target for each of the instructions in the created s_list
+                         //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
            				 CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), ($3)->quad);
+                   //we want to create a fresh label as target for the instructions in the concatenated list created by the false list of exp and break list of statement
            				 CodeBuffer::instance().bpatch(CodeBuffer::merge(($4)->falseList,($7)->breakList), CodeBuffer::instance().genLabel());
            				($$)->return_list = ($7)->returnList;
                          closeScope();
@@ -723,7 +740,8 @@ Statement : LBRACE ML Statements RBRACE
                         errorUnexpectedBreak(yylineno);
                         exit(0);
                     }//*** to do dynamoc cast
-                    ($$)->breakList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                    //we want to set the break list of the lhs of the rule to include "jump" instruction
+                    (dynamic_cast<StatementNode*>($$))->breakList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
                 }
                 //====================================DONE(racheli)=============================
             | CONTINUE SC
@@ -733,7 +751,8 @@ Statement : LBRACE ML Statements RBRACE
                         errorUnexpectedContinue(yylineno);
                         exit(0);
                     }//*** to do dynamic cast
-                    ($$)->nextList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                    //we want to set the break list of the lhs of the rule to include "jump" instruction
+                    (dynamic_cast<StatementNode*>($$))->nextList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
                 }
 
 ;
@@ -752,14 +771,21 @@ M4  :  IF LPAREN Exp RPAREN {
         }
 //marker ElseMarker
   //====================================DONE(racheli)=============================
-ElseMarker  :  /*epsilon*/  //***if you are using a field that is not included in "Node", dynamic_cast needed
+ElseMarker  :  /*epsilon*/
         { //***i would love some comments to explain what is it :)
+          //we derive this when else is false (therefore epsilon is derived)
+          //so we only need to set its next list to a new list containing the jump instruction
+          //and set its quad to some fresh label
           dynamic_cast<ElseMarkerNode*>($$)->nextList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
           dynamic_cast<ElseMarkerNode*>($$)->quad = CodeBuffer::instance().genLabel();
         }
         %prec IF
         //====================================DONE(racheli)=============================
         | ELSE  N  //***i would love some comments to explain what is it :)
+                  // when we reach here N holds the new next list (containing only the jump instruction)
+                  //explanation continues in the rule bellow
+                  //information on N, M is in their rules
+
         {
             SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
             current_scope_table = new_scope_table;
@@ -767,15 +793,17 @@ ElseMarker  :  /*epsilon*/  //***if you are using a field that is not included i
         }
         //====================================DONE(racheli)=============================
         M Statement{ //***i would love some comments to explain what is it :)
+                    //M's quad holds the label we want to jump to (the "j" was emitted above when N was derived)
             closeScope();
             SymbolTable* p = current_scope_table->getParent();
             delete(current_scope_table);
             current_scope_table = p;
             offsets.pop();
-            dynamic_cast<ElseMarkerNode*>($$)->nextList = ($2)->nextList;
-            dynamic_cast<ElseMarkerNode*>($$)->quad = ($4)->quad;
-            dynamic_cast<ElseMarkerNode*>($$)->returnList = ($5)->returnList;
-            dynamic_cast<ElseMarkerNode*>($$)->breakList = ($5)->breakList;
+            //setting ElseMarker's fields in order to backpatch after it's derived
+            dynamic_cast<ElseMarkerNode*>($$)->nextList = dynamic_cast<NNode*>($2)->nextList;
+            dynamic_cast<ElseMarkerNode*>($$)->quad = dynamic_cast<StatementNode*>($4)->quad;
+            dynamic_cast<ElseMarkerNode*>($$)->returnList = dynamic_cast<StatementNode*>($4)->returnList;
+            dynamic_cast<ElseMarkerNode*>($$)->breakList = dynamic_cast<StatementNode*>($4)->breakList;
         }
         %prec ELSE
 
@@ -803,6 +831,7 @@ Call : ID LPAREN ExpList RPAREN
                 for (std::vector<FormalDeclNode*>::const_iterator it = f->declaration_list->begin();
                      it != f->declaration_list->end(); it++)
                         {//*** i would love some explanations
+                          //this is hw3s code..
                             if((*it)->type == TYPE_STRUCTID){
                                 types.push_back("struct "+(*it)->s_name);
                             }
@@ -817,6 +846,7 @@ Call : ID LPAREN ExpList RPAREN
             $$ = temp7;
             //** MOST IMPORTENT :
             //***where is argument storing? return adress save place? jal to function? registers handeling?
+            // i didn't implement this part yet
         }
         | ID LPAREN RPAREN
         {
