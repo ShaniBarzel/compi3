@@ -117,14 +117,24 @@ void evaluateBoolean(ExpNode*& exp) {
 /*RULES*/
 
 //(racheli) m n markers
+/*
+
+LB: {
+    lbNode* Templb = new lbNode(CodeBuffer::instance().genLabel());
+    $$ = Templb;
+};
+*/
+//shani LB and M have the same meaning
 M : /*epsilon*/
     {
-      (dynamic_cast<MNode*>($$))->quad = CodeBuffer::instance().genLabel();
+      MNode* new_m = new MNode(CodeBuffer::instance().genLabel());
+      $$ = new_m;
     }
 
 N : /*epsilon*/
     {
-      (dynamic_cast<NNode*>($$))->nextList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+      NNode* new_n = new NNode(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")))
+      $$ = new_n;
     }
 
 //no semantics needed
@@ -717,13 +727,13 @@ Statement : LBRACE ML Statements RBRACE
               M Statement
                        {//*** i would love some explanations
                          //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
-                         CodeBuffer::instance().bpatch(($4)->trueList, ($6)->quad);
+                         CodeBuffer::instance().bpatch(($4)->trueList, ($7)->quad);
                          //setting 1st M's label as the target for each of the instructions in the created s_list
                          //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
            				 CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), ($3)->quad);
                    //we want to create a fresh label as target for the instructions in the concatenated list created by the false list of exp and break list of statement
-           				 CodeBuffer::instance().bpatch(CodeBuffer::merge(($4)->falseList,($7)->breakList), CodeBuffer::instance().genLabel());
-           				($$)->return_list = ($7)->returnList;
+           				 CodeBuffer::instance().bpatch(CodeBuffer::merge(($4)->falseList,($8)->breakList), CodeBuffer::instance().genLabel());
+           				($$)->return_list = ($8)->returnList;
                          closeScope();
                            SymbolTable* p = current_scope_table->getParent();
                            delete(current_scope_table);
@@ -800,10 +810,13 @@ ElseMarker  :  /*epsilon*/
             current_scope_table = p;
             offsets.pop();
             //setting ElseMarker's fields in order to backpatch after it's derived
+            //FYI: (according to the turorial) the right parentesis "{" in the beginning
+            // of the else block between N and M is counted also,
+            //therefore $4 refers to M, $5 refers to statement
             dynamic_cast<ElseMarkerNode*>($$)->nextList = dynamic_cast<NNode*>($2)->nextList;
             dynamic_cast<ElseMarkerNode*>($$)->quad = dynamic_cast<StatementNode*>($4)->quad;
-            dynamic_cast<ElseMarkerNode*>($$)->returnList = dynamic_cast<StatementNode*>($4)->returnList;
-            dynamic_cast<ElseMarkerNode*>($$)->breakList = dynamic_cast<StatementNode*>($4)->breakList;
+            dynamic_cast<ElseMarkerNode*>($$)->returnList = dynamic_cast<StatementNode*>($5)->returnList;
+            dynamic_cast<ElseMarkerNode*>($$)->breakList = dynamic_cast<StatementNode*>($5)->breakList;
         }
         %prec ELSE
 
@@ -1213,7 +1226,7 @@ Exp : LPAREN Exp RPAREN{
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempCall->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
                 (tempCall)->falseList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
-                std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
+                std::string trueLabel = CodeBuffer::instance().genLabel();     //true:
                 (tempCall)->trueList.push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                 returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
@@ -1327,7 +1340,7 @@ Exp : LPAREN Exp RPAREN{
             $$=tempEx5;
           }
         //DONE-------------------------------
-      | Exp AND LB Exp{
+      | Exp AND M Exp{
             if(($1)->type != TYPE_BOOL || ($3)->type != TYPE_BOOL){
                 //and operator is valid only on bool variables
                 errorMismatch(yylineno);
@@ -1338,7 +1351,7 @@ Exp : LPAREN Exp RPAREN{
             tempEx4->size = 1; //bool size is 1
             //exp = exp1 and (lable) exp2
             //if exp1 is true, goto label
-            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1)->trueList, (dynamic_cast<lbNode*>$3)->label);
+            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1)->trueList, (dynamic_cast<MNode*>$3)->quad);
             //if exp2 if true then go to the true lable of exp2
             (tempEx4)->trueList = (dynamic_cast<ExpNode*>$4)->trueList;
             //if exp1 if false goto the exp false lable. if exp2 if false goto the exp false lable.
@@ -1346,7 +1359,7 @@ Exp : LPAREN Exp RPAREN{
             $$ = tempEx4;
         }
       //DONE-------------------------------
-      | Exp OR LB Exp{
+      | Exp OR M Exp{
             if (($1)->type != TYPE_BOOL || ($3)->type != TYPE_BOOL){
             //or operator is valid only on bool variables
                 errorMismatch(yylineno);
@@ -1357,7 +1370,7 @@ Exp : LPAREN Exp RPAREN{
             tempEx3->size = 1; //bool size is 1
             //exp = exp1 or (lable) exp2
             //if exp1 if false goto lable
-            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1)->falseList, (dynamic_cast<lbNode*>$3)->label);
+            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1)->falseList, (dynamic_cast<MNode*>$3)->quad);
             //if exp1 if true goto the exp true label, if exp2 is true goto the exp true lable.
             (tempEx3)->trueList = CodeBuffer::merge((dynamic_cast<ExpNode*>$1)->trueList,(dynamic_cast<ExpNode*>$4)->trueList);
             //if exp2 is false then goto the exp false lable
@@ -1499,12 +1512,12 @@ Exp : LPAREN Exp RPAREN{
             $$ = tempEx1;
         }
 ;
-
+/*
 LB: {
     lbNode* Templb = new lbNode(CodeBuffer::instance().genLabel());
     $$ = Templb;
 };
-
+*/
 %%
 
 /*USER ROUTINES*/

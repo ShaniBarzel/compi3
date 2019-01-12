@@ -238,11 +238,13 @@ public:
 
 class MNode : public Node{
 public:
+  MNode(std::string q) : quad(q){};
   std::string quad;
 };
 
 class NNode : public Node{
 public:
+  NNode(std::vector<int> n_list) : nextList(n_list){};
   std::vector<int> nextList;
 };
 
