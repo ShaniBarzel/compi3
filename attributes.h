@@ -41,10 +41,27 @@ typedef enum{
     S6,
     S7,
     NUM_OF_TEMP_REGS,
-    NONE
+    NONE,             //(racheli)need this as returned value from getAvailReg when all regs occupied
 } TempReg;
 ///
+/*
+std::string intToString(int num){
+    std::ostringstream s;
+    s << num;
+    return s.str();
+}
 
+std::string regToString(TempReg r_num){
+    if ((int)r_num < 10){
+        //reg is t type
+        return "$t"+intToString((int)r_num);
+    }
+    else {
+        //res is s type
+        return "$s"+intToString((int)(r_num)-10);
+    }
+}
+*/
 
 class Node {
 public:
@@ -226,6 +243,36 @@ public:
     StringNode(char* yytext_a):Node(yytext_a){};
 };
 
+//(racheli)
+class StatementNode : public Node{
+public:
+  std::vector<int> breakList;
+	std::vector<int> returnList;
+};
+class StatementsNode : public Node {
+public:
+  std::vector<int> breakList;
+	std::vector<int> returnList;
+};
+
+class MNode : public Node{
+public:
+  std::string quad;
+};
+
+class NNode : public Node{
+public:
+  std::vector<int> nextList;
+};
+
+class ElseMarkerNode : public Node{
+public:
+  std::string quad;
+	std::vector<int> next_list;
+	std::vector<int> break_list;
+	std::vector<int> return_list;
+};
+
 //non terminals
 class ExpNode : public Node{
 public:
@@ -235,6 +282,7 @@ public:
     std::vector<int> falseList;
     std::string value;
     std::string s_name;
+    TempReg regName; //(racheli)the reg in which exp value is saved
 };
 
 class ExpListNode : public Node{
@@ -324,6 +372,8 @@ class CallNode : public Node{
 public:
     CallNode() : Node(NULL), return_type(){};
     typeName return_type;
+    //(racheli)
+    TempReg regName;
 };
 
 class lbNode : public Node{
