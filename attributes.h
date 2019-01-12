@@ -45,23 +45,6 @@ typedef enum{
 } TempReg;
 ///
 
-std::string intToString(int num){
-    std::ostringstream s;
-    s << num;
-    return s.str();
-}
-
-std::string regToString(TempReg r_num){
-    if ((int)r_num < 10){
-        //reg is t type
-        return "$t"+intToString((int)r_num);
-    }
-    else {
-        //res is s type
-        return "$s"+intToString((int)(r_num)-10);
-    }
-}
-
 
 class Node {
 public:
@@ -308,6 +291,7 @@ class StructMemNode : public Node{
 public:
     StructMemNode() : Node(NULL){};
     virtual ~StructMemNode(){};
+    int relative_offset; //shani hw4
 };
 class StructMemListNode : public Node{
 public:
@@ -343,8 +327,8 @@ public:
 
 class lbNode : public Node{
 public:
-    lbNode(std::string lable) : lable(lable);
-    std::string lable;
+    lbNode(std::string label) : label(label){};
+    std::string label;
 };
 
 #endif //COMPI3_ATTRIBUTES_H

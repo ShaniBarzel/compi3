@@ -8,7 +8,7 @@
 #include "output.hpp"
 #include <stack>
 #include <cstdlib> //for exit
-#include "bp.h"
+#include "bp.hpp"
 using namespace output; //errors defined inside the neamespace
 
 extern int yylex();
@@ -28,6 +28,24 @@ bool inside_while = false;
 //a boolean for knowing weather main is defined
 bool main_def = false;
 
+std::string intToString(int num){
+    std::ostringstream s;
+    s << num;
+    return s.str();
+}
+
+std::string regToString(TempReg r_num){
+    if ((int)r_num < 10){
+        //reg is t type
+        return "$t"+intToString((int)r_num);
+    }
+    else {
+        //res is s type
+        return "$s"+intToString((int)(r_num)-10);
+    }
+}
+
+
 //implemented at the end of the file
 void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields);
 std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec);
@@ -37,7 +55,7 @@ std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls);
 
 //09.01.2019
 std::vector<bool> AvailRegs(NUM_OF_TEMP_REGS,true); //init all register to be free to use
-// this function both finds the first avil register and marks it as used
+// this function both finds the first avail register and marks it as used
 TempReg getAvailReg(){
     for(int i=0; i< NUM_OF_TEMP_REGS; i++){
         if (AvailRegs[i]){
@@ -213,10 +231,13 @@ M2 : STRUCT ID LBRACE StructMemList{
 
         //the updating offset of the fields in the struct
         int current_offset = offsets.top();
+        int relative_offset = 0; //shani hw4
         int size = 0;
         //saving a reference to "fields list" field of the struct defined
         //iterating over the fields list of the struct
         for (std::vector<StructMemNode*>::const_iterator it = fields_list->begin(); it != fields_list->end(); it++){
+            (*it)->relative_offset = relative_offset; //shani hw4
+            relative_offset+=(*it)->size; //shani hw4
             //increment current offset by the current field's size
             current_offset += (*it)->size;
             size += (*it)->size;
@@ -756,12 +777,12 @@ Exp : LPAREN Exp RPAREN{
             TempReg reg1 = dynamic_cast<ExpNode*>($1)->reg;
             TempReg reg3 = dynamic_cast<ExpNode*>($3)->reg;
             tempMul->reg = reg1;
-            std:string reg1_s = regToString(reg1);
-            std:string reg3_s = regToString(reg3);
-            std:string reg_s = regToString(reg1); //reg1 = reg
+            std::string reg1_s = regToString(reg1);
+            std::string reg3_s = regToString(reg3);
+            std::string reg_s = regToString(reg1); //reg1 = reg
             //note: no such thing as "mulu"
-            CodeBuffer::instance().emit("mul " + reg_s + ", " + reg1_s + ", " + reg3_s;
-             if ( $1->type == TYPE_BYTE && $3->type == TYPE_BYTE){ //if it was bits multiplication
+            CodeBuffer::instance().emit("mul " + reg_s + ", " + reg1_s + ", " + reg3_s);
+             if ( $1->type == TYPE_BYTE && $3->type == TYPE_BYTE) //if it was bits multiplication
                 CodeBuffer::instance().emit("and " + reg_s + ", " + reg_s + ", 255"); //take first 8 bits of the answer
             returnTempReg(reg3);
             $$=tempMul;
@@ -785,17 +806,17 @@ Exp : LPAREN Exp RPAREN{
             TempReg reg1 = dynamic_cast<ExpNode*>($1)->reg;
             TempReg reg3 = dynamic_cast<ExpNode*>($3)->reg;
             tempDiv->reg = reg1;
-            std:string reg1_s = regToString(reg1);
-            std:string reg3_s = regToString(reg3);
-            std:string reg_s = regToString(reg1); //reg1 = reg
+            std::string reg1_s = regToString(reg1);
+            std::string reg3_s = regToString(reg3);
+            std::string reg_s = regToString(reg1); //reg1 = reg
             //if the second expression is zero, then goto zero handeling code
             CodeBuffer::instance().emit("beq " + reg3_s + ", 0, zero_handler"); //zero handler is the name of the lable of the div in zero handler code
             //if the devision is between bytes is unsigned
             if ( $1->type == TYPE_BYTE && $3->type == TYPE_BYTE){
-                CodeBuffer::instance().emit("divu " + reg_s + ", " + reg1_s + ", " + reg3_s;
+                CodeBuffer::instance().emit("divu " + reg_s + ", " + reg1_s + ", " + reg3_s);
                 CodeBuffer::instance().emit("and " + reg_s + ", " + reg_s + ", 255"); //take first 8 bits of the answer
             }else {
-                CodeBuffer::instance().emit("div " + reg_s + ", " + reg1_s + ", " + reg3_s; //devition with int involved is signed
+                CodeBuffer::instance().emit("div " + reg_s + ", " + reg1_s + ", " + reg3_s); //devition with int involved is signed
             }
             returnTempReg(reg3);
             $$=tempDiv;
@@ -817,16 +838,16 @@ Exp : LPAREN Exp RPAREN{
 
             TempReg reg1 = dynamic_cast<ExpNode*>($1)->reg;
             TempReg reg3 = dynamic_cast<ExpNode*>($3)->reg;
-            tempDiv->reg = reg1;
-            std:string reg1_s = regToString(reg1);
-            std:string reg3_s = regToString(reg3);
-            std:string reg_s = regToString(reg1); //reg1 = reg
+            tempMin->reg = reg1;
+            std::string reg1_s = regToString(reg1);
+            std::string reg3_s = regToString(reg3);
+            std::string reg_s = regToString(reg1); //reg1 = reg
             //if the sub is between bytes it is unsigned
             if ( $1->type == TYPE_BYTE && $3->type == TYPE_BYTE){
-                CodeBuffer::instance().emit("subu " + reg_s + ", " + reg1_s + ", " + reg3_s;
+                CodeBuffer::instance().emit("subu " + reg_s + ", " + reg1_s + ", " + reg3_s);
                 CodeBuffer::instance().emit("and " + reg_s + ", " + reg_s + ", 255"); //take first 8 bits of the answer
             }else {
-                CodeBuffer::instance().emit("sub " + reg_s + ", " + reg1_s + ", " + reg3_s; //sub with int involved is signed
+                CodeBuffer::instance().emit("sub " + reg_s + ", " + reg1_s + ", " + reg3_s); //sub with int involved is signed
             }
             returnTempReg(reg3);
             $$=tempMin;
@@ -848,16 +869,16 @@ Exp : LPAREN Exp RPAREN{
 
             TempReg reg1 = dynamic_cast<ExpNode*>($1)->reg;
             TempReg reg3 = dynamic_cast<ExpNode*>($3)->reg;
-            tempDiv->reg = reg1;
-            std:string reg1_s = regToString(reg1);
-            std:string reg3_s = regToString(reg3);
-            std:string reg_s = regToString(reg1); //reg1 = reg
+            tempPlu->reg = reg1;
+            std::string reg1_s = regToString(reg1);
+            std::string reg3_s = regToString(reg3);
+            std::string reg_s = regToString(reg1); //reg1 = reg
             //if the add is between bytes it is unsigned
             if ( $1->type == TYPE_BYTE && $3->type == TYPE_BYTE){
-                CodeBuffer::instance().emit("addu " + reg_s + ", " + reg1_s + ", " + reg3_s;
+                CodeBuffer::instance().emit("addu " + reg_s + ", " + reg1_s + ", " + reg3_s);
                 CodeBuffer::instance().emit("and " + reg_s + ", " + reg_s + ", 255"); //take first 8 bits of the answer
             }else {
-                CodeBuffer::instance().emit("add " + reg_s + ", " + reg1_s + ", " + reg3_s; //add with int involved is signed
+                CodeBuffer::instance().emit("add " + reg_s + ", " + reg1_s + ", " + reg3_s); //add with int involved is signed
             }
             returnTempReg(reg3);
             $$=tempPlu;
@@ -905,7 +926,7 @@ Exp : LPAREN Exp RPAREN{
             }
 //todo : why offset in minus? what about local vars?
             int offset = 4 + (IdVariable->offset)*4; //todo: check if offset is updated in all time
-            if (IdVariable->tupe == TYPE_STRUCTID)){
+            if (IdVariable->type == TYPE_STRUCTID){
                 //load the *address* of the start of the struct in the stuct to the temp reg
                 CodeBuffer::instance().emit("subu " + regToString(tempID->reg) + ", $fp, " + intToString(offset));
             }else{
@@ -915,7 +936,7 @@ Exp : LPAREN Exp RPAREN{
             }
 
             //if the id value is bool handle it now. it is forbidden to store boolean variables in tmp regs
-            if ((dynamic_cast<IdNode*>($1))->return_type == TYPE_BOOL){
+            if ((dynamic_cast<IdNode*>($1))->type == TYPE_BOOL){
                 //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempID->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
@@ -964,13 +985,13 @@ Exp : LPAREN Exp RPAREN{
                 exit(0);
             }
             //todo : why offset in minus? what about local vars?
-            int srtuct_offset = -(4 + (s->offset)*4); //todo: check if offset is updated in all time
-            int field_offset = struct_offset + (field->offset)*4;//todo: check if right
+            int struct_offset = -(4 + (s->offset)*4); //todo: check if offset is updated in all time
+            int field_offset = struct_offset + (field->relative_offset)*4;//todo: check if right
             //buffer: "lw id_reg, field_offset($fp)" - load the field value to the ID temp buffer
             CodeBuffer::instance().emit("lw " + regToString(tempIDID->reg) + " , " + intToString(field_offset) + "($fp)");
 
             //if the field value is bool handle it now. it is forbidden to store boolean variables in tmp regs
-            if ((dynamic_cast<IDNode*>($3))->type == TYPE_BOOL){
+            if ((dynamic_cast<IdNode*>($3))->type == TYPE_BOOL){
                 //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempIDID->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
@@ -1026,7 +1047,7 @@ Exp : LPAREN Exp RPAREN{
                 exit(0);
             }
             //load num value to register (li = load immidiate)
-            CodeBuffer::instance.emit("li "+regToString(tempE1->reg)+", "+intToString(tempE1->value));
+            CodeBuffer::instance().emit("li "+regToString(tempE1->reg)+", "+tempE1->value);
             $$ = tempE1;
         }
         //DONE-----------------------------
@@ -1050,7 +1071,7 @@ Exp : LPAREN Exp RPAREN{
                  exit(0);
              }
              //load num value to register (li = load immidiate)
-             CodeBuffer::instance.emit("li "+regToString(tempE1->reg)+", "+intToString(tempE1->value));
+             CodeBuffer::instance().emit("li "+regToString(tempE2->reg)+", "+tempE2->value);
              $$ = tempE2;
           }
        //DONE BUY MAYBE NEED FIX
@@ -1066,7 +1087,7 @@ Exp : LPAREN Exp RPAREN{
                 exit(0);
             }
             //load string ascii value to register from the data buffer (la = load address)
-            CodeBuffer::instance().emit("la " + regToString(tempE3->reg) + ", " + CodeBuffer::instance().genDLabel());
+            CodeBuffer::instance().emit("la " + regToString(tempE3->reg) + ", " + CodeBuffer::instance().genDataLabel());
             //load string value to data buffer to store it's ascii string value
             CodeBuffer::instance().emitData("	.asciiz " + tempE3->value);
             ($$)=tempE3;
@@ -1081,7 +1102,7 @@ Exp : LPAREN Exp RPAREN{
             tempE4->reg = NONE;
             /*when we will no what supposed to happend (which code part should be running) when this exp is true,
              we will backpatch the address of the code to the empty space in the goto__ */
-            tempE4->trueList.pushback(CodeBuffer::instance().emit("j ")); //goto ___
+            tempE4->trueList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
             //no false list, the exp is true therefor the code when he will jump to when the exp is false is irrelevent
             ($$)=tempE4;
         }
@@ -1095,7 +1116,7 @@ Exp : LPAREN Exp RPAREN{
             tempE5->reg = NONE;
             /*when we will no what supposed to happend (which code part should be running) when this exp is false,
              we will backpatch the address of the code to the empty space in the goto__ */
-            tempE5->falseList.pushback(CodeBuffer::instance().emit("j ")); //goto ___
+            tempE5->falseList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
             //no true list, the exp is false therefor the code when he will jump to when the wxp is true is irrelevent
             ($$)=tempE5;
         }
@@ -1128,7 +1149,7 @@ Exp : LPAREN Exp RPAREN{
             tempEx4->size = 1; //bool size is 1
             //exp = exp1 and (lable) exp2
             //if exp1 is true, goto label
-            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1))->trueList, (dynamic_cast<lbNode*>$3)->label);
+            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1)->trueList, (dynamic_cast<lbNode*>$3)->label);
             //if exp2 if true then go to the true lable of exp2
             (tempEx4)->trueList = (dynamic_cast<ExpNode*>$4)->trueList;
             //if exp1 if false goto the exp false lable. if exp2 if false goto the exp false lable.
@@ -1149,7 +1170,7 @@ Exp : LPAREN Exp RPAREN{
             //if exp1 if false goto lable
             CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1)->falseList, (dynamic_cast<lbNode*>$3)->label);
             //if exp1 if true goto the exp true label, if exp2 is true goto the exp true lable.
-            (tempEx3)->trueList = CodeBuffer::merge(dynamic_cast<ExpNode*>$1)->trueList,(dynamic_cast<ExpNode*>$4)->trueList);
+            (tempEx3)->trueList = CodeBuffer::merge((dynamic_cast<ExpNode*>$1)->trueList,(dynamic_cast<ExpNode*>$4)->trueList);
             //if exp2 is false then goto the exp false lable
             (tempEx3)->falseList = (dynamic_cast<ExpNode*>$4)->falseList;
             $$ = tempEx3;
@@ -1167,7 +1188,7 @@ Exp : LPAREN Exp RPAREN{
             // exp = exp1 == exp2
             //in buffer: beq exp1, exp2, ___ (true lable)
             //            ___(false lable)
-            (tempEx2)->trueList.push_back(CodeBuffer::instance().emit("beq "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx2)->trueList.push_back(CodeBuffer::instance().emit("beq "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             (tempEx2)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 != exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
@@ -1186,7 +1207,7 @@ Exp : LPAREN Exp RPAREN{
             // exp = exp1 != exp2
             //in buffer: bne exp1, exp2, ___ (true lable)
             //            ___(false lable)
-            (tempEx2)->trueList.push_back(CodeBuffer::instance().emit("bne "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx2)->trueList.push_back(CodeBuffer::instance().emit("bne "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             (tempEx2)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
@@ -1208,9 +1229,9 @@ Exp : LPAREN Exp RPAREN{
         //in buffer: bgt exp1, exp2, ___ (true lable)
         //            ___(false lable)
         if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgtu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgtu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
         else //regular comapare
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
         (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
         returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
         returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
@@ -1232,9 +1253,9 @@ Exp : LPAREN Exp RPAREN{
             //in buffer: blt exp1, exp2, ___ (true lable)
             //            ___(false lable)
             if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
-                (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bltu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+                (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bltu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
-                (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("blt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+                (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("blt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
@@ -1256,9 +1277,9 @@ Exp : LPAREN Exp RPAREN{
             //in buffer: ble exp1, exp2, ___ (true lable)
             //            ___(false lable)
             if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bleu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bleu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("ble "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("ble "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
@@ -1280,9 +1301,9 @@ Exp : LPAREN Exp RPAREN{
             //in buffer: bge exp1, exp2, ___ (true lable)
             //            ___(false lable)
             if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgeu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgeu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bge "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", ");
+            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bge "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
@@ -1291,7 +1312,7 @@ Exp : LPAREN Exp RPAREN{
 ;
 
 LB: {
-    lbNode* Templb = new lbNode(CodeBuffer::instance().genLable());
+    lbNode* Templb = new lbNode(CodeBuffer::instance().genLabel());
     $$ = Templb;
 };
 

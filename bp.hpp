@@ -18,6 +18,9 @@ public:
     //generate a jump location label for the next command, writes to buffer
     std::string genLabel();
 
+    //generate a jump location label for the next command's data, writes to data buffer
+    std::string genDataLabel(); //added by shani
+
     //write command to the buffer, returns its location in the buffer
     int emit(const std::string &command);
 
