@@ -43,25 +43,6 @@ typedef enum{
     NUM_OF_TEMP_REGS,
     NONE,             //(racheli)need this as returned value from getAvailReg when all regs occupied
 } TempReg;
-///
-/*
-std::string intToString(int num){
-    std::ostringstream s;
-    s << num;
-    return s.str();
-}
-
-std::string regToString(TempReg r_num){
-    if ((int)r_num < 10){
-        //reg is t type
-        return "$t"+intToString((int)r_num);
-    }
-    else {
-        //res is s type
-        return "$s"+intToString((int)(r_num)-10);
-    }
-}
-*/
 
 class Node {
 public:
@@ -373,7 +354,7 @@ public:
     CallNode() : Node(NULL), return_type(){};
     typeName return_type;
     //(racheli)
-    TempReg regName;
+    //TempReg regName; //*** i added "reg" to node!
 };
 
 class lbNode : public Node{

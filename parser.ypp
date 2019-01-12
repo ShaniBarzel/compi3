@@ -48,10 +48,10 @@ TempReg getAvailReg(){
             AvailRegs[i] = false;
             return (TempReg)i;
         }
-        //return (TempReg)i; //no available registers
-    }
+     }
     //(racheli)no available regs
-    return NONE;
+    //return NONE; *** the following line will return NUM_OF_TEMP_REGS, this is how i used it in akk of my code
+    return (TempReg)i; //no available registers
 }
 // this function marks a register as used
 void returnTempReg(TempReg ret){AvailRegs[ret]=false;}
@@ -65,19 +65,20 @@ void freeUpSpaceStack(int size) {
 void storeVariable(TempReg reg, int offset, int size) {
 	for (int i = 0; i < size; i++) {
 		CodeBuffer::instance().emit("sw " + regToString(reg) + ", " +
-                                intToString(-4*(offset+i)) + "($fp)");
+        intToString(-4*(offset+i)) + "($fp)");
 	}
 }
 
+//***note: i added "reg" to node. no need for "regName"
 //(racheli)
 void evaluateBoolean(ExpNode*& exp) {
-	if (exp->regName == NONE)
-		exp->regName = getAvailReg();
+	if (exp->reg == NONE)
+		exp->reg = getAvailReg();
 	CodeBuffer::instance().bpatch(exp->trueList,CodeBuffer::instance().genLabel());
-	CodeBuffer::instance().emit("li " + regToString(exp->regName) + ", 1");
+	CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 1");
 	int temp = CodeBuffer::instance().emit("j ");
 	CodeBuffer::instance().bpatch(exp->falseList,CodeBuffer::instance().genLabel());
-	CodeBuffer::instance().emit("li " + regToString(exp->regName) + ", 0");
+	CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 0");
 	CodeBuffer::instance().bpatch(CodeBuffer::makelist(temp),CodeBuffer::instance().genLabel());
 }
 
@@ -150,12 +151,11 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
                 //back to the outer scope pffset
                  offsets.pop();
                  if ($1)->name == "main") {
-   								CodeBuffer::instance().emit("li $v0, 10");
-   								CodeBuffer::instance().emit("syscall");
-   							}
-   							else {
-   								CodeBuffer::instance().emit("jr $ra");
-   							}
+   						CodeBuffer::instance().emit("li $v0, 10"); // ***why 10?
+   						CodeBuffer::instance().emit("syscall");
+   				} else {
+   				    CodeBuffer::instance().emit("jr $ra"); //jump to the adress in the ra register (return address)
+   				}
            }
 ;
 //==========================DONE(racheli)======================================
@@ -213,6 +213,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
             }
 
         }
+        //*** please explain, i have no idea what is going on. look at my code for reference :P
         if ((($2)->name == "main") && (($1)->type == TYPE_VOID)) {
           CodeBuffer::instance().emit(($2)->name + ":");
           CodeBuffer::instance().emit("move $fp, $sp");
@@ -339,7 +340,6 @@ StructMem : Type ID SC{
             }
 ;
 
-//============================================================================================================================================
 RetType : Type {
                     RetTypeNode* rt_node = new RetTypeNode();
                     rt_node->type = $1->type;
@@ -396,10 +396,10 @@ FormalDecl : Type ID {
 
 //no semantics needed
 Statements : Statement
-{
-  ($$)->breakList = ($1)->breakList;
-  ($$)->returnList = ($1)->returnList;
-}
+            {
+              ($$)->breakList = ($1)->breakList;
+              ($$)->returnList = ($1)->returnList;
+            }
             | Statement Statements
             {
               ($$)->breakList = CodeBuffer::merge(($1)->breakList, ($2)breakList);
@@ -409,7 +409,7 @@ Statements : Statement
 
 Statement : LBRACE ML Statements RBRACE
                   {
-                      //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
+                      //this function does all the things we were asked to do in page 6 when closing a scope. see function ducomentation for more details
                       closeScope();
                       //return the current scope to be the outer scope
                       SymbolTable* parent = current_scope_table->getParent();
@@ -431,13 +431,19 @@ Statement : LBRACE ML Statements RBRACE
                 offsets.push(offset+1); //update offset
                 //free up 1 cell space on stack
                 freeUpSpaceStack(1);
-  							TempReg temp = getAvailReg();
-                //todo: what to do in case there's no avail reg?
-  							CodeBuffer::instance().emit("li " + regToString(temp) + ", 0");
+  				TempReg temp = getAvailReg();
+                //todo: what to do in case there's no avail reg? shani***: this is what i did in all of my code, it shoultnt happend, but we need to check it in the debug
+                //todo: debug
+                if (tempCall->reg == NUM_OF_TEMP_REGS){
+                    cout<<"no temp regs aviliable in Type ID SC"<<endl;
+                    exit(0);
+                }
+                CodeBuffer::instance().emit("li " + regToString(temp) + ", 0"); //*** what is that for?
                 //save var on stack
-  							storeVariable(temp, offset, 1);
+  				storeVariable(temp, offset, 1);
                 //mark temp reg as free
-                AvailRegs[temp] = true;
+                //AvailRegs[temp] = true; *** there is a function for that :)
+                returnTempReg(temp);
             }
             | StructType SC {
                 int offset = offsets.top();
@@ -448,7 +454,6 @@ Statement : LBRACE ML Statements RBRACE
                     exit(0);
                  }
                  offsets.push(offset+($1)->size); //update offset //Fixed
-
              }
 
             | StructsDecl
@@ -469,16 +474,17 @@ Statement : LBRACE ML Statements RBRACE
                         exit(0);
                     }
                 }
-                if (($4)->type == BOOL_TYPE) {
-  								evaluateBoolean($4);
-  							}
-  							freeUpSpaceStack(1);
-                TempReg expReg = dynamic_cast<ExpNode*>($4)->regName;
-  							CodeBuffer::instance().emit("sw " + regToString(expReg) + ", ($sp)");
+
+                if (($4)->type == TYPE_BOOL) { //*** it was BOOL_TYPE, should be TYPE_BOOL - be carful with that
+  					evaluateBoolean($4);
+  				}
+  				freeUpSpaceStack(1);
+                TempReg expReg = dynamic_cast<ExpNode*>($4)->reg;
+  				CodeBuffer::instance().emit("sw " + regToString(expReg) + ", ($sp)");
                 //free up reg
                 AvailRegs[expReg] = true;
                 //set reg to none
-                dynamic_cast<ExpNode*>($4)->regName = NONE;
+                dynamic_cast<ExpNode*>($4)->reg = NONE;
             }
             //====================================DONE(racheli)=============================
             | StructType ASSIGN Exp SC {
@@ -489,7 +495,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 StructTypeNode* temp11 = new StructTypeNode("");
                 temp11=dynamic_cast<StructTypeNode*>($1);
-                if ((dynamic_cast<StructTypeNode*>($4))->structName != temp11->structName){
+                if ((dynamic_cast<StructTypeNode*>($3))->structName != temp11->structName){ //shani hw4 it was $4
                     // exp is not the same structType type
                     errorMismatch(yylineno);
                     exit(0);
@@ -502,18 +508,22 @@ Statement : LBRACE ML Statements RBRACE
                     exit(0);
                 }
                 offsets.push(offset+($1)->size); //update offset //Fixed
-                //evaluate expression in case of bool type
-                if (($3)->type == BOOL_TYPE) {
-  								evaluateBoolean($3);
-  							}
-                //free up appropriate space on stack according to the structs' size
-  							freeUpSpaceStack(($$)->size);
-                TempReg expReg = dynamic_cast<ExpNode*>($3)->regName;
-  							CodeBuffer::instance().emit("sw " + regToString(expReg) + ", ($sp)");
-                //free up reg
-                AvailRegs[expReg] = true;
-                //set reg to none
-                dynamic_cast<ExpNode*>($4)->regName = NONE;
+                //assignment to struct
+                TempReg dest_reg = getAvailReg();
+                TempReg temp_reg = getAvailReg();
+                std:string dest_reg_s = res_to_string(dest_reg);
+                int expOffset = (dynamic_cast<StructTypeNode*>($3))->offset;
+                //get to the start of the struct in the stuck by "fp + struct offset"
+                CodeBuffer::instance().emit("subu " + dest_reg_s + ", $fp, " + intToString(4*(expOffset+1))); //+1 is to get to the first field place
+                for (int i = 0; i < (dynamic_cast<StructTypeNode*>($3))->size; i++ ) {
+                    CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", ("+ dest_reg_s +")"; //copy from stuct to temp reg
+                    CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", -($sp)";//get to the next free space on the stuck and store the copied value there
+                    CodeBuffer::instance().emit("subu "+dest_reg_s+", 4");
+                }
+                //free up regs
+                returnTempReg(dest_reg);
+                retrunTempReg(temp_reg);
+                dynamic_cast<ExpNode*>($3)->reg = NONE;
              }
              //====================================DONE(racheli)=============================
             | ID ASSIGN Exp SC
@@ -531,8 +541,8 @@ Statement : LBRACE ML Statements RBRACE
                     TableEntryStructType* entry2 = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($3)->name));
                     if (!entry2)
                     {
-                    errorUndef(yylineno, ($3)->name);
-                    exit(0);
+                        errorUndef(yylineno, ($3)->name);
+                        exit(0);
                     }
                     if (entry2->structName != (dynamic_cast<TableEntryStructType*>(entry))->structName)
                     {
@@ -560,27 +570,14 @@ Statement : LBRACE ML Statements RBRACE
                     errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($3))->value);
                     exit(0);
                 }
-                //assignment to struct
-                if (entry->type == TYPE_STRUCT) {
-  								TempReg dest_reg = getAvailReg();
-  								TempReg temp_reg = getAvailReg();
-  								CodeBuffer::instance().emit("move " + regToString(dest_reg) + ", $fp");
-  								CodeBuffer::instance().emit("subu " + regToString(dest_reg) + ", " + regToString(dest_reg) + ", " + intToString(4*(entry->offset)));
-  								for (int i = 0; i < entry->size; i++ ) {
-  									CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", " + intToString(-4*i) + "(" + regToString((dynamic_cast<ExpNode*>($3))->regName) + ")");
-  									CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", " + intToString(-4*i) + "(" + regToString(dest_reg) + ")");
-  								}
-                  //free up regs
-                  AvailRegs[dest_reg] = true;
-                  AvailRegs[temp_reg] = true;
-  							} else {
-  								if (($3)->type == BOOL_TYPE) {
-  									evaluateBoolean($3);
-  								}
-  								CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($3))->regName) + ", " + intToString(-4*(scope_table->getEntry(($1)->name))->offset) + "($fp)");
-  							}
+
+                if (($3)->type == BOOL_TYPE) {
+  					evaluateBoolean($3);
+  				}
+  				//store id value (currently in temp register) in stuck
+  				CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($3))->reg) + ", " + intToString(-4*(scope_table->getEntry(($1)->name))->offset) + "($fp)");
                 //set reg of exp to be none
-                ($3)->regName = NONE;
+                ($3)->reg = NONE; //*** why cant we return it? ut hes no use from now on...
             }
             //====================================DONE(racheli)=============================
             | ID PERIOD ID ASSIGN Exp SC
@@ -626,18 +623,19 @@ Statement : LBRACE ML Statements RBRACE
                     exit(0);
 
                 }
-  								if (($5)->type == BOOL_TYPE) {
-  									evaluateBoolean($5);
-  								}
-  								CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($5))->regName) + ", " + intToString(-4*(scope_table->getEntry(($3)->name))->offset) + "($fp)");
+  				if (($5)->type == TYPE_BOOL) {
+  					evaluateBoolean($5);
+  				}
+  				//*** need to fox: we wil have to go to the *field* storage in the stuck, means, find the offset of the struct in the stuct and add the field "relative offset" (i added it ) to get to the field offset
+  				CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($5))->Name) + ", " + intToString(-4*(scope_table->getEntry(($3)->name))->offset) + "($fp)");
                 //set reg of exp to be none
-                ($5)->regName = NONE;
+                ($5)->reg = NONE; //***why cant we return it? it has no use from now on
             }
             //====================================DONE(racheli)=============================
             | Call SC
             {
               //free call's reg
-              AvailRegs[(dynamic_cast<CallNode*>($1))->regName] = true;
+              returnTempReg($1->reg);
             }
             //====================================DONE(racheli)=============================
             | RETURN SC{
@@ -650,6 +648,7 @@ Statement : LBRACE ML Statements RBRACE
                     errorMismatch(yylineno);
                     exit(0);
                 }
+                //*** i would love some explanation
                 ($$)->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
 
             }
@@ -661,13 +660,14 @@ Statement : LBRACE ML Statements RBRACE
                 {
                     errorMismatch(yylineno);
                     exit(0);
-                }
+
                 if (($2)->type == TYPE_BOOL) {
-  								boolTypeEval($2);
-  							}
-  							CodeBuffer::instance().emit("move $v0, " + regToString((dynamic_cast<ExpNode*>($2))->regName));
-                AvailRegs[(dynamic_cast<ExpNode*>($2))->regName] = true;
-  							($$)->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+  					boolTypeEval($2);
+  				}
+  				//*** i would love some explanations
+  				CodeBuffer::instance().emit("move $v0, " + regToString((dynamic_cast<ExpNode*>($2))->reg));
+                returnTempReg($2->reg);
+  				dynamic_cast<ExpNode*>($$)->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
             }
             //====================================DONE(racheli)=============================
             | M4 M Statement{
@@ -681,6 +681,7 @@ Statement : LBRACE ML Statements RBRACE
                    errorMismatch(($1)->line_num);
                    exit(0);
                 }
+//*** i would love some explanations
                 CodeBuffer::instance().bpatch(($1)->trueList, (dynamic_cast<MNode*>($2))->quad);
             }
             //(racheli) changed name of marker
@@ -701,12 +702,12 @@ Statement : LBRACE ML Statements RBRACE
                }
                //====================================DONE(racheli)=============================
               M Statement
-                       {
+                       {//*** i would love some explanations
                          CodeBuffer::instance().bpatch(($4)->trueList, ($6)->quad);
-           						   CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), ($3)->quad);
-           							 CodeBuffer::instance().bpatch(CodeBuffer::merge(($4)->falseList,($7)->breakList), CodeBuffer::instance().genLabel());
-           							 ($$)->return_list = ($7)->returnList;
-                           closeScope();
+           				 CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), ($3)->quad);
+           				 CodeBuffer::instance().bpatch(CodeBuffer::merge(($4)->falseList,($7)->breakList), CodeBuffer::instance().genLabel());
+           				($$)->return_list = ($7)->returnList;
+                         closeScope();
                            SymbolTable* p = current_scope_table->getParent();
                            delete(current_scope_table);
                            current_scope_table = p;
@@ -716,22 +717,22 @@ Statement : LBRACE ML Statements RBRACE
                        }
              //====================================DONE(racheli)=============================
             | BREAK SC
-                {
+                {//*** i would love some explanations
                     if (!inside_while)
                     {
                         errorUnexpectedBreak(yylineno);
                         exit(0);
-                    }
+                    }//*** to do dynamoc cast
                     ($$)->breakList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
                 }
                 //====================================DONE(racheli)=============================
             | CONTINUE SC
-                {
+                {//*** i would love some explanations
                     if (!inside_while)
                     {
                         errorUnexpectedContinue(yylineno);
                         exit(0);
-                    }
+                    }//*** to do dynamic cast
                     ($$)->nextList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
                 }
 
@@ -748,34 +749,33 @@ M4  :  IF LPAREN Exp RPAREN {
             SymbolTable* new_table = new SymbolTable(current_scope_table);
             current_scope_table = new_table;
             offsets.push(offsets.top());
-
         }
 //marker ElseMarker
   //====================================DONE(racheli)=============================
-ElseMarker  :  /*epsilon*/
-        {
-          ($$)->nextList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
-          ($$)->quad = CodeBuffer::instance().genLabel();
+ElseMarker  :  /*epsilon*/  //***if you are using a field that is not included in "Node", dynamic_cast needed
+        { //***i would love some comments to explain what is it :)
+          dynamic_cast<ElseMarkerNode*>($$)->nextList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+          dynamic_cast<ElseMarkerNode*>($$)->quad = CodeBuffer::instance().genLabel();
         }
         %prec IF
         //====================================DONE(racheli)=============================
-        | ELSE  N
+        | ELSE  N  //***i would love some comments to explain what is it :)
         {
             SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
             current_scope_table = new_scope_table;
             offsets.push(offsets.top());
         }
         //====================================DONE(racheli)=============================
-        M Statement{
+        M Statement{ //***i would love some comments to explain what is it :)
             closeScope();
             SymbolTable* p = current_scope_table->getParent();
             delete(current_scope_table);
             current_scope_table = p;
             offsets.pop();
-            ($$)->nextList = ($2)->nextList;
-            ($$)->quad = ($4)->quad;
-            ($$)->returnList = ($5)->returnList;
-            ($$)->breakList = ($5)->breakList;
+            dynamic_cast<ElseMarkerNode*>($$)->nextList = ($2)->nextList;
+            dynamic_cast<ElseMarkerNode*>($$)->quad = ($4)->quad;
+            dynamic_cast<ElseMarkerNode*>($$)->returnList = ($5)->returnList;
+            dynamic_cast<ElseMarkerNode*>($$)->breakList = ($5)->breakList;
         }
         %prec ELSE
 
@@ -802,7 +802,7 @@ Call : ID LPAREN ExpList RPAREN
                 std::vector<std::string> types;
                 for (std::vector<FormalDeclNode*>::const_iterator it = f->declaration_list->begin();
                      it != f->declaration_list->end(); it++)
-                        {
+                        {//*** i would love some explanations
                             if((*it)->type == TYPE_STRUCTID){
                                 types.push_back("struct "+(*it)->s_name);
                             }
@@ -815,6 +815,8 @@ Call : ID LPAREN ExpList RPAREN
             CallNode* temp7 = new CallNode();
             temp7->return_type = f->return_type;
             $$ = temp7;
+            //** MOST IMPORTENT :
+            //***where is argument storing? return adress save place? jal to function? registers handeling?
         }
         | ID LPAREN RPAREN
         {
@@ -890,14 +892,13 @@ StructType : STRUCT ID ID{
                 temp10->type = TYPE_STRUCTID;
                 temp10->name = ($3)->name;
                 temp10->size = IdVariable->size;
-                temp10->offset = offsets.top(); //shani addition, i need this, do not erase
-                /*shani:
+                temp10->offset = offsets.top();
                 //make place for all the future data of the struct instatce in the stuck
                 int num_of_fields = IdVariable->Fields->s_list->size();
                 for ( int i = 0 ; i <num_of_fields  ; i++){
                     CodeBuffer::instance().emit("subu $sp, $sp, 4"); //increase stuck space by one (stuck is grouing towrards the lower address)
                     CodeBuffer::instance().emit("sw $zero, ($sp)"); //init stuct space of the variable by null
-                }*/
+                }
                 $$ = temp10;
             }
 ;
