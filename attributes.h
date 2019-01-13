@@ -20,7 +20,6 @@ typedef enum{
     TYPE_FUNC
 } typeName;
 
-//09.01.2019
 typedef enum{
     T0,
     T1,
@@ -41,7 +40,7 @@ typedef enum{
     S6,
     S7,
     NUM_OF_TEMP_REGS,
-    NONE,             //(racheli)need this as returned value from getAvailReg when all regs occupied
+    NONE,
 } TempReg;
 
 class Node {
@@ -355,8 +354,6 @@ class CallNode : public Node{
 public:
     CallNode() : Node(NULL), return_type(){};
     typeName return_type;
-    //(racheli)
-    //TempReg regName; //*** i added "reg" to node!
 };
 
 class lbNode : public Node{
