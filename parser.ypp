@@ -208,14 +208,12 @@ M1 : RetType ID LPAREN Formals RPAREN {
         }
         //emits appropriate code for main function declaration
         //making frame pointer to point to the stack pointer where the frame of main function should be placed
-        if ((($2)->name == "main") && (($1)->type == TYPE_VOID)) {
+        if ((($2)->name == "main")) {
           CodeBuffer::instance().emit("main :");
           CodeBuffer::instance().emit("move $fp, $sp");
-          CodeBuffer::instance().emit("subu $fp, $fp, 4"); //*SH why? the fp should not point to the empty place. that's why when ever we want to put something in the stuck we are doint fp -4 -offset
+          //CodeBuffer::instance().emit("subu $fp, $fp, 4"); //*SH why? the fp should not point to the empty place. that's why when ever we want to put something in the stuck we are doint fp -4 -offset
           //emits code for regular function declaration
           //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
-        } else if ((($2)->name == "main")&&($1)->type != TYPE_VOID){
-            //*SH we need to handle this case as well. i belive this is a syntx error
         }else {
           CodeBuffer::instance().emit("move $fp, $sp"); //*SH this line was missing. why?
           CodeBuffer::instance().emit("_" + ($2)->name + ":");
@@ -430,16 +428,16 @@ Statement : LBRACE ML Statements RBRACE
                     exit(0);
                 }
                 offsets.push(offset+1); //update offset
-                //free up 1 cell space on stack
+                //free up 1 cell space on stack for future storage of data in ID
                 freeUpSpaceStack(1);
                 //*SH no data yet, no need to write to stuct, only to save place in stuck.
                     //*SH no need start
-                TempReg temp = getAvailReg();
-                CodeBuffer::instance().emit("li " + regToString(temp) + ", 0"); //***(no answer) *SH what is that for? init the register? i added it to the return reg function, if it's free it should be emty
+               // TempReg temp = getAvailReg();
+               // CodeBuffer::instance().emit("li " + regToString(temp) + ", 0"); //***(no answer) *SH what is that for? init the register? i added it to the return reg function, if it's free it should be emty
                 //save var on stack
-  				storeVariable(temp, offset, 1);
+  				//storeVariable(temp, offset, 1);
                 //mark temp reg as free
-                returnTempReg(temp);
+               // returnTempReg(temp);
                     //no need end
             }
             | StructType SC {
@@ -867,7 +865,7 @@ Call : ID LPAREN ExpList RPAREN
                                 ......
                                 if you think there's something wrong with this method please explain
                       */
-                      for (int i = 0; i < (*it)->size; i++) {
+                      for (int i = 0; i < (*it)->size; i++) {//need fix
                              //we need temp reg because of the syntax..
     						TempReg temp = getAvailReg();
                             std::string temp_s = regToString(temp);
@@ -891,7 +889,7 @@ Call : ID LPAREN ExpList RPAREN
             //subtract one word so that sp would be one place bellow the beginning of the caller frame
             CodeBuffer::instance().emit("subu $fp, $fp, 4");
             //handle cases
-            if (((($1)->name == "main") && (f->return_type == TYPE_VOID)) || (($1)->name == "print") || (($1)->name == "printi")) {
+            if (((($1)->name == "main")) {
               CodeBuffer::instance().emit("jal " + ($1)->name);
             } else {
               CodeBuffer::instance().emit("jal _" + ($1)->name);
@@ -1732,9 +1730,9 @@ void freeUpSpaceStack(int size) {
 
 //stores a variable saved in reg on the stack
 void storeVariable(TempReg reg, int offset, int size) {
-    for (int i = 0; i < size; i++) { //*SH why put the value of the register this many times in the stuck?
-        CodeBuffer::instance().emit("sw " + regToString(reg) + ", " +intToString(-4*(offset+i)) + "($fp)");
-    }
+ //   for (int i = 0; i < size; i++) { //*SH why put the value of the register this many times in the stuck?
+        CodeBuffer::instance().emit("sw " + regToString(reg) + ", -" +intToString(4*(offset)) + "($fp)");
+   // }
 }
 
 
