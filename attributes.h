@@ -52,6 +52,11 @@ public:
     bool err;
     int line_num;
     TempReg reg;
+    std::vector<int> trueList;
+    std::vector<int> falseList;
+    std::vector<int> returnList;
+    std::vector<int> breakList;
+
     Node() : size(0), name(), type(), yytext_array(), err(false), line_num(0){};
     Node(char* yytext_a){
         size = 0;
@@ -228,6 +233,8 @@ class StatementNode : public Node{
 public:
   std::vector<int> breakList;
 	std::vector<int> returnList;
+  std::vector<int> nextList;
+
 };
 class StatementsNode : public Node {
 public:
@@ -258,13 +265,15 @@ public:
 //non terminals
 class ExpNode : public Node{
 public:
-    ExpNode(std::string v) : Node(NULL), value(v=""){};
+  std::string value;
+  std::vector<int> trueList;
+  std::vector<int> falseList;
+  std::vector<int> returnList;
+  std::string s_name;
+  TempReg regName; //(racheli)the reg in which exp value is saved
+    ExpNode(std::string v) : Node(NULL), value(v), trueList(), falseList(), returnList(), s_name(), regName() {};
     virtual ~ExpNode(){};
-    std::vector<int> trueList;
-    std::vector<int> falseList;
-    std::string value;
-    std::string s_name;
-    TempReg regName; //(racheli)the reg in which exp value is saved
+
 };
 
 class ExpListNode : public Node{
