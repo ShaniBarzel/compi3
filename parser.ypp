@@ -1570,6 +1570,13 @@ int main() {
     current_scope_table->insertFunctionEntry("print", TYPE_VOID);
     TableEntryFunc* f_print = (TableEntryFunc*)current_scope_table->getEntry("print");
     f_print->declaration_list->push_back(n);
+    //racheli addition start
+    CodeBuffer::instance().emit("print:");
+  	CodeBuffer::instance().emit("lw $a0,0($sp)");
+  	CodeBuffer::instance().emit("li $v0,4");
+  	CodeBuffer::instance().emit("syscall");
+  	CodeBuffer::instance().emit("jr $ra");
+    //racheli addition end
     FormalDeclNode* n2 = new FormalDeclNode();
     n2->name = "";
     n2->type = TYPE_INT;
@@ -1577,6 +1584,13 @@ int main() {
     current_scope_table->insertFunctionEntry("printi", TYPE_VOID);
     TableEntryFunc* f_printi = (TableEntryFunc*)current_scope_table->getEntry("printi");
     f_printi->declaration_list->push_back(n2);
+    //racheli addition start
+    CodeBuffer::instance().emit("printi:");
+  	CodeBuffer::instance().emit("lw $a0,0($sp)");
+  	CodeBuffer::instance().emit("li $v0,1");
+  	CodeBuffer::instance().emit("syscall");
+  	CodeBuffer::instance().emit("jr $ra");
+    //racheli addition end
     yyparse();
     closeScope();
     delete(temp_table);
