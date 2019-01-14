@@ -630,7 +630,7 @@ Statement : LBRACE ML Statements RBRACE
                 //at first we move the returned expression to reg v0
                 // then it's the same explenation as abvove in the previous rule
   				CodeBuffer::instance().emit("move $v0, " + regToString(($2)->reg));
-                returnTempReg($2->reg); why? we need to free it
+                returnTempReg($2->reg);
             	dynamic_cast<ExpNode*>($$)->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
             }
             | M4 M Statement{
@@ -650,6 +650,16 @@ Statement : LBRACE ML Statements RBRACE
                 CodeBuffer::instance().bpatch(($1)->trueList, (dynamic_cast<MNode*>($2))->quad);
             }
             ElseMarker
+            {
+              //we jump to else if the expression evaluates to false
+              CodeBuffer::instance().bpatch(($1)->falsList, ($4)->quad);
+              //generating the next jump label after the else is executed
+              CodeBuffer::instance().bpatch(($4)->next_list, CodeBuffer::instance().genLabel());
+              //setting the return and break lists of the if statement to be the concatenation
+              //of the lists of statement inside if and the else block
+              ($$)->returnList = CodeBuffer::merge(($3)->returnList, ($4)->returnList);
+              ($$)->breakList = CodeBuffer::merge(($3)->breakList, ($4)->breakList);
+            }
             | WHILE LPAREN M Exp RPAREN
                {
                     //turn on flag of loop
@@ -790,9 +800,107 @@ Call : ID LPAREN ExpList RPAREN
             CallNode* temp7 = new CallNode();
             temp7->return_type = f->return_type;
             $$ = temp7;
-            //** MOST IMPORTENT :
-            //***where is argument storing? return adress save place? jal to function? registers handeling?
-            // i didn't implement this part yet
+
+            //preparing stack for saved registers sections $S0-$S7
+            for (int i=10;i<NUM_OF_TEMP_REGS;i++)
+            {
+              //if used reg - save its value on stack
+              if (!(AvailRegs[i]))
+              {
+                //loads used reg on stack
+                CodeBuffer::instance().emit("subu $sp, $sp, 4");
+                CodeBuffer::instance().emit("sw " + regToString(TempReg(i)) + ", ($sp)");
+                //reset register since its value was already saved on the stack above
+                returnTempReg(TempReg(i));
+              }
+            }
+            //preparing stack for next section:
+            CodeBuffer::instance().emit("subu $sp, $sp, 4");
+            // saving old frame pointer on stack
+            CodeBuffer::instance().emit("sw $fp, ($sp)");
+            //preparing stack for the return address section
+            CodeBuffer::instance().emit("subu $sp, $sp, 4");
+            //saving return address on stack
+            CodeBuffer::instance().emit("sw $ra, ($sp)");
+            //arguments section
+            std::vector<ExpNode*> expList = (dynamic_cast<ExpListNode*>($3))->exp_list;
+            for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++t) {
+                if ((*it)->type == TYPE_STRUCT)
+                    {
+                      /*
+                        for the first field of the struct - "lw temp 0(reg)"
+                                2nd field                 - "lw temp -4*1(reg)"
+                                3rd field                 - "lw temp -4*2(reg)"
+                                ......
+                                if you think there's something wrong with this method please explain
+                      */
+                      for (int i = 0; i < (*it)->size; i++) {
+                        //we need temp reg because of the syntax..
+    										std::string temp = getAvailReg();
+    										CodeBuffer::instance().emit("subu $sp, $sp, 4");
+    										CodeBuffer::instance().emit("lw " + temp + ", " + intToString(-4*i) + "(" + regToString((*it)->reg) + ")");
+    										CodeBuffer::instance().emit("sw " + temp + ", ($sp)");
+    										returnTempReg(temp);
+    									}
+                    }
+                //if of regular type
+                else
+                    {
+                    CodeBuffer::instance().emit("subu $sp, $sp, 4");
+                    //saving argument on stack
+                    CodeBuffer::instance().emit("sw " + regToString((*it)->reg) + ", ($sp)");
+                  }
+            }
+            //end of pre-call, now we prepare the stack for jumping to the called function
+            //make fp point to where sp points
+            CodeBuffer::instance().emit("move $fp, $sp");
+            //subtract one word so that sp would be one place bellow the beginning of the caller frame
+            CodeBuffer::instance().emit("subu $fp, $fp, 4");
+            //handle cases
+            if (((($1)->name == "main") && (f->return_type == VOID_TYPE)) || (($1)->name == "print") || (($1)->name == "printi")) {
+              CodeBuffer::instance().emit("jal " + ($1)->name);
+            } else {
+              CodeBuffer::instance().emit("jal _" + ($1)->name);
+            }
+            //post-call
+            //scan parameters list to get its size in order to fold stack
+            int num = 0;
+            for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++t)
+              {
+                num += (*it)->size;
+              }
+            //add size calculated above (in words) to the current stack pointer to fold stack
+            CodeBuffer::instance().emit("addu $sp, $sp, " + intToString(4*num));
+            //load return address from stack to ra register
+            CodeBuffer::instance().emit("lw $ra, ($sp)");
+            //fold stack
+            CodeBuffer::instance().emit("addu $sp, $sp, 4");
+            //load old (saved on stack) fp to fp
+            CodeBuffer::instance().emit("lw $fp, ($sp)");
+            //folding up one spot
+            CodeBuffer::instance().emit("addu $sp, $sp, 4");
+            //folding saved registers section
+            for (int i=10;i<NUM_OF_TEMP_REGS;i++)
+            {
+              //if used reg - save its value on stack
+              if (!(AvailRegs[i]))
+              {
+                CodeBuffer::instance().emit("lw " + regToString(TempReg(i)) + ", ($sp)");
+                CodeBuffer::instance().emit("addu $sp, $sp, 4");
+                returnTempReg(TempReg(i));
+              }
+            }
+            //reset registers in which we saved the vars in the paremeters list of the function
+            for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++t)
+              {
+                returnTempReg((*it)->reg);
+              }
+            //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
+            //to a new register which will be saved
+            if (f->retType != VOID_TYPE) {
+              ($$)->reg = getAvailReg();
+              CodeBuffer::instance().emit("move " + ($$)->reg + ", $v0");
+            }
         }
         | ID LPAREN RPAREN
         {
