@@ -410,12 +410,12 @@ FormalDecl : Type ID {
 
 //no semantics needed
 Statements : Statement{ //*S dynamic_cast
-              ($$)->breakList = ($1)->breakList;
-              ($$)->returnList = ($1)->returnList;
+              dynamic_cast<StatementsNode*>($$)->breakList = dynamic_cast<StatementNode*>($1)->breakList;
+              dynamic_cast<StatementsNode*>($$)->returnList = dynamic_cast<StatementNode*>($1)->returnList;
             }
             | Statement Statements{ //*S dynamic_cast
-              ($$)->breakList = CodeBuffer::merge(($1)->breakList, ($2)breakList);
-			  ($$)->returnList = CodeBuffer::merge(($1)returnList, ($2)->returnList);
+              dynamic_cast<StatementsNode*>($$)->breakList = CodeBuffer::merge(dynamic_cast<StatementNode*>($1)->breakList, dynamic_cast<StatementsNode*>($2)breakList);
+			        ($$)->returnList = CodeBuffer::merge(dynamic_cast<StatementNode*>($1)returnList, dynamic_cast<StatementsNode*>($2)->returnList);
             }
 ;
 
@@ -721,13 +721,13 @@ Statement : LBRACE ML Statements RBRACE
                }
               M Statement{ //*S dynamic_cast
                          //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
-                         CodeBuffer::instance().bpatch(($4)->trueList, ($7)->quad);
+                         CodeBuffer::instance().bpatch(dynamic_cast<ExpNode*>($4)->trueList, dynamic_cast<StatementNode*>($7)->quad);
                          //setting 1st M's label as the target for each of the instructions in the created s_list
                          //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
-           				 CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), ($3)->quad);
+           				 CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), dynamic_cast<MNode*>($3)->quad);
                         //we want to create a fresh label as target for the instructions in the concatenated list created by the false list of exp and break list of statement
-           				 CodeBuffer::instance().bpatch(CodeBuffer::merge(($4)->falseList,($8)->breakList), CodeBuffer::instance().genLabel());
-           				 ($$)->return_list = ($8)->returnList;
+           				 CodeBuffer::instance().bpatch(CodeBuffer::merge(dynamic_cast<ExpNode*>($4)->falseList,dynamic_cast<StatementNode*>($7)->breakList), CodeBuffer::instance().genLabel());
+           				 ($$)->return_list = dynamic_cast<StatementNode*>($7)->returnList;
                          closeScope();
                          SymbolTable* p = current_scope_table->getParent();
                          delete(current_scope_table);
