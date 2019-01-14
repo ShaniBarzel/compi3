@@ -858,12 +858,12 @@ Call : ID LPAREN ExpList RPAREN
             //arguments section
             std::vector<ExpNode*>* expList = (dynamic_cast<ExpListNode*>($3))->exp_list;
             for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++it) {
-                if ((*it)->type == TYPE_STRUCT)
+                if ((*it)->type == TYPE_STRUCTID)
                     {
                       /*
-                        for the first field of the struct - "lw temp 0(reg)"
-                                2nd field                 - "lw temp -4*1(reg)"
-                                3rd field                 - "lw temp -4*2(reg)"
+                        for the first field of the struct - "lw temp 0(sp)"
+                                2nd field                 - "lw temp -4*1(sp)"
+                                3rd field                 - "lw temp -4*2(sp)"
                                 ......
                                 if you think there's something wrong with this method please explain
                       */
