@@ -265,6 +265,7 @@ public:
 //non terminals
 class ExpNode : public Node{
 public:
+  TempReg loc;
   std::string value;
   std::vector<int> trueList;
   std::vector<int> falseList;

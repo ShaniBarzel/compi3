@@ -211,11 +211,11 @@ M1 : RetType ID LPAREN Formals RPAREN {
         if ((($2)->name == "main")) {
           CodeBuffer::instance().emit("main :");
           CodeBuffer::instance().emit("move $fp, $sp");
-          //CodeBuffer::instance().emit("subu $fp, $fp, 4"); //*SH why? the fp should not point to the empty place. that's why when ever we want to put something in the stuck we are doint fp -4 -offset
+          //CodeBuffer::instance().emit("subu $fp, $fp, 4"); //*SH why? the fp should not point to the empty place. that's why when ever we want to put something in the stuck we are doint fp -4 -offset *RACH but whenever we put somethin on the stack we need to move the fp to point to the next empty place,no?
           //emits code for regular function declaration
           //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
         }else {
-          CodeBuffer::instance().emit("move $fp, $sp"); //*SH this line was missing. why?
+          CodeBuffer::instance().emit("move $fp, $sp"); //*SH this line was missing. why? *RACH forgot
           CodeBuffer::instance().emit("_" + ($2)->name + ":");
         }
     }
@@ -430,10 +430,10 @@ Statement : LBRACE ML Statements RBRACE
                 offsets.push(offset+1); //update offset
                 //free up 1 cell space on stack for future storage of data in ID
                 freeUpSpaceStack(1);
-                //*SH no data yet, no need to write to stuct, only to save place in stuck.
-                    //*SH no need start
+                //*SH no data yet, no need to write tfo stuct, only to save place in stuck.
+                    //*SH no need start *RACH are you sure? maybe we need to ask about this case.
                // TempReg temp = getAvailReg();
-               // CodeBuffer::instance().emit("li " + regToString(temp) + ", 0"); //***(no answer) *SH what is that for? init the register? i added it to the return reg function, if it's free it should be emty
+               // CodeBuffer::instance().emit("li " + regToString(temp) + ", 0"); //***(no answer) *SH what is that for? init the register? i added it to the return reg function, if it's free it should be emty *RACH ok
                 //save var on stack
   				//storeVariable(temp, offset, 1);
                 //mark temp reg as free
@@ -644,7 +644,7 @@ Statement : LBRACE ML Statements RBRACE
                     errorMismatch(yylineno);
                     exit(0);
                 }
-                //we want the return list of statement to include only "jump" instruction //*SH what does return list means? why?
+                //we want the return list of statement to include only "jump" instruction //*SH what does return list means? why? *RACH i feel like the tutorials have a better answer than me for this 
                 (dynamic_cast<StatementNode*>($$))->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
 
             }
@@ -858,22 +858,20 @@ Call : ID LPAREN ExpList RPAREN
             for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++it) {
                 if ((*it)->type == TYPE_STRUCTID)
                     {
-                      /*
-                        for the first field of the struct - "lw temp 0(sp)"
-                                2nd field                 - "lw temp -4*1(sp)"
-                                3rd field                 - "lw temp -4*2(sp)"
-                                ......
-                                if you think there's something wrong with this method please explain
-                      */
-                      for (int i = 0; i < (*it)->size; i++) {//need fix
-                             //we need temp reg because of the syntax..
-    						TempReg temp = getAvailReg();
-                            std::string temp_s = regToString(temp);
-    						CodeBuffer::instance().emit("subu $sp, $sp, 4");
-    						CodeBuffer::instance().emit("lw " + temp_s + ", " + intToString(-4*i) + "(" + regToString((*it)->reg) + ")");
-    						CodeBuffer::instance().emit("sw " + temp_s + ", ($sp)");
-    						returnTempReg(temp);
-    					}
+                      TableEntryStruct* st_node = current_scope_table->getEntry((*it)->name);
+                      int st_offest = st_node->offset * 4;
+                      //make room on stack
+                      CodeBuffer::instance().emit("subu $fp, $fp, st_offest");
+                      int num_fields = (*it)->size;
+                      //save fields on stack
+                      for (int i =0; i< num_fields; i++)
+                      {
+                        //get value of current field of struct
+                        TempReg field_reg = st_node->Fields->s_list[i]->reg;
+                        //save value of field on stack
+                        CodeBuffer::instance().emit("sw " + regToString(field_reg) + ", ($sp)");
+                        CodeBuffer::instance().emit("addu $sp, $sp, 4");
+                      }
                     }
                 //if of regular type
                 else
@@ -1725,12 +1723,12 @@ std::string regToString(TempReg r_num){
 void freeUpSpaceStack(int size) {
     CodeBuffer::instance().emit("subu $sp, $sp, " + intToString(4*size));
     //size will alwase be 1
-    CodeBuffer::instance().emit("sw 0, ($sp)"); //*SH it was missing + size will alwase be 1
+    CodeBuffer::instance().emit("sw 0, ($sp)"); //*SH it was missing + size will alwase be 1 *RACH ok
 }
 
 //stores a variable saved in reg on the stack
 void storeVariable(TempReg reg, int offset, int size) {
- //   for (int i = 0; i < size; i++) { //*SH why put the value of the register this many times in the stuck?
+ //   for (int i = 0; i < size; i++) { //*SH why put the value of the register this many times in the stuck? *RACH youre right it's useless
         CodeBuffer::instance().emit("sw " + regToString(reg) + ", -" +intToString(4*(offset)) + "($fp)");
    // }
 }
