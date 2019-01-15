@@ -21,7 +21,7 @@ TableEntry* SymbolTable::getEntry(std::string name) {
     return parent_table->getEntry(name);
 }
 
-bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offset){
+bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offset, int f_offset){
     //check if an entry for variable to be inserted already exists in some scope table in the tree
     if(getEntry(name)) //entry already exist
         return false;
@@ -31,12 +31,13 @@ bool SymbolTable::insertVariableEntry(std::string name, typeName type, int offse
     new_entry->type = type;
     new_entry->offset = offset;
     new_entry->size =1;
+    new_entry->f_offset=f_offset; //sn
     //insertion to table of current scope
     scope_table->push_back(new_entry);
     return true;
 }
 
-bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size, int offset){
+bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size, int offset, int f_offset){
     //check if an entry for variable to be inserted already exists in some scope table in the tree
     if(getEntry(name)) //entry already exist
         return false;
@@ -48,11 +49,12 @@ bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, ty
     new_entry->size = size;
     //insertion to table of current scope
     new_entry->offset = offset;
+    new_entry->f_offset=f_offset;//sn
     scope_table->push_back(new_entry);
     return true;
 }
 
-bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type) {
+bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type,int frame) {
     if(getEntry(name)) //entry already exist
         return false;
     TableEntryFunc* new_entry = new TableEntryFunc();
@@ -60,6 +62,7 @@ bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type) {
     new_entry->name = name;
     new_entry->return_type = return_type;
     scope_table->push_back(new_entry);
+    new_entry->f_offset=frame; //sn
     return true;
 }
 
@@ -85,8 +88,7 @@ StructMemNode* TableEntryStruct::getField(std::string name){
 }
 
 TableEntryFunc* SymbolTable::getLastFunctionEntry() {
-    //std::cout<<"test in getLastFunctionEntry:"<<std::endl;
-    //todo (racheli new) i changed this to reverse_iterator
+
     for (std::vector<TableEntry *>::reverse_iterator it = scope_table->rbegin();
          it != scope_table->rend(); ++it) {
 

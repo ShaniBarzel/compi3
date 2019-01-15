@@ -20,7 +20,8 @@ public:
     std::string name;
     typeName type;
     int size;
-    int offset;
+    int offset; //scope offset
+    int f_offset; //frame offset
     TableEntry(){};
     virtual ~TableEntry(){};
 
@@ -30,7 +31,6 @@ class TableEntryVariable : public TableEntry{
 };
 
 
-//todo: shani: racheli: typeNme and name are inherited from TableEntry
 class TableEntryStruct : public TableEntry{
 public:
     StructMemListNode* Fields;
@@ -95,13 +95,13 @@ public:
     * inserts an entry of a variable to the table
     * returns true if succeeds
     */
-    bool insertVariableEntry(std::string name, typeName type, int offset);
+    bool insertVariableEntry(std::string name, typeName type, int offset,int f_offset);
     /*
   * insertFunctionEntry
   * inserts an entry of a function to the table
   * returns true if succeeds
   */
-    bool insertFunctionEntry(std::string name, typeName return_type);
+    bool insertFunctionEntry(std::string name, typeName return_type, int f_offset);
     /*
     * insertStructEntry
     * inserts an entry of a struct to the table
@@ -112,7 +112,7 @@ public:
     * inserts an entry of a struct type to the table
     * returns true if succeeds
     */
-    bool insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size,int offset);
+    bool insertStructTypeEntry(std::string name, std::string s_name, typeName type, int size,int offset,int f_offset);
     /*
      * this function returns the latest function entry in the table
      * if exists - returns it, else - nullptr
