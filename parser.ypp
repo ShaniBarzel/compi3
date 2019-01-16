@@ -117,6 +117,7 @@ Program :  Structs Funcs{
         CodeBuffer::instance().emit("li $v0,1"); //service 1 is the int printer service
         CodeBuffer::instance().emit("syscall"); // call the int printer service
         CodeBuffer::instance().emit("jr $ra"); //jump to return adress
+        CodeBuffer::instance().emit(".end");
         CodeBuffer::instance().printDataBuffer();
         CodeBuffer::instance().printCodeBuffer();
 
@@ -129,6 +130,7 @@ Funcs :   FuncDecl Funcs
 ;
 
 FuncDecl :  M1 LBRACE Statements RBRACE{
+        //CodeBuffer::instance().printCodeBuffer(); //debug
                 FuncDeclNode* temp1 = new FuncDeclNode();
                 temp1->type = TYPE_FUNC;
                 temp1->return_type = ($1)->type; //passed from marker
@@ -155,10 +157,11 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
 
 /* marker 1 */
 M1 : RetType ID LPAREN Formals RPAREN {
+//CodeBuffer::instance().printCodeBuffer(); //debug
         //to pass return typeto funcDecl
          ($$)->type = ($1)->type;
          ($$)->name = ($1)->name;
-         int ParamFrOffset = frame_offsets.top(); //sn
+         int ParamFrOffset = 0; //sn
          //try to insert to the current symbol table
         if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type,ParamFrOffset))) //sn
         {
@@ -181,15 +184,16 @@ M1 : RetType ID LPAREN Formals RPAREN {
         int ParamOffset = offsets.top();//sn
         f->offset = ParamOffset;
         f->f_offset = ParamFrOffset; //sn
+        int vars_frame_offset =0;
         if (!($4->size == -1)){ //if the parameters list is not empty
             for(std::vector<FormalDeclNode*>::reverse_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->rbegin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->rend(); it++)
             {
                 /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
                 specipicaly, the "decleration" order in the outer scope is from the right variable in the agruments list, to the right. */
                 ParamOffset = ParamOffset - (*it)->size;
-                ParamFrOffset = ParamFrOffset - (*it)->size;  //sn
+                vars_frame_offset = vars_frame_offset - (*it)->size;  //sn //should be negative
                 if((*it)->type != TYPE_STRUCTID){
-                        if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset, ParamFrOffset )))
+                        if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset, vars_frame_offset )))
                         {
                             //there is already a variable with the parameter's name
                             errorDef(yylineno, (*it)->name);
@@ -230,6 +234,7 @@ Structs :   StructsDecl Structs
 ;
 
 StructsDecl :  M2 RBRACE SC{
+//CodeBuffer::instance().printCodeBuffer(); //debug
         StructsDeclNode* temp9 = new StructsDeclNode();
         temp9->name = ($1)->name;
         temp9->size = ($1)->size;
@@ -247,6 +252,7 @@ StructsDecl :  M2 RBRACE SC{
 
 // marker 2
 M2 : STRUCT ID LBRACE StructMemList{
+       // CodeBuffer::instance().printCodeBuffer(); //debug
             StructsDeclNode* temp8 = new StructsDeclNode();
             temp8->name = ($2)->name;
             temp8->type = ($1)->type;
@@ -272,35 +278,36 @@ M2 : STRUCT ID LBRACE StructMemList{
             //insert the new scope's offset to the offsets stack
             offsets.push(offsets.top());
 
-        //the updating offset of the fields in the struct
-        int current_offset = offsets.top();
-        int current_f_offset = frame_offsets.top();//sn
-        int relative_offset = 0;
-        int size = 0;
-        //saving a reference to "fields list" field of the struct defined
-        //iterating over the fields list of the struct
-        for (std::vector<StructMemNode*>::const_iterator it = fields_list->begin(); it != fields_list->end(); it++){
-            (*it)->relative_offset = relative_offset;
-            relative_offset += (*it)->size;
-            //increment current offset by the current field's size
-            current_offset += (*it)->size;
-            size += (*it)->size;
-            //insert the field as a table entry of the current scope table
-            if (!(current_scope_table->insertVariableEntry((*it)->name, (*it)->type, current_offset,current_offset))){ //sn
-                // id already defined
-                errorDef(yylineno, (*it)->name);
-                exit(0);
+            //the updating offset of the fields in the struct
+            int current_offset = offsets.top();
+            int current_f_offset = frame_offsets.top();//sn
+            int relative_offset = 0;
+            int size = 0;
+            //saving a reference to "fields list" field of the struct defined
+            //iterating over the fields list of the struct
+            for (std::vector<StructMemNode*>::const_iterator it = fields_list->begin(); it != fields_list->end(); it++){
+                (*it)->relative_offset = relative_offset;
+                relative_offset += (*it)->size;
+                //increment current offset by the current field's size
+                current_offset += (*it)->size;
+                size += (*it)->size;
+                //insert the field as a table entry of the current scope table
+                if (!(current_scope_table->insertVariableEntry((*it)->name, (*it)->type, current_offset,current_offset))){ //sn
+                    // id already defined
+                    errorDef(yylineno, (*it)->name);
+                    exit(0);
+                }
+                //insert field to s_mem_list of the StructTypeDecNode
+                dec_fields_list->s_list->push_back(*it);
             }
-            //insert field to s_mem_list of the StructTypeDecNode
-            dec_fields_list->s_list->push_back(*it);
-        }
-        temp8->size = size;
-        temp8->s_mem_list = dec_fields_list;
-        $$ = temp8;
+            temp8->size = size;
+            temp8->s_mem_list = dec_fields_list;
+            $$ = temp8;
 };
 
 
 StructMemList : StructMem {
+//CodeBuffer::instance().printCodeBuffer(); //debug
                     StructMemListNode* temp5 = new StructMemListNode();
                     StructMemNode* temp5_1 = new StructMemNode();
                     temp5_1 = dynamic_cast<StructMemNode*>($1);
@@ -398,14 +405,14 @@ FormalDecl : Type ID {
 //no semantics needed
 Statements : Statement{
               StatementsNode* new_node = new StatementsNode();
-              new_node->breakList = dynamic_cast<StatementNode*>($1)->breakList;
-              new_node->returnList = dynamic_cast<StatementNode*>($1)->returnList;
+              (new_node->breakList) = (dynamic_cast<StatementNode*>($1)->breakList);
+              (new_node->returnList) = (dynamic_cast<StatementNode*>($1)->returnList);
               $$ = new_node;
             }
             | Statement Statements{
               StatementsNode* new_node = new StatementsNode();
-              new_node->breakList = CodeBuffer::merge((dynamic_cast<StatementNode*>($1))->breakList, dynamic_cast<StatementsNode*>($2)->breakList);
-              new_node->returnList = CodeBuffer::merge(dynamic_cast<StatementNode*>($1)->returnList, dynamic_cast<StatementsNode*>($2)->returnList);
+              *(new_node->breakList) = CodeBuffer::merge(*((dynamic_cast<StatementNode*>($1))->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
+              *(new_node->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->returnList), *(dynamic_cast<StatementsNode*>($2)->returnList));
               $$ = new_node;
             }
 ;
@@ -420,8 +427,10 @@ Statement : LBRACE ML Statements RBRACE
                       current_scope_table = parent;
                       //back to the outer scope offset
                       offsets.pop();
-                      (dynamic_cast<StatementNode*>($$))->breakList = (dynamic_cast<StatementsNode*>($3))->breakList;
-        			        (dynamic_cast<StatementNode*>($$))->returnList = (dynamic_cast<StatementsNode*>($3))->returnList;
+                      StatementNode* tempSt = new StatementNode();
+                      *(tempSt->breakList) = *((dynamic_cast<StatementsNode*>($3))->breakList);
+                      *(tempSt->returnList) = *((dynamic_cast<StatementsNode*>($3))->returnList);
+                      $$=tempSt;
                   }
             | Type ID SC{
                 int offset = offsets.top();
@@ -437,6 +446,8 @@ Statement : LBRACE ML Statements RBRACE
                 frame_offsets.push(frame_offset+1);//sn
                 //free up 1 cell space on stack for future storage of data in ID
                 freeUpSpaceStack(1);
+                StatementNode* tempSt4 = new StatementNode();
+                $$=tempSt4;
             }
             | StructType SC {
                 int offset = offsets.top();
@@ -450,6 +461,8 @@ Statement : LBRACE ML Statements RBRACE
                  }
                  offsets.push(offset+($1)->size); //update offset
                 frame_offsets.push(frame_offset+($1)->size); //sn
+                StatementNode* tempSt5 = new StatementNode();
+                $$=tempSt5;
              }
 
             | StructsDecl
@@ -484,6 +497,8 @@ Statement : LBRACE ML Statements RBRACE
                 returnTempReg(expReg);
                 //set reg to none
                 dynamic_cast<ExpNode*>($4)->reg = NONE;
+                StatementNode* tempSt6 = new StatementNode();
+                $$=tempSt6;
             }
             | StructType ASSIGN Exp SC {
                 if (($3)->type != TYPE_STRUCTID){
@@ -527,6 +542,8 @@ Statement : LBRACE ML Statements RBRACE
                 returnTempReg(temp_reg);
                 dynamic_cast<ExpNode*>($3)->reg = NONE;
                 returnTempReg(dynamic_cast<ExpNode*>($3)->reg);
+                StatementNode* tempSt7 = new StatementNode();
+                $$=tempSt7;
              }
             | ID ASSIGN Exp SC
             {
@@ -581,6 +598,8 @@ Statement : LBRACE ML Statements RBRACE
                 //set reg of exp to be none
                 returnTempReg(($3)->reg);
                 ($3)->reg = NONE;
+                StatementNode* tempSt8 = new StatementNode();
+                $$=tempSt8;
             }
 
             | ID PERIOD ID ASSIGN Exp SC
@@ -636,11 +655,15 @@ Statement : LBRACE ML Statements RBRACE
                 //set reg of exp to be none
                 returnTempReg(($5)->reg);
                 ($5)->reg = NONE;
+                StatementNode* tempSt9 = new StatementNode();
+                $$=tempSt9;
             }
             | Call SC
             {
               //free call's reg
               returnTempReg($1->reg);
+              StatementNode* tempSt9 = new StatementNode();
+              $$=tempSt9;
             }
 
             | RETURN SC{
@@ -653,8 +676,10 @@ Statement : LBRACE ML Statements RBRACE
                     errorMismatch(yylineno);
                     exit(0);
                 }
+                 StatementNode* tempSt10 = new StatementNode();
                 //we want the return list of statement to include only "jump" instruction
-                (dynamic_cast<StatementNode*>($$))->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                *(tempSt10->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                $$=tempSt10;
 
             }
             | RETURN Exp SC {
@@ -673,7 +698,9 @@ Statement : LBRACE ML Statements RBRACE
                 // then it's the same explenation as abvove in the previous rule
   				CodeBuffer::instance().emit("move $v0, " + regToString(($2)->reg));
                 returnTempReg($2->reg);
-            	dynamic_cast<ExpNode*>($$)->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                StatementNode* tempSt12 = new StatementNode();
+            	*(dynamic_cast<ExpNode*>($$)->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+            	$$=tempSt12;
             }
             | M4 M Statement{
                // closeScope();
@@ -688,18 +715,22 @@ Statement : LBRACE ML Statements RBRACE
                 }
               //we want to insert M's quad as the target label for each of the instructions on the true list of M4
               //meaning M would be the target for when the expression in M4 is true
-                CodeBuffer::instance().bpatch(($1)->trueList, (dynamic_cast<MNode*>($2))->quad);
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->trueList), (dynamic_cast<MNode*>($2))->quad);
+                StatementNode* tempSt13 = new StatementNode();
+                $$=tempSt13;
             }
             ElseMarker
             {
               //we jump to else if the expression evaluates to false
-              CodeBuffer::instance().bpatch(($1)->falseList, dynamic_cast<ElseMarkerNode*>($4)->quad);
+              CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->falseList), dynamic_cast<ElseMarkerNode*>($5)->quad);
               //generating the next jump label after the else is executed
-              CodeBuffer::instance().bpatch(dynamic_cast<ElseMarkerNode*>($4)->next_list, CodeBuffer::instance().genLabel());
+              CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->nextList), CodeBuffer::instance().genLabel());
               //setting the return and break lists of the if statement to be the concatenation
               //of the lists of statement inside if and the else block
-              ($$)->returnList = CodeBuffer::merge(dynamic_cast<ElseMarkerNode*>($3)->return_list, dynamic_cast<ElseMarkerNode*>($4)->return_list);
-              ($$)->breakList = CodeBuffer::merge(dynamic_cast<StatementNode*>($3)->breakList, dynamic_cast<ElseMarkerNode*>($4)->break_list);
+              StatementNode* tempSt1 = new StatementNode();
+              *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<ElseMarkerNode*>($5)->returnList), *(dynamic_cast<ElseMarkerNode*>($5)->returnList));
+              *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->breakList), *(dynamic_cast<ElseMarkerNode*>($5)->breakList));
+              $$=tempSt1;
             }
             | WHILE LPAREN M Exp RPAREN
                {
@@ -717,13 +748,14 @@ Statement : LBRACE ML Statements RBRACE
                }
               M Statement{
                          //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
-                         CodeBuffer::instance().bpatch(dynamic_cast<ExpNode*>($4)->trueList, dynamic_cast<MNode*>($6)->quad);
+                         CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($4)->trueList), dynamic_cast<MNode*>($6)->quad);
                          //setting 1st M's label as the target for each of the instructions in the created s_list
                          //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
            				 CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), dynamic_cast<MNode*>($3)->quad);
                         //we want to create a fresh label as target for the instructions in the concatenated list created by the false list of exp and break list of statement
-           				 CodeBuffer::instance().bpatch(CodeBuffer::merge(dynamic_cast<ExpNode*>($4)->falseList,dynamic_cast<StatementNode*>($7)->breakList), CodeBuffer::instance().genLabel());
-           				 ($$)->returnList = dynamic_cast<StatementNode*>($7)->returnList;
+           				 CodeBuffer::instance().bpatch(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($4)->falseList),*(dynamic_cast<StatementNode*>($8)->breakList)), CodeBuffer::instance().genLabel());
+           				StatementNode* tempSt2 = new StatementNode();
+           				 *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($8)->returnList);
                        //  closeScope();
                          SymbolTable* p = current_scope_table->getParent();
                          delete(current_scope_table);
@@ -731,6 +763,7 @@ Statement : LBRACE ML Statements RBRACE
                          offsets.pop();
                          //turn off boolean marking that we're out of the while loop
                          inside_while = false;
+                         $$=tempSt2;
                        }
              | BREAK SC
                 {
@@ -739,8 +772,10 @@ Statement : LBRACE ML Statements RBRACE
                         errorUnexpectedBreak(yylineno);
                         exit(0);
                     }
+                    StatementNode* tempSt3 = new StatementNode();
                     //we want to set the break list of the lhs of the rule to include "jump" instruction
-                    (dynamic_cast<StatementNode*>($$))->breakList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                    *(tempSt3->breakList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                    $$=tempSt3;
                 }
              | CONTINUE SC
                 {
@@ -749,14 +784,16 @@ Statement : LBRACE ML Statements RBRACE
                         errorUnexpectedContinue(yylineno);
                         exit(0);
                     }
+                    StatementNode* tempSt4 = new StatementNode();
                     //we want to set the next list of the lhs of the rule to include "jump" instruction
-                    (dynamic_cast<StatementNode*>($$))->nextList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                    *(tempSt4->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                    $$=tempSt4;
                 }
 
 ;
 //marker M4
 M4  :  IF LPAREN Exp RPAREN {
-            $$ = $3;
+           // $$ = $3; - this runs over the exp son fields
             if (($3)->type != TYPE_BOOL)
             {
                 ($$)->err = true;
@@ -765,6 +802,7 @@ M4  :  IF LPAREN Exp RPAREN {
             SymbolTable* new_table = new SymbolTable(current_scope_table);
             current_scope_table = new_table;
             offsets.push(offsets.top());
+            $$=dynamic_cast<ExpNode*>($3); //shani
         }
 //marker ElseMarker
  ElseMarker  :  /*epsilon*/
@@ -772,8 +810,10 @@ M4  :  IF LPAREN Exp RPAREN {
           //we derive this when else is false (therefore epsilon is derived)
           //so we only need to set its next list to a new list containing the jump instruction
           //and set its quad to some fresh label
-          dynamic_cast<ElseMarkerNode*>($$)->next_list = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
-          dynamic_cast<ElseMarkerNode*>($$)->quad = CodeBuffer::instance().genLabel();
+          ElseMarkerNode* tempEM = new ElseMarkerNode();
+          *(tempEM->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+          tempEM->quad = CodeBuffer::instance().genLabel();
+          $$=tempEM;
         }
         %prec IF
         | ELSE  N
@@ -797,10 +837,12 @@ M4  :  IF LPAREN Exp RPAREN {
             //FYI: (according to the turorial) the right parentesis "{" in the beginning
             // of the else block between N and M is counted also,
             //therefore $4 refers to M, $5 refers to statement
-            dynamic_cast<ElseMarkerNode*>($$)->next_list = dynamic_cast<NNode*>($2)->nextList;
-            dynamic_cast<ElseMarkerNode*>($$)->quad = dynamic_cast<MNode*>($3)->quad;
-            dynamic_cast<ElseMarkerNode*>($$)->returnList = dynamic_cast<StatementNode*>($4)->returnList;
-            dynamic_cast<ElseMarkerNode*>($$)->breakList = dynamic_cast<StatementNode*>($4)->breakList;
+            ElseMarkerNode* tempEM2 = new ElseMarkerNode();
+            *(tempEM2->nextList) = *(dynamic_cast<NNode*>($2)->nextList);
+            tempEM2->quad = dynamic_cast<MNode*>($4)->quad;
+            *(tempEM2->returnList) = *(dynamic_cast<StatementNode*>($5)->returnList);
+            *(tempEM2->breakList) = *(dynamic_cast<StatementNode*>($5)->breakList);
+            $$=tempEM2;
         }
         %prec ELSE
 
@@ -1207,9 +1249,9 @@ Exp : LPAREN Exp RPAREN{
                 //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempID->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
-                (tempID)->falseList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
+                (tempID)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
                 std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
-                (tempID)->trueList.push_back(CodeBuffer::instance().emit("j "));  //goto ___
+                (tempID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                 returnTempReg(tempID->reg); //we already used the return value , no need for this temp reg no more
                 (tempID)->reg = NONE;
@@ -1255,9 +1297,9 @@ Exp : LPAREN Exp RPAREN{
                 //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempIDID->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
-                (tempIDID)->falseList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
+                (tempIDID)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
                 std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
-                (tempIDID)->trueList.push_back(CodeBuffer::instance().emit("j "));  //goto ___
+                (tempIDID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                 returnTempReg(tempIDID->reg); //we already used the return value , no need for this temp reg no more
                 (tempIDID)->reg = NONE;
@@ -1277,9 +1319,9 @@ Exp : LPAREN Exp RPAREN{
                 //save this line: "beq func_ans , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempCall->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
-                (tempCall)->falseList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
+                (tempCall)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
                 std::string trueLabel = CodeBuffer::instance().genLabel();     //true:
-                (tempCall)->trueList.push_back(CodeBuffer::instance().emit("j "));  //goto ___
+                (tempCall)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                 returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
                 (tempCall)->reg = NONE;
@@ -1337,7 +1379,7 @@ Exp : LPAREN Exp RPAREN{
             tempE4->reg = NONE;
             /*when we will no what supposed to happend (which code part should be running) when this exp is true,
              we will backpatch the address of the code to the empty space in the goto__ */
-            tempE4->trueList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
+            tempE4->trueList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
             //no false list, the exp is true therefor the code when he will jump to when the exp is false is irrelevent
             ($$)=tempE4;
         }
@@ -1350,7 +1392,7 @@ Exp : LPAREN Exp RPAREN{
             tempE5->reg = NONE;
             /*when we will no what supposed to happend (which code part should be running) when this exp is false,
              we will backpatch the address of the code to the empty space in the goto__ */
-            tempE5->falseList.push_back(CodeBuffer::instance().emit("j ")); //goto ___
+            tempE5->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
             //no true list, the exp is false therefor the code when he will jump to when the wxp is true is irrelevent
             ($$)=tempE5;
         }
@@ -1365,13 +1407,13 @@ Exp : LPAREN Exp RPAREN{
             tempEx5->size = 1; //bool size is 1
             tempEx5->reg = NONE;
             //exp = not exp1 --> exp false list is exp1 true list. exp false list is exp1 true list.
-            std::vector<int> tmpList = (tempEx5)->trueList;
-            (tempEx5)->trueList = (dynamic_cast<ExpNode*>$2)->falseList;
-            (tempEx5)->falseList = tmpList;
+            std::vector<int> tmpList = *((tempEx5)->trueList);
+            *((tempEx5)->trueList) = *((dynamic_cast<ExpNode*>$2)->falseList);
+            *((tempEx5)->falseList) = tmpList;
             $$=tempEx5;
           }
       | Exp AND M Exp{
-            if(($1)->type != TYPE_BOOL || ($3)->type != TYPE_BOOL){
+            if(($1)->type != TYPE_BOOL || ($4)->type != TYPE_BOOL){
                 //and operator is valid only on bool variables
                 errorMismatch(yylineno);
                 exit(0);
@@ -1381,15 +1423,15 @@ Exp : LPAREN Exp RPAREN{
             tempEx4->size = 1; //bool size is 1
             //exp = exp1 and (lable) exp2
             //if exp1 is true, goto label
-            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1)->trueList, (dynamic_cast<MNode*>$3)->quad);
+            CodeBuffer::instance().bpatch(*((dynamic_cast<ExpNode*>$1)->trueList), (dynamic_cast<MNode*>$3)->quad);
             //if exp2 if true then go to the true lable of exp2
-            (tempEx4)->trueList = (dynamic_cast<ExpNode*>$4)->trueList;
+            *((tempEx4)->trueList) = *((dynamic_cast<ExpNode*>$4)->trueList);
             //if exp1 if false goto the exp false lable. if exp2 if false goto the exp false lable.
-            (tempEx4)->falseList = CodeBuffer::merge((dynamic_cast<ExpNode*>$1)->falseList,(dynamic_cast<ExpNode*>$4)->falseList);
+            *((tempEx4)->falseList) = CodeBuffer::merge(*((dynamic_cast<ExpNode*>$1)->falseList),*((dynamic_cast<ExpNode*>$4)->falseList));
             $$ = tempEx4;
         }
       | Exp OR M Exp{
-            if (($1)->type != TYPE_BOOL || ($3)->type != TYPE_BOOL){
+            if (($1)->type != TYPE_BOOL || ($4)->type != TYPE_BOOL){
             //or operator is valid only on bool variables
                 errorMismatch(yylineno);
                 exit(0);
@@ -1399,11 +1441,11 @@ Exp : LPAREN Exp RPAREN{
             tempEx3->size = 1; //bool size is 1
             //exp = exp1 or (lable) exp2
             //if exp1 if false goto lable
-            CodeBuffer::instance().bpatch((dynamic_cast<ExpNode*>$1)->falseList, (dynamic_cast<MNode*>$3)->quad);
+            CodeBuffer::instance().bpatch(*((dynamic_cast<ExpNode*>$1)->falseList), (dynamic_cast<MNode*>$3)->quad);
             //if exp1 if true goto the exp true label, if exp2 is true goto the exp true lable.
-            (tempEx3)->trueList = CodeBuffer::merge((dynamic_cast<ExpNode*>$1)->trueList,(dynamic_cast<ExpNode*>$4)->trueList);
+            *((tempEx3)->trueList) = CodeBuffer::merge(*((dynamic_cast<ExpNode*>$1)->trueList),*((dynamic_cast<ExpNode*>$4)->trueList));
             //if exp2 is false then goto the exp false lable
-            (tempEx3)->falseList = (dynamic_cast<ExpNode*>$4)->falseList;
+            *((tempEx3)->falseList) = *((dynamic_cast<ExpNode*>$4)->falseList);
             $$ = tempEx3;
        }
       | Exp EQUAL Exp{
@@ -1418,8 +1460,8 @@ Exp : LPAREN Exp RPAREN{
             // exp = exp1 == exp2
             //in buffer: beq exp1, exp2, ___ (true lable)
             //            ___(false lable)
-            (tempEx2)->trueList.push_back(CodeBuffer::instance().emit("beq "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx2)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 != exp2 goto___ (false lable)
+            (tempEx2)->trueList->push_back(CodeBuffer::instance().emit("beq "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+            (tempEx2)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 != exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$=tempEx2;
@@ -1436,8 +1478,8 @@ Exp : LPAREN Exp RPAREN{
             // exp = exp1 != exp2
             //in buffer: bne exp1, exp2, ___ (true lable)
             //            ___(false lable)
-            (tempEx2)->trueList.push_back(CodeBuffer::instance().emit("bne "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx2)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+            (tempEx2)->trueList->push_back(CodeBuffer::instance().emit("bne "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+            (tempEx2)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$=tempEx2;
@@ -1457,10 +1499,10 @@ Exp : LPAREN Exp RPAREN{
         //in buffer: bgt exp1, exp2, ___ (true lable)
         //            ___(false lable)
         if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgtu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+            (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgtu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
         else //regular comapare
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-        (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+            (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+        (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
         returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
         returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
         $$ = tempEx1;
@@ -1480,10 +1522,10 @@ Exp : LPAREN Exp RPAREN{
             //in buffer: blt exp1, exp2, ___ (true lable)
             //            ___(false lable)
             if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
-                (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bltu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+                (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bltu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
-                (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("blt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+                (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("blt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+            (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$ = tempEx1;
@@ -1503,10 +1545,10 @@ Exp : LPAREN Exp RPAREN{
             //in buffer: ble exp1, exp2, ___ (true lable)
             //            ___(false lable)
             if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bleu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+            (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bleu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("ble "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+            (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("ble "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+            (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$ = tempEx1;
@@ -1526,10 +1568,10 @@ Exp : LPAREN Exp RPAREN{
             //in buffer: bge exp1, exp2, ___ (true lable)
             //            ___(false lable)
             if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bgeu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+            (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgeu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
-            (tempEx1)->trueList.push_back(CodeBuffer::instance().emit("bge "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx1)->falseList.push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
+            (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bge "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
+            (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$ = tempEx1;
@@ -1562,14 +1604,15 @@ void yyerror(std::string m)
 
 int main() {
    //yydebug = 1; //todo: for debug
-   /*SymbolTable* temp_table = new SymbolTable(NULL);
+    SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);
+    frame_offsets.push(0);
     FormalDeclNode* n = new FormalDeclNode();
     n->name = "";
     n->type = TYPE_STRING;
     n->size = 1;
-    current_scope_table->insertFunctionEntry("print", TYPE_VOID);
+    current_scope_table->insertFunctionEntry("print", TYPE_VOID,0);
     TableEntryFunc* f_print = (TableEntryFunc*)current_scope_table->getEntry("print");
     f_print->declaration_list->push_back(n);
 
@@ -1577,10 +1620,10 @@ int main() {
     n2->name = "";
     n2->type = TYPE_INT;
     n2->size = 1;
-    current_scope_table->insertFunctionEntry("printi", TYPE_VOID);
+    current_scope_table->insertFunctionEntry("printi", TYPE_VOID,0);
     TableEntryFunc* f_printi = (TableEntryFunc*)current_scope_table->getEntry("printi");
     f_printi->declaration_list->push_back(n2);
-*/ //s no need scope print
+
     yyparse();
    // closeScope();
    // delete(temp_table);
@@ -1737,10 +1780,10 @@ void storeVariable(TempReg reg, int offset, int size) {
 void evaluateBoolean(ExpNode* exp) {
     if (exp->reg == NONE)
         exp->reg = getAvailReg();
-    CodeBuffer::instance().bpatch(exp->trueList,CodeBuffer::instance().genLabel()); //true:
+    CodeBuffer::instance().bpatch(*(exp->trueList),CodeBuffer::instance().genLabel()); //true:
     CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 1");              // li reg, 1;
     int temp = CodeBuffer::instance().emit("j ");                                   // goto____ (label)
-    CodeBuffer::instance().bpatch(exp->falseList,CodeBuffer::instance().genLabel()); // false:
+    CodeBuffer::instance().bpatch(*(exp->falseList),CodeBuffer::instance().genLabel()); // false:
     CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 0");              // li reg, 0;
     CodeBuffer::instance().bpatch(CodeBuffer::makelist(temp),CodeBuffer::instance().genLabel()); //
 }

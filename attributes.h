@@ -52,19 +52,15 @@ public:
     bool err;
     int line_num;
     TempReg reg;
-    std::vector<int> trueList;
-    std::vector<int> falseList;
-    std::vector<int> returnList;
-    std::vector<int> breakList;
+   // std::vector<int>* trueList;
+    //std::vector<int>* falseList;
+    //std::vector<int>* returnList;
+    //std::vector<int>* breakList;
 
     Node() : size(0), name(), type(), yytext_array(), err(false), line_num(0){};
-    Node(char* yytext_a){
-        size = 0;
-        yytext_array = yytext_a;
+    Node(char* yytext_a) : size(0),yytext_array(yytext_a),err(false),line_num(0){
         if (yytext_a)
             name = std::string(yytext_a);
-        err = false;
-        line_num = 0;
     };
     virtual ~Node(){};
 };
@@ -228,38 +224,46 @@ public:
     StringNode(char* yytext_a):Node(yytext_a){};
 };
 
-//(racheli)
 class StatementNode : public Node{
 public:
-  std::vector<int> breakList;
-	std::vector<int> returnList;
-  std::vector<int> nextList;
+    StatementNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>), nextList(new std::vector<int>){};
+  std::vector<int>* breakList;
+  std::vector<int>* returnList;
+  std::vector<int>* nextList;
+  virtual ~StatementNode(){};
 
 };
 class StatementsNode : public Node {
 public:
-  std::vector<int> breakList;
-	std::vector<int> returnList;
+    StatementsNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>){};
+    std::vector<int>* breakList;
+	std::vector<int>* returnList;
+	virtual ~StatementsNode(){};
 };
 
 class MNode : public Node{
 public:
-  MNode(std::string q) : quad(q){};
+  MNode(std::string q) :Node(NULL), quad(q){};
   std::string quad;
+  virtual ~MNode(){};
 };
 
 class NNode : public Node{
 public:
-  NNode(std::vector<int> n_list) : nextList(n_list){};
-  std::vector<int> nextList;
+    std::vector<int>* nextList;
+    NNode(std::vector<int> n_list):Node(NULL),nextList(new std::vector<int>){
+        *nextList=n_list;
+    };
+    virtual ~NNode(){};
 };
 
 class ElseMarkerNode : public Node{
 public:
-  std::string quad;
-	std::vector<int> next_list;
-	std::vector<int> break_list;
-	std::vector<int> return_list;
+    ElseMarkerNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>), nextList(new std::vector<int>){};
+    std::string quad;
+	std::vector<int>* nextList;
+	std::vector<int>* breakList;
+	std::vector<int>* returnList;
 };
 
 //non terminals
@@ -267,12 +271,13 @@ class ExpNode : public Node{
 public:
   TempReg loc;
   std::string value;
-  std::vector<int> trueList;
-  std::vector<int> falseList;
-  std::vector<int> returnList;
+  std::vector<int>* trueList;
+  std::vector<int>* falseList;
+  std::vector<int>* returnList;
   std::string s_name;
-  TempReg regName; //(racheli)the reg in which exp value is saved
-    ExpNode(std::string v) : Node(NULL), value(v), trueList(), falseList(), returnList(), s_name(), regName() {};
+//  TempReg regName; //(racheli)the reg in which exp value is saved
+  ExpNode(std::string v) : Node(NULL), value(v), s_name(),
+                             trueList(new std::vector<int>()),falseList(new std::vector<int>()),returnList(new std::vector<int>()){};
     virtual ~ExpNode(){};
 
 };

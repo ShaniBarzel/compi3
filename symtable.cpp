@@ -8,8 +8,7 @@
     * then we wouldve needed a struct to wrap the two entries and it complicates things
  */
 TableEntry* SymbolTable::getEntry(std::string name) {
-    for (std::vector<TableEntry *>::const_iterator it = scope_table->begin(), end = scope_table->end();
-         it != end; ++it) {
+    for (std::vector<TableEntry *>::const_iterator it = scope_table->begin(), end = scope_table->end(); it != end; ++it) {
         if ((*it)->name == name){
             TableEntry* res = new TableEntry();
             res = *it;
