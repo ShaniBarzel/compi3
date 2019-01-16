@@ -54,7 +54,7 @@ bool SymbolTable::insertStructTypeEntry(std::string name, std::string s_name, ty
     return true;
 }
 
-bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type, int frame) {
+bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type,int frame) {
     if(getEntry(name)) //entry already exist
         return false;
     TableEntryFunc* new_entry = new TableEntryFunc();
@@ -63,7 +63,6 @@ bool SymbolTable::insertFunctionEntry(std::string name, typeName return_type, in
     new_entry->return_type = return_type;
     scope_table->push_back(new_entry);
     new_entry->f_offset=frame; //sn
-    new_entry->f_offset = 0;
     return true;
 }
 
