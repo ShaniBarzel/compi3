@@ -65,8 +65,8 @@ void evaluateBoolean(ExpNode* exp);
 %token STRING
 %left LPAREN RPAREN LBRACE RBRACE
 %right NOT ASSIGN
+%left OR //shani changed OR to be less then AND acording to t1.out
 %left AND
-%left OR
 %nonassoc SMALLER BIGGER BEQ SEQ
 %left EQUAL NOTEQUAL
 %left PLUS MINUS
@@ -106,12 +106,17 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
                  frame_offsets.pop(); //s only place we should do this. only when a function scope get closed
                  if (($1)->name == "main") {  //exit label is for future use
                     CodeBuffer::instance().emit("exit:");
-                    // CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck
+                    CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck //shani it was in comment
+                    CodeBuffer::instance().bpatch(*(dynamic_cast<StatementsNode*>($3)->nextList),"exit"); //shani: was missing //shani: statement has no nextlist
                     CodeBuffer::instance().emit("li $v0, 10"); //10 is the exit syscall number
    					CodeBuffer::instance().emit("syscall"); //call syscall number 10
+                    CodeBuffer::instance().emit(".end main");//shani
    				} else {
-                    //CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck
+                    CodeBuffer::instance().emit((($1)->name)+"_exit:");//shani - make label for the end of the function
+                    CodeBuffer::instance().bpatch(*(dynamic_cast<StatementsNode*>($3)->nextList),($1)->name+"_exit:");//shani
+                    CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck //shani it was in comment
                     CodeBuffer::instance().emit("jr $ra"); //jump to the adress in the ra register (return address)
+                    CodeBuffer::instance().emit(".end "+($1)->name);//shani
    				}
            }
 ;
@@ -179,15 +184,19 @@ M1 : RetType ID LPAREN Formals RPAREN {
         //making frame pointer to point to the stack pointer where the frame of main function should be placed
         if ((($2)->name == "main")) {
           CodeBuffer::instance().emit(".globl main");/*rach*/
+          CodeBuffer::instance().emit(".ent main");//shani
           CodeBuffer::instance().emit("main:");/*rach*/
           CodeBuffer::instance().emit("move $fp, $sp");
-          CodeBuffer::instance().emit("subu $fp, $fp, 4");
+          //CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it
 
-//emits code for regular function declaration
+           //emits code for regular function declaration
           //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
         }else {
-          //CodeBuffer::instance().emit("move $fp, $sp");
-          CodeBuffer::instance().emit("_" + ($2)->name + ":");
+           std::string func_label="_" + ($2)->name;//shani
+          CodeBuffer::instance().emit(".globl "+func_label);//shani
+          CodeBuffer::instance().emit(".ent "+func_label);//shani
+          CodeBuffer::instance().emit(func_label + ":");
+          CodeBuffer::instance().emit("move $fp, $sp"); //shani: was in comment and at the wrong place
         }
     }
 ;
@@ -625,7 +634,7 @@ Statement : LBRACE ML Statements RBRACE
             | Call SC
             {
               //free call's reg
-              returnTempReg($1->reg);
+             // returnTempReg($1->reg);//shani - call has no temp reg
               StatementNode* tempSt9 = new StatementNode();
               $$=tempSt9;
             }
@@ -642,7 +651,8 @@ Statement : LBRACE ML Statements RBRACE
                 }
                  StatementNode* tempSt10 = new StatementNode();
                 //we want the return list of statement to include only "jump" instruction
-                *(tempSt10->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                //*(tempSt10->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani - caused sigfault
+                (tempSt10->returnList)->push_back(CodeBuffer::instance().emit("j "));
                 $$=tempSt10;
 
             }
@@ -663,7 +673,8 @@ Statement : LBRACE ML Statements RBRACE
   				CodeBuffer::instance().emit("move $v0, " + regToString(($2)->reg));
                 returnTempReg($2->reg);
                 StatementNode* tempSt12 = new StatementNode();
-            	*(dynamic_cast<ExpNode*>($$)->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+            	//*(dynamic_cast<ExpNode*>($$)->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); shani: caused sigfault, this is why we use tempSt12!
+                (tempSt12->returnList)->push_back(CodeBuffer::instance().emit("j ")); //shani: t2 falls here, j without backpatch
             	$$=tempSt12;
             }
             | M4 M Statement{
@@ -701,7 +712,7 @@ Statement : LBRACE ML Statements RBRACE
                     //turn on flag of loop
                     inside_while = true;
                     //check expression type
-                    if (($3)->type != TYPE_BOOL)
+                    if (($4)->type != TYPE_BOOL) //shani: was $3
                     {
                         errorMismatch(yylineno);
                         exit(0);
@@ -712,7 +723,7 @@ Statement : LBRACE ML Statements RBRACE
                }
               M Statement{
                          //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
-                         CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($4)->trueList), dynamic_cast<MNode*>($6)->quad);
+                         CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($4)->trueList), dynamic_cast<MNode*>($7)->quad); //shani: was $6
                          //setting 1st M's label as the target for each of the instructions in the created s_list
                          //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
            				 CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), dynamic_cast<MNode*>($3)->quad);
@@ -921,7 +932,7 @@ Call : ID LPAREN ExpList RPAREN
             //folding up one spot
             CodeBuffer::instance().emit("addu $sp, $sp, 4");
             //folding saved registers section - shani: it shoult return pre call registers from stuck to regs? cannot understand
-            for (int i=10;i<NUM_OF_TEMP_REGS;i++)
+            for (int i=0;i<NUM_OF_TEMP_REGS;i++) //shani: it was 10, not 0, why?
             {
               //if used reg - save its value on stack
               if (!(AvailRegs[i]))
@@ -931,10 +942,12 @@ Call : ID LPAREN ExpList RPAREN
                 returnTempReg(TempReg(i));
               }
             }
+
             //reset registers in which we saved the vars in the paremeters list of the function
             for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++it)
               {
-                returnTempReg((*it)->reg);
+                  if((*it)->type != TYPE_BOOL) //shani: bool var does not save in temp registers
+                        returnTempReg((*it)->reg);
               }
             //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
             //to a new register which will be saved
@@ -972,15 +985,15 @@ Call : ID LPAREN ExpList RPAREN
             //preparing stack for saved registers sections $S0-$S7
             for (int i=10;i<NUM_OF_TEMP_REGS;i++)
             {
-            //if used reg - save its value on stack
-            if (!(AvailRegs[i]))
-            {
-            //loads used reg on stack
-            CodeBuffer::instance().emit("subu $sp, $sp, 4");
-            CodeBuffer::instance().emit("sw " + regToString(TempReg(i)) + ", ($sp)");
-            //reset register since its value was already saved on the stack above
-            returnTempReg(TempReg(i));
-            }
+                //if used reg - save its value on stack
+                if (!(AvailRegs[i]))
+                {
+                    //loads used reg on stack
+                    CodeBuffer::instance().emit("subu $sp, $sp, 4");
+                    CodeBuffer::instance().emit("sw " + regToString(TempReg(i)) + ", ($sp)");
+                    //reset register since its value was already saved on the stack above
+                    returnTempReg(TempReg(i));
+                }
             }
             //preparing stack for next section:
             CodeBuffer::instance().emit("subu $sp, $sp, 4");
@@ -1048,7 +1061,7 @@ ExpList : Exp {
             }
             COMMA ExpList {
                 ExpListNode* temp6 = new ExpListNode();
-                temp6->exp_list = (dynamic_cast<ExpListNode*>($3))->exp_list;
+                temp6->exp_list = (dynamic_cast<ExpListNode*>($4))->exp_list; //shani was $3
                 (temp6->exp_list)->push_back(dynamic_cast<ExpNode*>($1));
                 $$ = temp6;
                 //current list will be the list it derives with the exp is derives
@@ -1412,7 +1425,7 @@ Exp : LPAREN Exp RPAREN{
             tempE4->value = ($1)->name;
             tempE4->reg = NONE;
             //*rach*
-            *(tempE4->trueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j"));
+            *(tempE4->trueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani: was"j" - missing space
             /*when we will no what supposed to happend (which code part should be running) when this exp is true,
              we will backpatch the address of the code to the empty space in the goto__ */
             //tempE4->trueList->push_back(CodeBuffer::instance().emit("j "));
@@ -1427,7 +1440,7 @@ Exp : LPAREN Exp RPAREN{
             tempE5->value = ($1)->name;
             tempE5->reg = NONE;
             //*rach*
-            *(tempE5->trueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j"));
+            *(tempE5->trueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani: was"j" - missing space
             /*when we will no what supposed to happend (which code part should be running) when this exp is false,
              we will backpatch the address of the code to the empty space in the goto__ */
             //tempE5->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
@@ -1641,7 +1654,7 @@ void yyerror(std::string m)
 }
 
 int main() {
-    //yydebug = 1; //todo: for debug
+   // yydebug = 1; //todo: for debug
     SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);
@@ -1654,7 +1667,7 @@ int main() {
     TableEntryFunc* f_print = (TableEntryFunc*)current_scope_table->getEntry("print");
     f_print->declaration_list->push_back(n);
     //print:
-    CodeBuffer::instance().emit("print:");
+    CodeBuffer::instance().emit("_print:"); //shani: was print, but jal _print
     CodeBuffer::instance().emit("lw $a0,0($sp)"); //load the string to print to the printer register
     CodeBuffer::instance().emit("li $v0,4"); //service 4 is string printer service
     CodeBuffer::instance().emit("syscall"); //call service 4
@@ -1667,17 +1680,17 @@ int main() {
     TableEntryFunc* f_printi = (TableEntryFunc*)current_scope_table->getEntry("printi");
     f_printi->declaration_list->push_back(n2);
     //printi:
-    CodeBuffer::instance().emit("printi:");
+    CodeBuffer::instance().emit("_printi:"); //shani: was printi, but jal _printi
     CodeBuffer::instance().emit("lw $a0,0($sp)"); //load the int to print to the printer register
     CodeBuffer::instance().emit("li $v0,1"); //service 1 is the int printer service
     CodeBuffer::instance().emit("syscall"); // call the int printer service
     CodeBuffer::instance().emit("jr $ra"); //jump to return adress
     current_scope_table->insertFunctionEntry("zeroHandler", TYPE_VOID,0);
     //save the string that will be printed in the case of an zero devision error in the data buffer
-    CodeBuffer::instance().emitData("zeroErrorString:		.asciiz \"Error division by zero\\n\"");
+    CodeBuffer::instance().emitData("zeroErrorString:	.asciiz \"Error division by zero\\n\"");
     //code that will be running in case of devision in zero:
     CodeBuffer::instance().emit("zero_handler:");
-    CodeBuffer::instance().emit("la $a0, zeroErrorString:"); //$a0 holds syscall arguments
+    CodeBuffer::instance().emit("la $a0, zeroErrorString"); //$a0 holds syscall arguments //shani: was with ":" at the end
     CodeBuffer::instance().emit("li $v0, 4"); //service 4 is string print
     CodeBuffer::instance().emit("syscall"); //call syscall number 4
     CodeBuffer::instance().emit("j exit"); //end running after zero devision
@@ -1703,7 +1716,7 @@ int main() {
         exit(0);
     }
 
-   closeScope();
+   //closeScope(); //shani was not in comment
    delete(temp_table);
     CodeBuffer::instance().printCodeBuffer();
     CodeBuffer::instance().printDataBuffer();

@@ -235,9 +235,10 @@ public:
 };
 class StatementsNode : public Node {
 public:
-    StatementsNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>){};
+    StatementsNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>),nextList(new std::vector<int>){};
     std::vector<int>* breakList;
     std::vector<int>* returnList;
+    std::vector<int>* nextList; //shani
     virtual ~StatementsNode(){};
 };
 
