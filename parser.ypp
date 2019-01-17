@@ -51,8 +51,8 @@ void evaluateBoolean(ExpNode* exp);
 %token B
 %token BOOL
 %token STRUCT
-%token TRUE
 %token FALSE
+%token TRUE
 %token RETURN
 %token WHILE
 %token BREAK
@@ -91,12 +91,14 @@ Funcs :   FuncDecl Funcs
 
 FuncDecl :  M1 LBRACE Statements RBRACE{
         //CodeBuffer::instance().printCodeBuffer(); //debug
+                //*rach*
+                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementsNode*>($3))->returnList, CodeBuffer::instance().genLabel());
                 FuncDeclNode* temp1 = new FuncDeclNode();
                 temp1->type = TYPE_FUNC;
                 temp1->return_type = ($1)->type; //passed from marker
                 $$ = temp1;
                 //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
-               // closeScope();
+                //closeScope();
                 //return the current scope to be the outer scope
                 SymbolTable* parent = current_scope_table->getParent();
                 delete(current_scope_table);
@@ -112,7 +114,7 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
    					CodeBuffer::instance().emit("syscall"); //call syscall number 10
                     CodeBuffer::instance().emit(".end main");//shani
    				} else {
-                    CodeBuffer::instance().emit((($1)->name)+"_exit:");//shani - make label for the end of the function
+                     CodeBuffer::instance().emit((($1)->name)+"_exit:");//shani - make label for the end of the function
                     CodeBuffer::instance().bpatch(*(dynamic_cast<StatementsNode*>($3)->nextList),($1)->name+"_exit:");//shani
                     CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck //shani it was in comment
                     CodeBuffer::instance().emit("jr $ra"); //jump to the adress in the ra register (return address)
@@ -674,7 +676,8 @@ Statement : LBRACE ML Statements RBRACE
                 returnTempReg($2->reg);
                 StatementNode* tempSt12 = new StatementNode();
             	//*(dynamic_cast<ExpNode*>($$)->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); shani: caused sigfault, this is why we use tempSt12!
-                (tempSt12->returnList)->push_back(CodeBuffer::instance().emit("j ")); //shani: t2 falls here, j without backpatch
+               (tempSt12->returnList)->push_back(CodeBuffer::instance().emit("j ")); //shani: t2 falls here, j without backpatch
+                //tempSt12->returnList = CodeBuffer::makelist(CodeBuffer::instance().emit("j "))
             	$$=tempSt12;
             }
             | M4 M Statement{
@@ -932,14 +935,14 @@ Call : ID LPAREN ExpList RPAREN
             //folding up one spot
             CodeBuffer::instance().emit("addu $sp, $sp, 4");
             //folding saved registers section - shani: it shoult return pre call registers from stuck to regs? cannot understand
-            for (int i=0;i<NUM_OF_TEMP_REGS;i++) //shani: it was 10, not 0, why?
+            for (int i=10;i<NUM_OF_TEMP_REGS;i++) //shani: it was 10, not 0, why? *rach* because we need only $S0-$S7
             {
               //if used reg - save its value on stack
               if (!(AvailRegs[i]))
               {
                 CodeBuffer::instance().emit("subu $sp, $sp, 4");
                 CodeBuffer::instance().emit("lw " + regToString(TempReg(i)) + ", ($sp)");
-                returnTempReg(TempReg(i));
+                //returnTempReg(TempReg(i)); *rach* no need , we must save them to the registers $s0-$s7
               }
             }
 
@@ -1023,7 +1026,7 @@ Call : ID LPAREN ExpList RPAREN
             CodeBuffer::instance().emit("lw $fp, ($sp)");
             //folding up one spot
             CodeBuffer::instance().emit("addu $sp, $sp, 4");
-            //folding saved registers section - shani: it shoult return pre call registers from stuck to regs? cannot understand
+            //folding saved registers section - shani: it shoult return pre call registers from stuck to regs? cannot understand *rach*
             for (int i=10;i<NUM_OF_TEMP_REGS;i++)
             {
                 //if used reg - save its value on stack
@@ -1031,7 +1034,7 @@ Call : ID LPAREN ExpList RPAREN
                 {
                 CodeBuffer::instance().emit("subu $sp, $sp, 4");
                 CodeBuffer::instance().emit("lw " + regToString(TempReg(i)) + ", ($sp)");
-                returnTempReg(TempReg(i));
+                //returnTempReg(TempReg(i));
                 }
             }
 
@@ -1423,6 +1426,7 @@ Exp : LPAREN Exp RPAREN{
             tempE4->type = TYPE_BOOL;
             tempE4->size = 1; //bool size is 1
             tempE4->value = ($1)->name;
+            tempE4->name = "true";
             tempE4->reg = NONE;
             //*rach*
             *(tempE4->trueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani: was"j" - missing space
@@ -1438,6 +1442,7 @@ Exp : LPAREN Exp RPAREN{
             tempE5->type = TYPE_BOOL;
             tempE5->size = 1; //bool size is 1
             tempE5->value = ($1)->name;
+            tempE5->name = "false";
             tempE5->reg = NONE;
             //*rach*
             *(tempE5->trueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani: was"j" - missing space
@@ -1784,9 +1789,23 @@ std::vector<std::string>* declToStrings(std::vector<FormalDeclNode*>* decl)
     }
     return res;
 }
+//*rach*
+void closeScope(){
+    //this will contain the size of the variables in the current scope
+    int size_of_vars = 0;
+    for (std::vector<TableEntry *>::const_iterator it = scope_table->begin();
+         it != scope_table->end(); ++it)
+    {
+        //if current iterator points to a variable
+        if ((*it)->type != TYPE_FUNC && (*it)->type != TYPE_STRUCTID && (*it)->type != TYPE_STRUCT)
+        {
+            size_of_vars += 4*(*it)->size;
+        }
+    }
+    CodeBuffer::instance().emit("addu $sp, $sp, " + intToString(size_of_vars));
 
-
-void closeScope() {
+}
+/*void closeScope() {
 
     //for all arguments in the scope table, print them
     for (std::vector<TableEntry*>::const_iterator it = (current_scope_table->scope_table)->begin(); it != (current_scope_table->scope_table)->end(); it++) {
@@ -1814,7 +1833,7 @@ void closeScope() {
     }
 
 }
-
+*/
 // this function both finds the first avail register and marks it as used
 TempReg getAvailReg(){
     for(int i=0; i< NUM_OF_TEMP_REGS; i++){
