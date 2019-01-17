@@ -32,7 +32,7 @@ bool main_def = false;
 void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields);
 std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec);
 std::string typeToString(typeName type);
-//void closeScope();
+void closeScope();
 std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls);
 std::vector<bool> AvailRegs(NONE,true); //init all register to be free to use
 TempReg getAvailReg();
@@ -80,46 +80,6 @@ void evaluateBoolean(ExpNode* exp);
 
 //no semantics needed
 Program :  Structs Funcs{
-        int main_counter = 0;
-        for (std::vector<TableEntry*>::const_iterator it = current_scope_table->scope_table->begin(); it != current_scope_table->scope_table->end(); it++)
-        {
-            if (((TableEntryFunc*)(*it))->type ==TYPE_FUNC)
-            {
-                if ((*it)->name == "main" && ((TableEntryFunc*)(*it))->return_type == TYPE_VOID && ((TableEntryFunc*)(*it))->declaration_list->size() == 0)
-                {
-                    main_counter++;
-                }
-            }
-
-        }
-        if (main_counter != 1)
-        {
-            errorMainMissing();
-            exit(0);
-        }
-        //save the string that will be printed in the case of an zero devision error in the data buffer
-        CodeBuffer::instance().emitData("zeroErrorString:		.asciiz \"Error division by zero\\n\"");
-        //code that will be running in case of devision in zero:
-        CodeBuffer::instance().emit("zero_handler:	");
-        CodeBuffer::instance().emit("la $a0, zeroErrorString:"); //$a0 holds syscall arguments
-        CodeBuffer::instance().emit("li $v0, 4"); //service 4 is string print
-        CodeBuffer::instance().emit("syscall"); //call syscall number 4
-        CodeBuffer::instance().emit("j exit"); //end running after zero devision
-        //print:
-        CodeBuffer::instance().emit("print:");
-        CodeBuffer::instance().emit("lw $a0,0($sp)"); //load the string to print to the printer register
-        CodeBuffer::instance().emit("li $v0,4"); //service 4 is string printer service
-        CodeBuffer::instance().emit("syscall"); //call service 4
-        CodeBuffer::instance().emit("jr $ra"); //jump to return adress
-        //printi:
-        CodeBuffer::instance().emit("printi:");
-        CodeBuffer::instance().emit("lw $a0,0($sp)"); //load the int to print to the printer register
-        CodeBuffer::instance().emit("li $v0,1"); //service 1 is the int printer service
-        CodeBuffer::instance().emit("syscall"); // call the int printer service
-        CodeBuffer::instance().emit("jr $ra"); //jump to return adress
-        CodeBuffer::instance().emit(".end");
-        CodeBuffer::instance().printDataBuffer();
-        CodeBuffer::instance().printCodeBuffer();
 
     }
 ;
@@ -145,11 +105,12 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
                  offsets.pop();
                  frame_offsets.pop(); //s only place we should do this. only when a function scope get closed
                  if (($1)->name == "main") {  //exit label is for future use
-                    CodeBuffer::instance().emit("exit:	move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck
+                    CodeBuffer::instance().emit("exit:");
+                    // CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck
                     CodeBuffer::instance().emit("li $v0, 10"); //10 is the exit syscall number
    					CodeBuffer::instance().emit("syscall"); //call syscall number 10
    				} else {
-                    CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck
+                    //CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck
                     CodeBuffer::instance().emit("jr $ra"); //jump to the adress in the ra register (return address)
    				}
            }
@@ -160,7 +121,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
 //CodeBuffer::instance().printCodeBuffer(); //debug
         //to pass return typeto funcDecl
          ($$)->type = ($1)->type;
-         ($$)->name = ($1)->name;
+         ($$)->name = ($2)->name;//*rach*
          int ParamFrOffset = 0; //sn
          //try to insert to the current symbol table
         if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type,ParamFrOffset))) //sn
@@ -217,12 +178,15 @@ M1 : RetType ID LPAREN Formals RPAREN {
         //emits appropriate code for main function declaration
         //making frame pointer to point to the stack pointer where the frame of main function should be placed
         if ((($2)->name == "main")) {
-          CodeBuffer::instance().emit("main :");
+          CodeBuffer::instance().emit(".globl main");/*rach*/
+          CodeBuffer::instance().emit("main:");/*rach*/
           CodeBuffer::instance().emit("move $fp, $sp");
-          //emits code for regular function declaration
+          CodeBuffer::instance().emit("subu $fp, $fp, 4");
+
+//emits code for regular function declaration
           //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
         }else {
-          CodeBuffer::instance().emit("move $fp, $sp");
+          //CodeBuffer::instance().emit("move $fp, $sp");
           CodeBuffer::instance().emit("_" + ($2)->name + ":");
         }
     }
@@ -982,6 +946,7 @@ Call : ID LPAREN ExpList RPAREN
         | ID LPAREN RPAREN
         {
             TableEntryFunc* f = (TableEntryFunc*)current_scope_table->getEntry(($1)->name);
+            std::cout<<"h"<<endl;
             if (!f || (f->type != TYPE_FUNC))
             {
                 errorUndefFunc(yylineno, ($1)->name);
@@ -1003,16 +968,85 @@ Call : ID LPAREN ExpList RPAREN
             CallNode* tempC= new CallNode();
             tempC->return_type = f->return_type;
             $$ = tempC;
+
+            //preparing stack for saved registers sections $S0-$S7
+            for (int i=10;i<NUM_OF_TEMP_REGS;i++)
+            {
+            //if used reg - save its value on stack
+            if (!(AvailRegs[i]))
+            {
+            //loads used reg on stack
+            CodeBuffer::instance().emit("subu $sp, $sp, 4");
+            CodeBuffer::instance().emit("sw " + regToString(TempReg(i)) + ", ($sp)");
+            //reset register since its value was already saved on the stack above
+            returnTempReg(TempReg(i));
+            }
+            }
+            //preparing stack for next section:
+            CodeBuffer::instance().emit("subu $sp, $sp, 4");
+            // saving old frame pointer on stack
+            CodeBuffer::instance().emit("sw $fp, ($sp)");
+            //preparing stack for the return address section
+            CodeBuffer::instance().emit("subu $sp, $sp, 4");
+            //saving return address on stack
+            CodeBuffer::instance().emit("sw $ra, ($sp)");
+            //end of pre-call, now we prepare the stack for jumping to the called function
+            //make fp point to where sp points
+            CodeBuffer::instance().emit("move $fp, $sp");
+            //subtract one word so that sp would be one place bellow the beginning of the caller frame
+            // CodeBuffer::instance().emit("subu $fp, $fp, 4"); //sn- we said the head wull alwase point to the last storaged date
+            //handle cases
+            if (($1)->name == "main") {
+            CodeBuffer::instance().emit("jal " + ($1)->name);
+            } else {
+            CodeBuffer::instance().emit("jal _" + ($1)->name);
+            }
+            //post-call
+            //load return address from stack to ra register
+            CodeBuffer::instance().emit("lw $ra, ($sp)");
+            //fold stack (fold ra spot)
+            CodeBuffer::instance().emit("addu $sp, $sp, 4");
+            //load old (saved on stack) fp to fp
+            CodeBuffer::instance().emit("lw $fp, ($sp)");
+            //folding up one spot
+            CodeBuffer::instance().emit("addu $sp, $sp, 4");
+            //folding saved registers section - shani: it shoult return pre call registers from stuck to regs? cannot understand
+            for (int i=10;i<NUM_OF_TEMP_REGS;i++)
+            {
+                //if used reg - save its value on stack
+                if (!(AvailRegs[i]))
+                {
+                CodeBuffer::instance().emit("subu $sp, $sp, 4");
+                CodeBuffer::instance().emit("lw " + regToString(TempReg(i)) + ", ($sp)");
+                returnTempReg(TempReg(i));
+                }
+            }
+
+            //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
+            //to a new register which will be saved
+            if (f->return_type != TYPE_VOID) {
+            ($$)->reg = getAvailReg();
+            CodeBuffer::instance().emit("move " + regToString(($$)->reg) + ", $v0");
+            }
         }
 ;
 
 ExpList : Exp {
+                //*rach*
+                    if (($1)->type == TYPE_BOOL)
+                        evaluateBoolean(dynamic_cast<ExpNode*>($1));
                 // add the experssion to the expression list
                 ExpListNode* temp5 = new ExpListNode();
                 (temp5->exp_list)->push_back(dynamic_cast<ExpNode*>($1));
                 $$ = temp5;
             }
-          | Exp COMMA ExpList {
+          | Exp
+            {
+                //*rach*
+                if (($1)->type == TYPE_BOOL)
+                    evaluateBoolean(dynamic_cast<ExpNode*>($1));
+            }
+            COMMA ExpList {
                 ExpListNode* temp6 = new ExpListNode();
                 temp6->exp_list = (dynamic_cast<ExpListNode*>($3))->exp_list;
                 (temp6->exp_list)->push_back(dynamic_cast<ExpNode*>($1));
@@ -1377,9 +1411,11 @@ Exp : LPAREN Exp RPAREN{
             tempE4->size = 1; //bool size is 1
             tempE4->value = ($1)->name;
             tempE4->reg = NONE;
+            //*rach*
+            *(tempE4->trueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j"));
             /*when we will no what supposed to happend (which code part should be running) when this exp is true,
              we will backpatch the address of the code to the empty space in the goto__ */
-            tempE4->trueList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
+            //tempE4->trueList->push_back(CodeBuffer::instance().emit("j "));
             //no false list, the exp is true therefor the code when he will jump to when the exp is false is irrelevent
             ($$)=tempE4;
         }
@@ -1390,9 +1426,11 @@ Exp : LPAREN Exp RPAREN{
             tempE5->size = 1; //bool size is 1
             tempE5->value = ($1)->name;
             tempE5->reg = NONE;
+            //*rach*
+            *(tempE5->trueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j"));
             /*when we will no what supposed to happend (which code part should be running) when this exp is false,
              we will backpatch the address of the code to the empty space in the goto__ */
-            tempE5->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
+            //tempE5->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
             //no true list, the exp is false therefor the code when he will jump to when the wxp is true is irrelevent
             ($$)=tempE5;
         }
@@ -1603,7 +1641,7 @@ void yyerror(std::string m)
 }
 
 int main() {
-   //yydebug = 1; //todo: for debug
+    //yydebug = 1; //todo: for debug
     SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);
@@ -1615,7 +1653,12 @@ int main() {
     current_scope_table->insertFunctionEntry("print", TYPE_VOID,0);
     TableEntryFunc* f_print = (TableEntryFunc*)current_scope_table->getEntry("print");
     f_print->declaration_list->push_back(n);
-
+    //print:
+    CodeBuffer::instance().emit("print:");
+    CodeBuffer::instance().emit("lw $a0,0($sp)"); //load the string to print to the printer register
+    CodeBuffer::instance().emit("li $v0,4"); //service 4 is string printer service
+    CodeBuffer::instance().emit("syscall"); //call service 4
+    CodeBuffer::instance().emit("jr $ra"); //jump to return adress
     FormalDeclNode* n2 = new FormalDeclNode();
     n2->name = "";
     n2->type = TYPE_INT;
@@ -1623,23 +1666,59 @@ int main() {
     current_scope_table->insertFunctionEntry("printi", TYPE_VOID,0);
     TableEntryFunc* f_printi = (TableEntryFunc*)current_scope_table->getEntry("printi");
     f_printi->declaration_list->push_back(n2);
+    //printi:
+    CodeBuffer::instance().emit("printi:");
+    CodeBuffer::instance().emit("lw $a0,0($sp)"); //load the int to print to the printer register
+    CodeBuffer::instance().emit("li $v0,1"); //service 1 is the int printer service
+    CodeBuffer::instance().emit("syscall"); // call the int printer service
+    CodeBuffer::instance().emit("jr $ra"); //jump to return adress
+    current_scope_table->insertFunctionEntry("zeroHandler", TYPE_VOID,0);
+    //save the string that will be printed in the case of an zero devision error in the data buffer
+    CodeBuffer::instance().emitData("zeroErrorString:		.asciiz \"Error division by zero\\n\"");
+    //code that will be running in case of devision in zero:
+    CodeBuffer::instance().emit("zero_handler:");
+    CodeBuffer::instance().emit("la $a0, zeroErrorString:"); //$a0 holds syscall arguments
+    CodeBuffer::instance().emit("li $v0, 4"); //service 4 is string print
+    CodeBuffer::instance().emit("syscall"); //call syscall number 4
+    CodeBuffer::instance().emit("j exit"); //end running after zero devision
+    yyparse();
+    //*rach*
 
     yyparse();
-   // closeScope();
-   // delete(temp_table);
+    int main_counter = 0;
+    for (std::vector<TableEntry*>::const_iterator it = current_scope_table->scope_table->begin(); it != current_scope_table->scope_table->end(); it++)
+    {
+        if (((TableEntryFunc*)(*it))->type ==TYPE_FUNC)
+        {
+            if ((*it)->name == "main" && ((TableEntryFunc*)(*it))->return_type == TYPE_VOID && ((TableEntryFunc*)(*it))->declaration_list->size() == 0)
+            {
+                main_counter++;
+            }
+        }
 
+    }
+    if (main_counter != 1)
+    {
+        errorMainMissing();
+        exit(0);
+    }
+
+   closeScope();
+   delete(temp_table);
+    CodeBuffer::instance().printCodeBuffer();
+    CodeBuffer::instance().printDataBuffer();
 }
 
 //=======================================================CPP HELP FUNCTIONS=====================================================================
-/*void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields){
-    std::vector<typeName>* Types = new std::vector<typewName>();
+void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields){
+    std::vector<typeName>* Types = new std::vector<typeName>();
     std::vector<string>* Names = new std::vector<string>();
     for(std::vector<StructMemNode*>::reverse_iterator it = fields->rbegin();it!=fields->rend();it++){
         Types->push_back((*it)->type);
         Names->push_back((*it)->name);
     }
     printStructType(name, *(TypeVecToString(*Types)), *Names);
-}*/
+}
 
 std::string typeToString(typeName type){
     switch (type){
@@ -1693,7 +1772,7 @@ std::vector<std::string>* declToStrings(std::vector<FormalDeclNode*>* decl)
     return res;
 }
 
-/*
+
 void closeScope() {
 
     //for all arguments in the scope table, print them
@@ -1722,7 +1801,7 @@ void closeScope() {
     }
 
 }
-*/
+
 // this function both finds the first avail register and marks it as used
 TempReg getAvailReg(){
     for(int i=0; i< NUM_OF_TEMP_REGS; i++){
