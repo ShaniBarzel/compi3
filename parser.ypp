@@ -569,7 +569,7 @@ $$=tempSt6;
             evaluateBoolean(dynamic_cast<ExpNode*>($3));
         }
         //store id value (currently in temp register) in stuck //sn to frame offset
-        CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($3))->reg) + ", " + intToString(-4*(current_scope_table->getEntry(($1)->name))->f_offset) + "($fp)");
+        CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($3))->reg) + ", " + intToString(-4*(current_scope_table->getEntry(($1)->name))->offset) + "($fp)");   //rach1 changed f_offset to offset
         //set reg of exp to be none
         returnTempReg(($3)->reg);
         ($3)->reg = NONE;
@@ -700,17 +700,18 @@ $$=tempSt13;
 }
 ElseMarker
 {
-//we jump to else if the expression evaluates to false
-CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->falseList), dynamic_cast<ElseMarkerNode*>($5)->quad);
-//generating the next jump label after the else is executed
-CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->nextList), CodeBuffer::instance().genLabel());
-//setting the return and break lists of the if statement to be the concatenation
-//of the lists of statement inside if and the else block
-StatementNode* tempSt1 = new StatementNode();
-*(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->returnList), *(dynamic_cast<ElseMarkerNode*>($5)->returnList)); //shani1: was meger elseMarkerNode with itself
-*(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->breakList), *(dynamic_cast<ElseMarkerNode*>($5)->breakList));
-$$=tempSt1;
+        //we jump to else if the expression evaluates to false
+        CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->falseList), dynamic_cast<ElseMarkerNode*>($5)->quad);
+        //generating the next jump label after the else is executed
+        CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->nextList), CodeBuffer::instance().genLabel());
+        //setting the return and break lists of the if statement to be the concatenation
+        //of the lists of statement inside if and the else block
+        StatementNode* tempSt1 = new StatementNode();
+        *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->returnList), *(dynamic_cast<ElseMarkerNode*>($5)->returnList)); //shani1: was meger elseMarkerNode with itself
+        *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->breakList), *(dynamic_cast<ElseMarkerNode*>($5)->breakList));
+        $$=tempSt1;
 }
+//rach1: I don't understand why you added the IW marker. what is it for? why does it help?
 | WHILE IW LPAREN M Exp RPAREN //here
         {
                 //turn on flag of loop
@@ -731,9 +732,9 @@ M Statement {
         //setting 1st M's label as the target for each of the instructions in the created s_list
         //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
 
-        // CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), dynamic_cast<MNode*>($3)->quad); //shani1 - racheli, what did you meant to do?
+        CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), dynamic_cast<MNode*>($4)->quad); //shani1 - racheli, what did you meant to do? rach1: we need to jump to the 1st M marker when we finish deriving all the statements in the while block because this is where we need to jump when we finish th iteration - to check if the exp is true or false
 
-        CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($9)->nextList), dynamic_cast<MNode*>($4)->quad); //shani1 - if we want the end of the loop to end in the "M" cose , we need to use it's next list
+       // CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($9)->nextList), dynamic_cast<MNode*>($4)->quad); //shani1 - if we want the end of the loop to end in the "M" cose , we need to use it's next list
 
         //we want to create a fresh label as target for the instructions in the concatenated list created by the false list of exp and break list of statement
         // CodeBuffer::instance().bpatch(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($4)->falseList),*(dynamic_cast<StatementNode*>($8)->breakList)), CodeBuffer::instance().genLabel());
@@ -745,6 +746,7 @@ M Statement {
         *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($9)->returnList);
         //  closeScope();
         *(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani1 ##
+         CodeBuffer::instance().bpatch(*(tempSt2->nextList), CodeBuffer::instance().genLabel()); //rach1: as I tried to do in your comment above (with the ##) - this is where we create the label for the exit of the while loop, this is why the j was empty/missing a label
         SymbolTable* p = current_scope_table->getParent();
         delete(current_scope_table);
         current_scope_table = p;
@@ -795,13 +797,13 @@ M4  :  IF LPAREN Exp RPAREN {
 //marker ElseMarker
 ElseMarker  :  /*epsilon*/
 {
-//we derive this when else is false (therefore epsilon is derived)
-//so we only need to set its next list to a new list containing the jump instruction
-//and set its quad to some fresh label
-ElseMarkerNode* tempEM = new ElseMarkerNode();
-*(tempEM->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
-tempEM->quad = CodeBuffer::instance().genLabel();
-$$=tempEM;
+        //we derive this when else is false (therefore epsilon is derived)
+        //so we only need to set its next list to a new list containing the jump instruction
+        //and set its quad to some fresh label
+        ElseMarkerNode* tempEM = new ElseMarkerNode();
+        *(tempEM->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+        tempEM->quad = CodeBuffer::instance().genLabel();
+        $$=tempEM;
 }
 %prec IF
 | ELSE  N
@@ -1593,7 +1595,8 @@ Exp : LPAREN Exp RPAREN{
                 (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bltu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
                 (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("blt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            //returnTempReg((dynamic_cast<ExpNode*>$1)->reg);   //rach1: i think we need to pass the reg to $$, see line bellow
+            tempEx1->reg = ($1)->reg;
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 => exp2 goto___ (false lable) //shani1 - we want to change registers before we jump to another place in the code
             $$ = tempEx1;
@@ -1910,7 +1913,7 @@ void storeVariable(TempReg reg, int offset, int size) {
 void evaluateBoolean(ExpNode* exp) {
     if (exp->reg == NONE)
         exp->reg = getAvailReg();
-    cout<<"here--------------------------------------------"<<endl; //debug
+    //cout<<"here--------------------------------------------"<<endl; //debug
     CodeBuffer::instance().bpatch(*(exp->trueList),CodeBuffer::instance().genLabel()); //true:
     CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 1");              // li reg, 1;
     int temp = CodeBuffer::instance().emit("j ");                                   // goto____ (label)
