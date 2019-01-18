@@ -125,103 +125,103 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
 
 /* marker 1 */
 M1 : RetType ID LPAREN Formals RPAREN {
-//CodeBuffer::instance().printCodeBuffer(); //debug
-//to pass return typeto funcDecl
-($$)->type = ($1)->type;
-($$)->name = ($2)->name;//*rach*
-int ParamFrOffset = 0; //sn
-//try to insert to the current symbol table
-if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type,ParamFrOffset))) //sn
-{
-//already exist function with this name
-errorDef(yylineno,($2)->name);
-exit(0);
-}
+            //CodeBuffer::instance().printCodeBuffer(); //debug
+            //to pass return typeto funcDecl
+            ($$)->type = ($1)->type;
+            ($$)->name = ($2)->name;//*rach*
+            int ParamFrOffset = 0; //sn
+            //try to insert to the current symbol table
+            if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type,ParamFrOffset))) //sn
+            {
+                //already exist function with this name
+                errorDef(yylineno,($2)->name);
+                exit(0);
+            }
 
-TableEntryFunc* f = new TableEntryFunc();
-f = dynamic_cast<TableEntryFunc*>(current_scope_table->getEntry(($2)->name));
+            TableEntryFunc* f = new TableEntryFunc();
+            f = dynamic_cast<TableEntryFunc*>(current_scope_table->getEntry(($2)->name));
 
-//create new scope table for function scope
-SymbolTable* new_func_scope = new SymbolTable(current_scope_table);
-//the current scope is the function scope now
-current_scope_table = new_func_scope;
-//add the top value to the offsets stuck
-offsets.push(offsets.top());
-frame_offsets.push(frame_offsets.top()); //sn
+            //create new scope table for function scope
+            SymbolTable* new_func_scope = new SymbolTable(current_scope_table);
+            //the current scope is the function scope now
+            current_scope_table = new_func_scope;
+            //add the top value to the offsets stuck
+            offsets.push(offsets.top());
+            frame_offsets.push(frame_offsets.top()); //sn
 
-int ParamOffset = offsets.top();//sn
-f->offset = ParamOffset;
-f->f_offset = ParamFrOffset; //sn
-int vars_frame_offset =0;
-if (!($4->size == -1)){ //if the parameters list is not empty
-for(std::vector<FormalDeclNode*>::reverse_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->rbegin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->rend(); it++)
-{
-/*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
-specipicaly, the "decleration" order in the outer scope is from the right variable in the agruments list, to the right. */
-ParamOffset = ParamOffset - (*it)->size;
-vars_frame_offset = vars_frame_offset - (*it)->size;  //sn //should be negative
-if((*it)->type != TYPE_STRUCTID){
-if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset, vars_frame_offset )))
-{
-//there is already a variable with the parameter's name
-errorDef(yylineno, (*it)->name);
-exit(0);
-}
-}
-else{
-if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size,ParamOffset,ParamFrOffset)))
-{
-//there is already a variable with the parameter's name
-errorDef(yylineno,(*it)->name);
-exit(0);
-}
-// current_scope_table->getEntry((*it)->name)->offset = ParamOffset; //what? no need //sn
-}
-f->declaration_list->push_back(*it);
+            int ParamOffset = offsets.top();//sn
+            f->offset = ParamOffset;
+            f->f_offset = ParamFrOffset; //sn
+            int vars_frame_offset =0;
+            if (!($4->size == -1)){ //if the parameters list is not empty
+                for(std::vector<FormalDeclNode*>::reverse_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->rbegin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->rend(); it++)
+                {
+                    /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
+                    specipicaly, the "decleration" order in the outer scope is from the right variable in the agruments list, to the right. */
+                    ParamOffset = ParamOffset - (*it)->size;
+                    vars_frame_offset = vars_frame_offset - (*it)->size;  //sn //should be negative
+                    if((*it)->type != TYPE_STRUCTID){
+                        if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset, vars_frame_offset )))
+                        {
+                        //there is already a variable with the parameter's name
+                        errorDef(yylineno, (*it)->name);
+                        exit(0);
+                        }
+                    }
+                    else{
+                        if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size,ParamOffset,ParamFrOffset)))
+                        {
+                            //there is already a variable with the parameter's name
+                            errorDef(yylineno,(*it)->name);
+                            exit(0);
+                        }
+                        // current_scope_table->getEntry((*it)->name)->offset = ParamOffset; //what? no need //sn
+                        }
+                        f->declaration_list->push_back(*it);
 
-}
+                    }
 
-}
-//emits appropriate code for main function declaration
-//making frame pointer to point to the stack pointer where the frame of main function should be placed
-if ((($2)->name == "main")) {
-CodeBuffer::instance().emit(".globl main");/*rach*/
-CodeBuffer::instance().emit(".ent main");//shani
-CodeBuffer::instance().emit("main:");/*rach*/
-CodeBuffer::instance().emit("move $fp, $sp");
-//CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it
+                }
+            //emits appropriate code for main function declaration
+            //making frame pointer to point to the stack pointer where the frame of main function should be placed
+            if ((($2)->name == "main")) {
+                CodeBuffer::instance().emit(".globl main");/*rach*/
+                CodeBuffer::instance().emit(".ent main");//shani
+                CodeBuffer::instance().emit("main:");/*rach*/
+                CodeBuffer::instance().emit("move $fp, $sp");
+                //CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it
 
-//emits code for regular function declaration
-//here we simply need to print the lable of the function name as the current fp points to the functions' frame already
-}else {
-std::string func_label="_" + ($2)->name;//shani
-CodeBuffer::instance().emit(".globl "+func_label);//shani
-CodeBuffer::instance().emit(".ent "+func_label);//shani
-CodeBuffer::instance().emit(func_label + ":");
-CodeBuffer::instance().emit("move $fp, $sp"); //shani: was in comment and at the wrong place
-}
-}
-;
+                //emits code for regular function declaration
+                //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
+            }else {
+                std::string func_label="_" + ($2)->name;//shani
+                CodeBuffer::instance().emit(".globl "+func_label);//shani
+                CodeBuffer::instance().emit(".ent "+func_label);//shani
+                CodeBuffer::instance().emit(func_label + ":");
+                CodeBuffer::instance().emit("move $fp, $sp"); //shani: was in comment and at the wrong place
+                }
+            }
+            ;
 
-//no semantic needed
-Structs :   StructsDecl Structs
-| /*epsilon*/
-;
+            //no semantic needed
+            Structs :   StructsDecl Structs
+            | /*epsilon*/
+            ;
 
-StructsDecl :  M2 RBRACE SC{
-//CodeBuffer::instance().printCodeBuffer(); //debug
-StructsDeclNode* temp9 = new StructsDeclNode();
-temp9->name = ($1)->name;
-temp9->size = ($1)->size;
-temp9->s_mem_list = (dynamic_cast<StructsDeclNode*>($1))->s_mem_list;
-$$ = temp9;
-SymbolTable* parent = current_scope_table->getParent();
-delete(current_scope_table);
-current_scope_table = parent;
-offsets.pop();
+            StructsDecl :  M2 RBRACE SC{
+            //CodeBuffer::instance().printCodeBuffer(); //debug
+            StructsDeclNode* temp9 = new StructsDeclNode();
+            temp9->name = ($1)->name;
+            temp9->size = ($1)->size;
+            temp9->s_mem_list = (dynamic_cast<StructsDeclNode*>($1))->s_mem_list;
+            $$ = temp9;
+            SymbolTable* parent = current_scope_table->getParent();
+            delete(current_scope_table);
+            current_scope_table = parent;
+            offsets.pop();
 
-//insert struct entry to the current scope
-current_scope_table->insertStructEntry(temp9->name, TYPE_STRUCT,temp9->s_mem_list,temp9->size);
+            //insert struct entry to the current scope
+            current_scope_table->insertStructEntry(temp9->name, TYPE_STRUCT,temp9->s_mem_list,temp9->size);
 
 };
 
@@ -282,81 +282,81 @@ M2 : STRUCT ID LBRACE StructMemList{
 
 
 StructMemList : StructMem {
-//CodeBuffer::instance().printCodeBuffer(); //debug
-StructMemListNode* temp5 = new StructMemListNode();
-StructMemNode* temp5_1 = new StructMemNode();
-temp5_1 = dynamic_cast<StructMemNode*>($1);
-for (std::vector<StructMemNode*>::const_iterator it = temp5->s_list->begin(); it!=temp5->s_list->end(); ++it){
-if ((*it)->name == temp5_1->name){
-errorDef(($1)->line_num, (*it)->name);
-exit(0);
-}
-}
-std::vector<StructMemNode*>::iterator it = temp5->s_list->begin();
-(temp5->s_list)->insert(it, temp5_1);
-temp5->line_num = ($1)->line_num;
-temp5->lineNumberStart = ($1)->line_num - ($1)->size;
-$$ = temp5;
-}
+            //CodeBuffer::instance().printCodeBuffer(); //debug
+            StructMemListNode* temp5 = new StructMemListNode();
+            StructMemNode* temp5_1 = new StructMemNode();
+            temp5_1 = dynamic_cast<StructMemNode*>($1);
+            for (std::vector<StructMemNode*>::const_iterator it = temp5->s_list->begin(); it!=temp5->s_list->end(); ++it){
+                if ((*it)->name == temp5_1->name){
+                    errorDef(($1)->line_num, (*it)->name);
+                    exit(0);
+                }
+            }
+            std::vector<StructMemNode*>::iterator it = temp5->s_list->begin();
+            (temp5->s_list)->insert(it, temp5_1);
+            temp5->line_num = ($1)->line_num;
+            temp5->lineNumberStart = ($1)->line_num - ($1)->size;
+            $$ = temp5;
+        }
 
-| StructMem StructMemList{
-        StructMemListNode* temp6 = new StructMemListNode();
-        StructMemNode* temp6_1 = new StructMemNode();
-        temp6_1 = dynamic_cast<StructMemNode*>($1);
-        StructMemListNode* temp6_2 = new StructMemListNode();
-        temp6_2 = dynamic_cast<StructMemListNode*>($2);
-        temp6->s_list = temp6_2->s_list;
-        std::vector<StructMemNode*>::iterator it = temp6->s_list->begin();
-        (temp6->s_list)->push_back( temp6_1);
-        $$ = temp6;
-}
-;
+        | StructMem StructMemList{
+                StructMemListNode* temp6 = new StructMemListNode();
+                StructMemNode* temp6_1 = new StructMemNode();
+                temp6_1 = dynamic_cast<StructMemNode*>($1);
+                StructMemListNode* temp6_2 = new StructMemListNode();
+                temp6_2 = dynamic_cast<StructMemListNode*>($2);
+                temp6->s_list = temp6_2->s_list;
+                std::vector<StructMemNode*>::iterator it = temp6->s_list->begin();
+                (temp6->s_list)->push_back( temp6_1);
+                $$ = temp6;
+        }
+        ;
 
 StructMem : Type ID SC{
-//no data will be saved in this variable, it is only represents name of the field therefor no need to save it in the stuck
-StructMemNode* temp7 = new StructMemNode();
-temp7->type = ($1)->type;
-temp7->size = 1;
-temp7->name = ($2)->name;
-temp7->line_num = yylineno;
-$$ = temp7;
-}
-;
+            //no data will be saved in this variable, it is only represents name of the field therefor no need to save it in the stuck
+            StructMemNode* temp7 = new StructMemNode();
+            temp7->type = ($1)->type;
+            temp7->size = 1;
+            temp7->name = ($2)->name;
+            temp7->line_num = yylineno;
+            $$ = temp7;
+       }
+            ;
 
 RetType : Type {
-RetTypeNode* rt_node = new RetTypeNode();
-rt_node->type = $1->type;
-$$ = rt_node;
-}
-| VOID {
-RetTypeNode* rt_node = new RetTypeNode();
-rt_node->type = TYPE_VOID;
-$$ = rt_node;
-}
-;
+            RetTypeNode* rt_node = new RetTypeNode();
+            rt_node->type = $1->type;
+            $$ = rt_node;
+          }
+        | VOID {
+            RetTypeNode* rt_node = new RetTypeNode();
+            rt_node->type = TYPE_VOID;
+            $$ = rt_node;
+        }
+        ;
 
 Formals : FormalsList {
-FormalsNode* temp2 = new FormalsNode();
-(temp2->list)->dec_list = (dynamic_cast<FormalsListNode*>($1))->dec_list;
-$$ = temp2;
-}
-| {
-FormalsNode* tempF = new FormalsNode();
-tempF->size = -1;
-$$ = tempF;
-}
+            FormalsNode* temp2 = new FormalsNode();
+            (temp2->list)->dec_list = (dynamic_cast<FormalsListNode*>($1))->dec_list;
+            $$ = temp2;
+        }
+        |/*epsilon*/ {
+            FormalsNode* tempF = new FormalsNode();
+            tempF->size = -1;
+            $$ = tempF;
+        }
 ;
 
 FormalsList : FormalDecl {
-FormalsListNode* temp3 = new FormalsListNode();
-(temp3->dec_list)->push_back(dynamic_cast<FormalDeclNode*>($1));
-$$ = temp3;
-}
-| FormalDecl COMMA FormalsList{
-FormalsListNode* temp4 = new FormalsListNode();
-temp4->dec_list = (dynamic_cast<FormalsListNode*>($3))->dec_list;
-(temp4->dec_list)->push_back(dynamic_cast<FormalDeclNode*>($1));
-$$ = temp4;
+            FormalsListNode* temp3 = new FormalsListNode();
+            (temp3->dec_list)->push_back(dynamic_cast<FormalDeclNode*>($1));
+            $$ = temp3;
+         }
+        | FormalDecl COMMA FormalsList{
+            FormalsListNode* temp4 = new FormalsListNode();
+            temp4->dec_list = (dynamic_cast<FormalsListNode*>($3))->dec_list;
+            (temp4->dec_list)->push_back(dynamic_cast<FormalDeclNode*>($1));
+            $$ = temp4;
 };
 
 FormalDecl : Type ID {
@@ -366,353 +366,356 @@ FormalDecl : Type ID {
         new_node->name = ($2)->name;
         new_node->size =1;
         $$ = new_node;
-}
-| StructType  {
-FormalDeclNode* new_node = new FormalDeclNode();
-new_node->type = TYPE_STRUCTID;
-new_node->name = ($1)->name;
-new_node->size = ($1)->size;
-new_node->s_name = (dynamic_cast<StructTypeNode*>($1))->structName;
-$$ = new_node;
+        }
+        | StructType  {
+            FormalDeclNode* new_node = new FormalDeclNode();
+            new_node->type = TYPE_STRUCTID;
+            new_node->name = ($1)->name;
+            new_node->size = ($1)->size;
+            new_node->s_name = (dynamic_cast<StructTypeNode*>($1))->structName;
+            $$ = new_node;
 }
 ;
 
 //no semantics needed
 Statements : Statement{
-StatementsNode* new_node = new StatementsNode();
-(new_node->breakList) = (dynamic_cast<StatementNode*>($1)->breakList);
-(new_node->returnList) = (dynamic_cast<StatementNode*>($1)->returnList);
-$$ = new_node;
-}
-| Statement Statements{
-        StatementsNode* new_node = new StatementsNode();
-        *(new_node->breakList) = CodeBuffer::merge(*((dynamic_cast<StatementNode*>($1))->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
-        *(new_node->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->returnList), *(dynamic_cast<StatementsNode*>($2)->returnList));
-        $$ = new_node;
-}
+                    StatementsNode* new_node = new StatementsNode();
+                    (new_node->breakList) = (dynamic_cast<StatementNode*>($1)->breakList);
+                    (new_node->returnList) = (dynamic_cast<StatementNode*>($1)->returnList);
+                    $$ = new_node;
+            }
+            | Statement Statements{
+                    StatementsNode* new_node = new StatementsNode();
+                    *(new_node->breakList) = CodeBuffer::merge(*((dynamic_cast<StatementNode*>($1))->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
+                    *(new_node->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->returnList), *(dynamic_cast<StatementsNode*>($2)->returnList));
+                    $$ = new_node;
+            }
 ;
 
 Statement : LBRACE ML Statements RBRACE
-        {
-                //this function does all the things we were asked to do in page 6 when closing a scope. see function ducomentation for more details
-                // closeScope();
-                //return the current scope to be the outer scope
-                SymbolTable* parent = current_scope_table->getParent();
-        delete(current_scope_table);
-        current_scope_table = parent;
-        //back to the outer scope offset
-        offsets.pop();
-        StatementNode* tempSt = new StatementNode();
-        *(tempSt->breakList) = *((dynamic_cast<StatementsNode*>($3))->breakList);
-        *(tempSt->returnList) = *((dynamic_cast<StatementsNode*>($3))->returnList);
-        $$=tempSt;
-        }
-| Type ID SC{
-int offset = offsets.top();
-int frame_offset = frame_offsets.top(); //sn
-frame_offsets.pop(); //sn
-offsets.pop();
-if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset))){
-// Id already defined
-errorDef(yylineno,($2)->name);
-exit(0);
-}
-offsets.push(offset+1); //update offset
-frame_offsets.push(frame_offset+1);//sn
-//free up 1 cell space on stack for future storage of data in ID
-freeUpSpaceStack(1);
-StatementNode* tempSt4 = new StatementNode();
-$$=tempSt4;
-}
-| StructType SC {
-        int offset = offsets.top();
-        int frame_offset = frame_offsets.top(); //sn
-        frame_offsets.pop();//sn
-        offsets.pop();
-        if (!(current_scope_table->insertStructTypeEntry(($1)->name, (dynamic_cast<StructTypeNode*>($1))->structName,TYPE_STRUCTID,$1->size,offset,frame_offset))){
-            // Id already defined
-            errorDef(yylineno,($1)->name);
-            exit(0);
-        }
-        offsets.push(offset+($1)->size); //update offset
-        frame_offsets.push(frame_offset+($1)->size); //sn
-        StatementNode* tempSt5 = new StatementNode();
-        $$=tempSt5;
-}
-
-| StructsDecl
-
-| Type ID ASSIGN Exp SC{
-int offset = offsets.top();
-offsets.pop();
-int frame_offset = frame_offsets.top();//sn
-frame_offsets.pop();//sn
-if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset))){
-// Id already defined
-errorDef(yylineno,($2)->name);
-exit(0);
-}
-offsets.push(offset+1); //update offset
-frame_offsets.push(frame_offset+1);//sn
-if (($4)->type != ($1)->type){
-// exp is not the same type as id
-if ((($4)->type != TYPE_BYTE) || (($1)->type != TYPE_INT)){ // assignment of byte to int is ok
-errorMismatch(yylineno);
-exit(0);
-}
-}
-
-if (($4)->type == TYPE_BOOL) {
-evaluateBoolean(dynamic_cast<ExpNode*>($4));
-}
-freeUpSpaceStack(1); // subu $sw, $sw, 4
-TempReg expReg = dynamic_cast<ExpNode*>($4)->reg;
-CodeBuffer::instance().emit("sw " + regToString(expReg) + ", ($sp)");
-//free up reg
-returnTempReg(expReg);
-//set reg to none
-dynamic_cast<ExpNode*>($4)->reg = NONE;
-StatementNode* tempSt6 = new StatementNode();
-$$=tempSt6;
-}
-| StructType ASSIGN Exp SC {
-        if (($3)->type != TYPE_STRUCTID){
-            // exp is not structType type
-            errorMismatch(yylineno);
-            exit(0);
-        }
-        StructTypeNode* temp11 = new StructTypeNode("");
-        temp11=dynamic_cast<StructTypeNode*>($1);
-        if ((dynamic_cast<StructTypeNode*>($3))->structName != temp11->structName){
-            // exp is not the same structType type
-            errorMismatch(yylineno);
-            exit(0);
-        }
-        int offset = offsets.top();
-        offsets.pop();
-        int frame_offset = frame_offsets.top();//sn
-        frame_offsets.pop();//sn
-        if (!(current_scope_table->insertStructTypeEntry(temp11->name, temp11->structName,TYPE_STRUCTID,temp11->size,offset,frame_offset))){
-            // Id already defined
-            errorDef(yylineno,($1)->name);
-            exit(0);
-        }
-        offsets.push(offset+($1)->size); //update offset
-        frame_offsets.push(frame_offset+($1)->size);//sn
-        //assignment to struct
-        TempReg dest_reg = getAvailReg();
-        TempReg temp_reg = getAvailReg();
-        std:string dest_reg_s = regToString(dest_reg);
-        //int expOffset = (dynamic_cast<StructTypeNode*>($3))->f_offset; //sn offset->frame_offset
-        //get to the start of the struct in the stuck by "fp + struct offset"
-        CodeBuffer::instance().emit("subu " + dest_reg_s + ", $fp, " + intToString(4*(frame_offset+1))); //+1 is to get to the first field place
-        for (int i = 0; i < (dynamic_cast<StructTypeNode*>($3))->size; i++ ) {
-            CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", ("+ dest_reg_s +")"); //copy from stuct to temp reg
-            CodeBuffer::instance().emit("subu $sp, $sp, 4"); //expand the stuck
-            CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", $sp");//get to the next free space on the stuck and store the copied value there
-            CodeBuffer::instance().emit("subu ("+dest_reg_s+") , 4"); //get to the next field in the copied struct
-        }
-        //free up regs
-        returnTempReg(dest_reg);
-        returnTempReg(temp_reg);
-        dynamic_cast<ExpNode*>($3)->reg = NONE;
-        returnTempReg(dynamic_cast<ExpNode*>($3)->reg);
-        StatementNode* tempSt7 = new StatementNode();
-        $$=tempSt7;
-}
-| ID ASSIGN Exp SC
-        {
-                TableEntry* entry = current_scope_table->getEntry(($1)->name);
-        if (!entry || entry->type == TYPE_FUNC || entry->type == TYPE_STRUCT)\
                 {
-            errorUndef(yylineno, ($1)->name);
-            exit(0);
+                        //this function does all the things we were asked to do in page 6 when closing a scope. see function ducomentation for more details
+                        // closeScope();
+                        //return the current scope to be the outer scope
+                        SymbolTable* parent = current_scope_table->getParent();
+                delete(current_scope_table);
+                current_scope_table = parent;
+                //back to the outer scope offset
+                offsets.pop();
+                StatementNode* tempSt = new StatementNode();
+                *(tempSt->breakList) = *((dynamic_cast<StatementsNode*>($3))->breakList);
+                *(tempSt->returnList) = *((dynamic_cast<StatementsNode*>($3))->returnList);
+                $$=tempSt;
+                }
+        | Type ID SC{
+                int offset = offsets.top();
+                int frame_offset = frame_offsets.top(); //sn
+                frame_offsets.pop(); //sn
+                offsets.pop();
+                if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset))){
+                // Id already defined
+                errorDef(yylineno,($2)->name);
+                exit(0);
+                }
+                offsets.push(offset+1); //update offset
+                frame_offsets.push(frame_offset+1);//sn
+                //free up 1 cell space on stack for future storage of data in ID
+                freeUpSpaceStack(1);
+                StatementNode* tempSt4 = new StatementNode();
+                $$=tempSt4;
+                }
+        | StructType SC {
+                int offset = offsets.top();
+                int frame_offset = frame_offsets.top(); //sn
+                frame_offsets.pop();//sn
+                offsets.pop();
+                if (!(current_scope_table->insertStructTypeEntry(($1)->name, (dynamic_cast<StructTypeNode*>($1))->structName,TYPE_STRUCTID,$1->size,offset,frame_offset))){
+                    // Id already defined
+                    errorDef(yylineno,($1)->name);
+                    exit(0);
+                }
+                offsets.push(offset+($1)->size); //update offset
+                frame_offsets.push(frame_offset+($1)->size); //sn
+                StatementNode* tempSt5 = new StatementNode();
+                $$=tempSt5;
         }
 
-        //handle if struct<id>'s assignment
-        if (entry->type == TYPE_STRUCTID && ($3)->type == TYPE_STRUCTID)
-        {
-            TableEntryStructType* entry2 = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($3)->name));
-            if (!entry2)
-            {
-                errorUndef(yylineno, ($3)->name);
+        | StructsDecl
+
+        | Type ID ASSIGN Exp SC{
+            int offset = offsets.top();
+            offsets.pop();
+            int frame_offset = frame_offsets.top();//sn
+                 //   cout<<"-----------"<<frame_offset<<endl;
+            frame_offsets.pop();//sn
+            if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset))){
+                // Id already defined
+                errorDef(yylineno,($2)->name);
                 exit(0);
             }
-            if (entry2->structName != (dynamic_cast<TableEntryStructType*>(entry))->structName)
+            offsets.push(offset+1); //update offset
+            frame_offsets.push(frame_offset+1);//sn
+            if (($4)->type != ($1)->type){
+                // exp is not the same type as id
+                if ((($4)->type != TYPE_BYTE) || (($1)->type != TYPE_INT)){ // assignment of byte to int is ok
+                    errorMismatch(yylineno);
+                    exit(0);
+                }
+            }
+
+            if (($4)->type == TYPE_BOOL) {
+                evaluateBoolean(dynamic_cast<ExpNode*>($4));
+            }
+            freeUpSpaceStack(1); // subu $sw, $sw, 4
+            TempReg expReg = dynamic_cast<ExpNode*>($4)->reg;
+            CodeBuffer::instance().emit("sw " + regToString(expReg) + ", ($sp)");
+            //free up reg
+            returnTempReg(expReg);
+            //set reg to none
+            dynamic_cast<ExpNode*>($4)->reg = NONE;
+            StatementNode* tempSt6 = new StatementNode();
+            $$=tempSt6;
+        }
+        | StructType ASSIGN Exp SC {
+                if (($3)->type != TYPE_STRUCTID){
+                    // exp is not structType type
+                    errorMismatch(yylineno);
+                    exit(0);
+                }
+                StructTypeNode* temp11 = new StructTypeNode("");
+                temp11=dynamic_cast<StructTypeNode*>($1);
+                if ((dynamic_cast<StructTypeNode*>($3))->structName != temp11->structName){
+                    // exp is not the same structType type
+                    errorMismatch(yylineno);
+                    exit(0);
+                }
+                int offset = offsets.top();
+                offsets.pop();
+                int frame_offset = frame_offsets.top();//sn
+                frame_offsets.pop();//sn
+                if (!(current_scope_table->insertStructTypeEntry(temp11->name, temp11->structName,TYPE_STRUCTID,temp11->size,offset,frame_offset))){
+                    // Id already defined
+                    errorDef(yylineno,($1)->name);
+                    exit(0);
+                }
+                offsets.push(offset+($1)->size); //update offset
+                frame_offsets.push(frame_offset+($1)->size);//sn
+                //assignment to struct
+                TempReg dest_reg = getAvailReg();
+                TempReg temp_reg = getAvailReg();
+                std:string dest_reg_s = regToString(dest_reg);
+                //int expOffset = (dynamic_cast<StructTypeNode*>($3))->f_offset; //sn offset->frame_offset
+                //get to the start of the struct in the stuck by "fp + struct offset"
+                CodeBuffer::instance().emit("subu " + dest_reg_s + ", $fp, " + intToString(4*(frame_offset+1))); //+1 is to get to the first field place
+                for (int i = 0; i < (dynamic_cast<StructTypeNode*>($3))->size; i++ ) {
+                    CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", ("+ dest_reg_s +")"); //copy from stuct to temp reg
+                    CodeBuffer::instance().emit("subu $sp, $sp, 4"); //expand the stuck
+                    CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", $sp");//get to the next free space on the stuck and store the copied value there
+                    CodeBuffer::instance().emit("subu ("+dest_reg_s+") , 4"); //get to the next field in the copied struct
+                }
+                //free up regs
+                returnTempReg(dest_reg);
+                returnTempReg(temp_reg);
+                dynamic_cast<ExpNode*>($3)->reg = NONE;
+                returnTempReg(dynamic_cast<ExpNode*>($3)->reg);
+                StatementNode* tempSt7 = new StatementNode();
+                $$=tempSt7;
+        }
+        | ID ASSIGN Exp SC
             {
-                errorMismatch(yylineno);
+            TableEntry* entry = current_scope_table->getEntry(($1)->name);
+            if (!entry || entry->type == TYPE_FUNC || entry->type == TYPE_STRUCT)\
+            {
+                errorUndef(yylineno, ($1)->name);
                 exit(0);
             }
-        }
 
-        //check if valid assignment
-        else if (($3)->type != entry->type /*|| ($3)->size != entry->size*/)
-
-        {
-            //check if not a byte to int assignment
-            if (!(($3)->type == TYPE_BYTE && entry->type == TYPE_INT))
+            //handle if struct<id>'s assignment
+            if (entry->type == TYPE_STRUCTID && ($3)->type == TYPE_STRUCTID)
             {
-                errorMismatch(yylineno);
+                TableEntryStructType* entry2 = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($3)->name));
+                if (!entry2)
+                {
+                    errorUndef(yylineno, ($3)->name);
+                    exit(0);
+                }
+                if (entry2->structName != (dynamic_cast<TableEntryStructType*>(entry))->structName)
+                {
+                    errorMismatch(yylineno);
+                    exit(0);
+                }
+            }
+
+            //check if valid assignment
+            else if (($3)->type != entry->type /*|| ($3)->size != entry->size*/)
+
+            {
+                //check if not a byte to int assignment
+                if (!(($3)->type == TYPE_BYTE && entry->type == TYPE_INT))
+                {
+                    errorMismatch(yylineno);
+                    exit(0);
+                }
+            }
+
+            //check if type of var entry is byte and
+            const char * c = ((dynamic_cast<ExpNode*>($3))->value).c_str();
+            if (entry->type == TYPE_BYTE && std::strtol(c, NULL, 0) > 255)
+            {
+                errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($3))->value);
                 exit(0);
             }
-        }
 
-        //check if type of var entry is byte and
-        const char * c = ((dynamic_cast<ExpNode*>($3))->value).c_str();
-        if (entry->type == TYPE_BYTE && std::strtol(c, NULL, 0) > 255)
-        {
-            errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($3))->value);
-            exit(0);
-        }
+            if (($3)->type == TYPE_BOOL) {
+                evaluateBoolean(dynamic_cast<ExpNode*>($3));
+            }
+            else{ //shani2 else was missing
+              //  cout<<entry->f_offset<<"-----------------------"<<endl;
+                //store id value (currently in temp register) in stuck //sn to frame offset
+                CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($3))->reg) + ", " + intToString(-4*(entry->f_offset)) + "($fp)");   //rach1 changed f_offset to offset //shani2- why? when it comes to assembly code, offset is always the frame offset
+            }      //set reg of exp to be none
+                returnTempReg(($3)->reg);
+                ($3)->reg = NONE;
+                StatementNode* tempSt8 = new StatementNode();
+                $$=tempSt8;
+          }
 
-        if (($3)->type == TYPE_BOOL) {
-            evaluateBoolean(dynamic_cast<ExpNode*>($3));
-        }
-        //store id value (currently in temp register) in stuck //sn to frame offset
-        CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($3))->reg) + ", " + intToString(-4*(current_scope_table->getEntry(($1)->name))->offset) + "($fp)");   //rach1 changed f_offset to offset
-        //set reg of exp to be none
-        returnTempReg(($3)->reg);
-        ($3)->reg = NONE;
-        StatementNode* tempSt8 = new StatementNode();
-        $$=tempSt8;
-        }
-
-| ID PERIOD ID ASSIGN Exp SC
-        {
-                //check if $1 is struct name and $3 is its field
-                TableEntryStructType* sType = new TableEntryStructType();
-        sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name));
-        if (!sType || sType->type != TYPE_STRUCTID)
-        { //no such structid
-            errorUndef(yylineno, ($1)->name);
-            exit(0);
-        }
-
-        TableEntryStruct* s = new TableEntryStruct();
-        s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName));
-        if (!s || s->type != TYPE_STRUCT)
-        { //no such struct
-            errorUndef(yylineno, ($1)->name);
-            exit(0);
-        }
-
-        StructMemNode* field = new StructMemNode();
-        field= s->getField(($3)->name);
-
-        if (!field)
-        {
-            errorUndefStructMember(yylineno, ($1)->name);
-            exit(0);
-        }
-        //check types assignment match
-        if (field->type != ($5)->type)
-        {
-            if (!(($5)->type == TYPE_BYTE && field->type == TYPE_INT))
-            {
-                errorMismatch(yylineno);
+        | ID PERIOD ID ASSIGN Exp SC{
+            //check if $1 is struct name and $3 is its field
+            TableEntryStructType* sType = new TableEntryStructType();
+            sType  = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($1)->name));
+            if (!sType || sType->type != TYPE_STRUCTID)
+            { //no such structid
+                errorUndef(yylineno, ($1)->name);
                 exit(0);
             }
-        }
 
-        const char* c = ((dynamic_cast<ExpNode*>($5))->value).c_str();
-        if (($5)->type == TYPE_BYTE && std::strtol(c, NULL, 0) > 255) {
-            errorByteTooLarge(yylineno, (dynamic_cast<ExpNode *>($5))->value);
-            exit(0);
+            TableEntryStruct* s = new TableEntryStruct();
+            s  = dynamic_cast<TableEntryStruct*>(current_scope_table->getEntry(sType->structName));
+            if (!s || s->type != TYPE_STRUCT)
+            { //no such struct
+                errorUndef(yylineno, ($1)->name);
+                exit(0);
+            }
 
-        }
-        if (($5)->type == TYPE_BOOL) {
-            evaluateBoolean(dynamic_cast<ExpNode*>($5));
-        }
-        int field_offset = 4*(sType->f_offset +field->relative_offset); //sn
-        //we wil have to go to the *field* storage in the stuck, means, find the offset of the struct in the stuct and add the field "relative offset" (i added it ) to get to the field offset
-        CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($5))->reg) + ", " + intToString(-field_offset) + "($fp)");
+            StructMemNode* field = new StructMemNode();
+            field= s->getField(($3)->name);
 
-        //set reg of exp to be none
-        returnTempReg(($5)->reg);
-        ($5)->reg = NONE;
-        StatementNode* tempSt9 = new StatementNode();
-        $$=tempSt9;
-        }
-| Call SC
+            if (!field)
+            {
+                errorUndefStructMember(yylineno, ($1)->name);
+                exit(0);
+            }
+            //check types assignment match
+            if (field->type != ($5)->type)
+            {
+                if (!(($5)->type == TYPE_BYTE && field->type == TYPE_INT))
+                {
+                    errorMismatch(yylineno);
+                    exit(0);
+                }
+            }
+
+            const char* c = ((dynamic_cast<ExpNode*>($5))->value).c_str();
+            if (($5)->type == TYPE_BYTE && std::strtol(c, NULL, 0) > 255) {
+                errorByteTooLarge(yylineno, (dynamic_cast<ExpNode *>($5))->value);
+                exit(0);
+
+            }
+            if (($5)->type == TYPE_BOOL) {
+                evaluateBoolean(dynamic_cast<ExpNode*>($5));
+            }
+            int field_offset = 4*(sType->f_offset +field->relative_offset); //sn
+            //we wil have to go to the *field* storage in the stuck, means, find the offset of the struct in the stuct and add the field "relative offset" (i added it ) to get to the field offset
+            CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($5))->reg) + ", " + intToString(-field_offset) + "($fp)");
+
+            //set reg of exp to be none
+            returnTempReg(($5)->reg);
+            ($5)->reg = NONE;
+            StatementNode* tempSt9 = new StatementNode();
+            $$=tempSt9;
+         }
+        | Call SC
         {
                 //free call's reg
                 // returnTempReg($1->reg);//shani - call has no temp reg
                 StatementNode* tempSt9 = new StatementNode();
-        $$=tempSt9;
+                $$=tempSt9;
         }
 
-| RETURN SC{
-        //get current function scope
-        TableEntryFunc* current_function = current_scope_table->getLastFunctionEntry();
+        | RETURN SC{
+                //get current function scope
+                TableEntryFunc* current_function = current_scope_table->getLastFunctionEntry();
 
-        //error if return type of the entry isn't void
-        if (current_function->return_type != TYPE_VOID)
-        {
-            errorMismatch(yylineno);
-            exit(0);
+                //error if return type of the entry isn't void
+                if (current_function->return_type != TYPE_VOID)
+                {
+                    errorMismatch(yylineno);
+                    exit(0);
+                }
+                StatementNode* tempSt10 = new StatementNode();
+                //we want the return list of statement to include only "jump" instruction
+                //*(tempSt10->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani - caused sigfault
+                (tempSt10->returnList)->push_back(CodeBuffer::instance().emit("j "));
+                $$=tempSt10;
+
         }
-        StatementNode* tempSt10 = new StatementNode();
-        //we want the return list of statement to include only "jump" instruction
-        //*(tempSt10->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani - caused sigfault
-        (tempSt10->returnList)->push_back(CodeBuffer::instance().emit("j "));
-        $$=tempSt10;
+        | RETURN Exp SC {
+                TableEntryFunc* current_function = current_scope_table->getLastFunctionEntry();
+                //check if Exp type can be assigned to the functions' return type
+                if (current_function->return_type != ($2)->type && !(current_function->return_type == TYPE_INT && ($2)->type == TYPE_BYTE))
+                {
+                    errorMismatch(yylineno);
+                    exit(0);
+                }
+                if (($2)->type == TYPE_BOOL) {
+                     evaluateBoolean(dynamic_cast<ExpNode*>$2);
+                }
+                //as you know registers $v0-$v1 hold the returned values of a function
+                //at first we move the returned expression to reg v0
+                // then it's the same explenation as abvove in the previous rule
+                CodeBuffer::instance().emit("move $v0, " + regToString(($2)->reg));
+                returnTempReg($2->reg);
+                StatementNode* tempSt12 = new StatementNode();
+                //*(dynamic_cast<ExpNode*>($$)->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); shani: caused sigfault, this is why we use tempSt12!
+                // (tempSt12->returnList)->push_back(CodeBuffer::instance().emit("j ")); //shani: t2 falls here, j without backpatch //shani1 couldnt finr "return list" in the tutorials, explain
+                CodeBuffer::instance().emit("move $sp, $fp"); //shani1 was  missing, fixed missing j in t2
+                CodeBuffer::instance().emit("jr $ra");      //shani1 was missing, fixed missing j in t2
+                $$=tempSt12;
+                }
+        | M4 M Statement{
+                // closeScope();
+                SymbolTable* current_parent = current_scope_table->getParent();
+                delete(current_scope_table);
+                current_scope_table = current_parent;
+                offsets.pop();
+                if (($1)->err)
+                {
+                    errorMismatch(($1)->line_num);
+                    exit(0);
+                }
+                //we want to insert M's quad as the target label for each of the instructions on the true list of M4
+                //meaning M would be the target for when the expression in M4 is true
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->trueList), (dynamic_cast<MNode*>($2))->quad);
+                StatementNode* tempSt13 = new StatementNode();
+                $$=tempSt13;
+            }
+             ElseMarker
+            {
+                //we jump to else if the expression evaluates to false
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->falseList), dynamic_cast<ElseMarkerNode*>($5)->quad);
+                //generating the next jump label after the else is executed
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->nextList), CodeBuffer::instance().genLabel());
+                //setting the return and break lists of the if statement to be the concatenation
+                //of the lists of statement inside if and the else block
+                StatementNode* tempSt1 = new StatementNode();
+                *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->returnList), *(dynamic_cast<ElseMarkerNode*>($5)->returnList)); //shani1: was meger elseMarkerNode with itself
+                *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->breakList), *(dynamic_cast<ElseMarkerNode*>($5)->breakList));
+                $$=tempSt1;
+            }
 
-}
-| RETURN Exp SC {
-TableEntryFunc* current_function = current_scope_table->getLastFunctionEntry();
-//check if Exp type can be assigned to the functions' return type
-if (current_function->return_type != ($2)->type && !(current_function->return_type == TYPE_INT && ($2)->type == TYPE_BYTE))
-{
-errorMismatch(yylineno);
-exit(0);
-}
-if (($2)->type == TYPE_BOOL) {
-evaluateBoolean(dynamic_cast<ExpNode*>$2);
-}
-//as you know registers $v0-$v1 hold the returned values of a function
-//at first we move the returned expression to reg v0
-// then it's the same explenation as abvove in the previous rule
-CodeBuffer::instance().emit("move $v0, " + regToString(($2)->reg));
-returnTempReg($2->reg);
-StatementNode* tempSt12 = new StatementNode();
-//*(dynamic_cast<ExpNode*>($$)->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); shani: caused sigfault, this is why we use tempSt12!
-// (tempSt12->returnList)->push_back(CodeBuffer::instance().emit("j ")); //shani: t2 falls here, j without backpatch //shani1 couldnt finr "return list" in the tutorials, explain
-CodeBuffer::instance().emit("move $sp, $fp"); //shani1 was  missing, fixed missing j in t2
-CodeBuffer::instance().emit("jr $ra");      //shani1 was missing, fixed missing j in t2
-$$=tempSt12;
-}
-| M4 M Statement{
-// closeScope();
-SymbolTable* current_parent = current_scope_table->getParent();
-delete(current_scope_table);
-current_scope_table = current_parent;
-offsets.pop();
-if (($1)->err)
-{
-errorMismatch(($1)->line_num);
-exit(0);
-}
-//we want to insert M's quad as the target label for each of the instructions on the true list of M4
-//meaning M would be the target for when the expression in M4 is true
-CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->trueList), (dynamic_cast<MNode*>($2))->quad);
-StatementNode* tempSt13 = new StatementNode();
-$$=tempSt13;
-}
-ElseMarker
-{
-        //we jump to else if the expression evaluates to false
-        CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->falseList), dynamic_cast<ElseMarkerNode*>($5)->quad);
-        //generating the next jump label after the else is executed
-        CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->nextList), CodeBuffer::instance().genLabel());
-        //setting the return and break lists of the if statement to be the concatenation
-        //of the lists of statement inside if and the else block
-        StatementNode* tempSt1 = new StatementNode();
-        *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->returnList), *(dynamic_cast<ElseMarkerNode*>($5)->returnList)); //shani1: was meger elseMarkerNode with itself
-        *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->breakList), *(dynamic_cast<ElseMarkerNode*>($5)->breakList));
-        $$=tempSt1;
-}
-//rach1: I don't understand why you added the IW marker. what is it for? why does it help?
-| WHILE IW LPAREN M Exp RPAREN //here
+        //rach1: I don't understand why you added the IW marker. what is it for? why does it help? //shani2: please see the comment 3 lines below... i'll never change somthing withpur explaining
+        | WHILE IW LPAREN M Exp RPAREN //here
         {
                 //turn on flag of loop
                 //inside_while = true; //racheli, the Exp is brake, then is will be false in the break rule code, i move it to IW (in while)
@@ -726,118 +729,111 @@ ElseMarker
                 current_scope_table = new_scope_table;
                 offsets.push(offsets.top());
         }
-M Statement {
-        //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
-        CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($5)->trueList), dynamic_cast<MNode*>($8)->quad); //shani: was $6
-        //setting 1st M's label as the target for each of the instructions in the created s_list
-        //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
+        M Statement {
+                //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($5)->trueList), dynamic_cast<MNode*>($8)->quad); //shani: was $6
+                //setting 1st M's label as the target for each of the instructions in the created s_list
+                //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
 
-        CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), dynamic_cast<MNode*>($4)->quad); //shani1 - racheli, what did you meant to do? rach1: we need to jump to the 1st M marker when we finish deriving all the statements in the while block because this is where we need to jump when we finish th iteration - to check if the exp is true or false
+                *(dynamic_cast<StatementNode*>($9)->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); // j (label)
+                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($9)->nextList), dynamic_cast<MNode*>($4)->quad); //(label) = M quad
 
-       // CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($9)->nextList), dynamic_cast<MNode*>($4)->quad); //shani1 - if we want the end of the loop to end in the "M" cose , we need to use it's next list
+                //we want to create a fresh label as target for the instructions in the concatenated list created by the false list of exp and break list of statement
+                 CodeBuffer::instance().bpatch(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList)), CodeBuffer::instance().genLabel());
 
-        //we want to create a fresh label as target for the instructions in the concatenated list created by the false list of exp and break list of statement
-        // CodeBuffer::instance().bpatch(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($4)->falseList),*(dynamic_cast<StatementNode*>($8)->breakList)), CodeBuffer::instance().genLabel());
-        // shani1: racheli,about the above commend  this comment creates en empty label inside the loop and puts it in the lists.
-        // why whould they jump to the middles of the loop?
-        // the creation of this label it in the responsebility of the statenemt and the exp rules. we just need to tell the $$ to inhiriate their lists. see fix in ##
-
-        StatementNode* tempSt2 = new StatementNode();
-        *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($9)->returnList);
-        //  closeScope();
-        *(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani1 ##
-         CodeBuffer::instance().bpatch(*(tempSt2->nextList), CodeBuffer::instance().genLabel()); //rach1: as I tried to do in your comment above (with the ##) - this is where we create the label for the exit of the while loop, this is why the j was empty/missing a label
-        SymbolTable* p = current_scope_table->getParent();
-        delete(current_scope_table);
-        current_scope_table = p;
-        offsets.pop();
-        //turn off boolean marking that we're out of the while loop
-        inside_while = false;
-        $$=tempSt2;
-}
-| BREAK SC
-        {
-                if (!inside_while)
-                {
-                    errorUnexpectedBreak(yylineno);
-                    exit(0);
-                }
-                StatementNode* tempSt3 = new StatementNode();
-                //we want to set the break list of the lhs of the rule to include "jump" instruction
-                *(tempSt3->breakList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
-                $$=tempSt3;
+                StatementNode* tempSt2 = new StatementNode();
+                //*(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($9)->returnList);
+                *(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani1 ##
+                 SymbolTable* p = current_scope_table->getParent();
+                delete(current_scope_table);
+                current_scope_table = p;
+                offsets.pop();
+                //turn off boolean marking that we're out of the while loop
+                inside_while = false;
+                $$=tempSt2;
         }
-| CONTINUE SC
-        {
-                if (!inside_while)
+        | BREAK SC
                 {
-                    errorUnexpectedContinue(yylineno);
-                    exit(0);
+                        if (!inside_while)
+                        {
+                            errorUnexpectedBreak(yylineno);
+                            exit(0);
+                        }
+                        StatementNode* tempSt3 = new StatementNode();
+                        //we want to set the break list of the lhs of the rule to include "jump" instruction
+                        *(tempSt3->breakList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                        $$=tempSt3;
                 }
-                StatementNode* tempSt4 = new StatementNode();
-                //we want to set the next list of the lhs of the rule to include "jump" instruction
-                *(tempSt4->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
-                $$=tempSt4;
-        }
+        | CONTINUE SC
+                {
+                        if (!inside_while)
+                        {
+                            errorUnexpectedContinue(yylineno);
+                            exit(0);
+                        }
+                        StatementNode* tempSt4 = new StatementNode();
+                        //we want to set the next list of the lhs of the rule to include "jump" instruction
+                        *(tempSt4->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                        $$=tempSt4;
+                }
 
 ;
 //marker M4
 M4  :  IF LPAREN Exp RPAREN {
-        // $$ = $3; - this runs over the exp son fields
-        if (($3)->type != TYPE_BOOL)
-        {
-            ($$)->err = true;
-            ($$)->line_num = yylineno;
+            // $$ = $3; - this runs over the exp son fields
+            if (($3)->type != TYPE_BOOL)
+            {
+                ($$)->err = true;
+                ($$)->line_num = yylineno;
+            }
+            SymbolTable* new_table = new SymbolTable(current_scope_table);
+            current_scope_table = new_table;
+            offsets.push(offsets.top());
+            $$=dynamic_cast<ExpNode*>($3); //shani
         }
-        SymbolTable* new_table = new SymbolTable(current_scope_table);
-        current_scope_table = new_table;
-        offsets.push(offsets.top());
-        $$=dynamic_cast<ExpNode*>($3); //shani
-}
-//marker ElseMarker
+    //marker ElseMarker
 ElseMarker  :  /*epsilon*/
-{
-        //we derive this when else is false (therefore epsilon is derived)
-        //so we only need to set its next list to a new list containing the jump instruction
-        //and set its quad to some fresh label
-        ElseMarkerNode* tempEM = new ElseMarkerNode();
-        *(tempEM->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
-        tempEM->quad = CodeBuffer::instance().genLabel();
-        $$=tempEM;
-}
-%prec IF
-| ELSE  N
-        // when we reach here N holds the new next list (containing only the jump instruction)
-        //explanation continues in the rule bellow
-        //information on N, M is in their rules
+            {
+                //we derive this when else is false (therefore epsilon is derived)
+                //so we only need to set its next list to a new list containing the jump instruction
+                //and set its quad to some fresh label
+                ElseMarkerNode* tempEM = new ElseMarkerNode();
+                *(tempEM->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                tempEM->quad = CodeBuffer::instance().genLabel();
+                $$=tempEM;
+            }
+            %prec IF
+            | ELSE  N
+                    // when we reach here N holds the new next list (containing only the jump instruction)
+                    //explanation continues in the rule bellow
+                    //information on N, M is in their rules
 
-        {
+            {
                 SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
-        current_scope_table = new_scope_table;
-        offsets.push(offsets.top());
-        }
-M Statement{
-        //M's quad holds the label we want to jump to (the "j" was emitted above when N was derived)
-        // closeScope();
-        SymbolTable* p = current_scope_table->getParent();
-        delete(current_scope_table);
-        current_scope_table = p;
-        offsets.pop();
-        //setting ElseMarker's fields in order to backpatch after it's derived
-        //FYI: (according to the turorial) the right parentesis "{" in the beginning
-        // of the else block between N and M is counted also,
-        //therefore $4 refers to M, $5 refers to statement
-        ElseMarkerNode* tempEM2 = new ElseMarkerNode();
-        *(tempEM2->nextList) = *(dynamic_cast<NNode*>($2)->nextList);
-        tempEM2->quad = dynamic_cast<MNode*>($4)->quad;
-        *(tempEM2->returnList) = *(dynamic_cast<StatementNode*>($5)->returnList);
-        *(tempEM2->breakList) = *(dynamic_cast<StatementNode*>($5)->breakList);
-        $$=tempEM2;
-}
-%prec ELSE
+                current_scope_table = new_scope_table;
+                offsets.push(offsets.top());
+            }
+            M Statement{
+                    //M's quad holds the label we want to jump to (the "j" was emitted above when N was derived)
+                    // closeScope();
+                    SymbolTable* p = current_scope_table->getParent();
+                    delete(current_scope_table);
+                    current_scope_table = p;
+                    offsets.pop();
+                    //setting ElseMarker's fields in order to backpatch after it's derived
+                    //FYI: (according to the turorial) the right parentesis "{" in the beginning
+                    // of the else block between N and M is counted also,
+                    //therefore $4 refers to M, $5 refers to statement
+                    ElseMarkerNode* tempEM2 = new ElseMarkerNode();
+                    *(tempEM2->nextList) = *(dynamic_cast<NNode*>($2)->nextList);
+                    tempEM2->quad = dynamic_cast<MNode*>($4)->quad;
+                    *(tempEM2->returnList) = *(dynamic_cast<StatementNode*>($5)->returnList);
+                    *(tempEM2->breakList) = *(dynamic_cast<StatementNode*>($5)->breakList);
+                    $$=tempEM2;
+            }
+            %prec ELSE
 
-Call : ID LPAREN ExpList RPAREN
-        {
+Call : ID LPAREN ExpList RPAREN  {
                 //check that function's name isn't "main", else error
 
                 if (($1)->name == "main")
@@ -873,8 +869,8 @@ Call : ID LPAREN ExpList RPAREN
                 temp7->return_type = f->return_type;
                 $$ = temp7;
 
-                //preparing stack for saved registers sections $S0-$S7
-                for (int i=10;i<NUM_OF_TEMP_REGS;i++)
+                //preparing stack for saved registers sections $S0-$S7 //shani2: what about t registers. we does use them... in fact, "getTempReg" function retruns the first aviliable function, and it will useally return t reg.
+                for (int i=0;i<NUM_OF_TEMP_REGS;i++)
                 {
                     //if used reg - save its value on stack
                     if (!(AvailRegs[i]))
@@ -883,7 +879,7 @@ Call : ID LPAREN ExpList RPAREN
                         CodeBuffer::instance().emit("subu $sp, $sp, 4");
                         CodeBuffer::instance().emit("sw " + regToString(TempReg(i)) + ", ($sp)");
                         //reset register since its value was already saved on the stack above
-                        returnTempReg(TempReg(i));
+                        //returnTempReg(TempReg(i));
                     }
                 }
                 //preparing stack for next section:
@@ -894,6 +890,7 @@ Call : ID LPAREN ExpList RPAREN
                 CodeBuffer::instance().emit("subu $sp, $sp, 4");
                 //saving return address on stack
                 CodeBuffer::instance().emit("sw $ra, ($sp)");
+                int num =0; //num of arguments
                 //arguments section
                 std::vector<ExpNode*>* expList = (dynamic_cast<ExpListNode*>($3))->exp_list;
                 for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++it) {
@@ -909,6 +906,7 @@ Call : ID LPAREN ExpList RPAREN
                             //save value of field on stack
                             CodeBuffer::instance().emit("subu $sp, $sp, 4");
                             CodeBuffer::instance().emit("sw -"+ intToString(curr_offset) +"(fp), ($sp)");
+                            num++;
                         }
                     }
                         //if of regular type
@@ -917,7 +915,9 @@ Call : ID LPAREN ExpList RPAREN
                         CodeBuffer::instance().emit("subu $sp, $sp, 4");
                         //saving argument on stack
                         CodeBuffer::instance().emit("sw " + regToString((*it)->reg) + ", ($sp)");
+                        num++;
                     }
+
                 }
                 //end of pre-call, now we prepare the stack for jumping to the called function
                 //make fp point to where sp points
@@ -931,11 +931,13 @@ Call : ID LPAREN ExpList RPAREN
                     CodeBuffer::instance().emit("jal _" + ($1)->name);
                 }
                 //post-call
+
                 //scan parameters list to get its size in order to fold stack
-                int num = 0;
+              /*  int num = 0;
                 for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++it){
                     num += (*it)->size;
-                }
+                }*/ //shani2- this loop was not working , i think beacuse immidiate valuse does not have size field, i moved it to the loop above
+
                 //add size calculated above (in words) to the current stack pointer to fold stack
                 CodeBuffer::instance().emit("addu $sp, $sp, " + intToString(4*num));
                 //load return address from stack to ra register
@@ -946,118 +948,116 @@ Call : ID LPAREN ExpList RPAREN
                 CodeBuffer::instance().emit("lw $fp, ($sp)");
                 //folding up one spot
                 CodeBuffer::instance().emit("addu $sp, $sp, 4");
-                //folding saved registers section - shani: it shoult return pre call registers from stuck to regs? cannot understand
-                for (int i=10;i<NUM_OF_TEMP_REGS;i++) //shani: it was 10, not 0, why? *rach* because we need only $S0-$S7
+
+                //folding saved registers section
+                for (int i=NUM_OF_TEMP_REGS;i!=0;i--) //shani: it was 10, not 0, why? *rach* because we need only $S0-$S7 //shani2: not true. test 2, we save "i" in t(num) and it wont be restored after the return frim the function fib + changed to reverse
                 {
                     //if used reg - save its value on stack
                     if (!(AvailRegs[i]))
                     {
-                        CodeBuffer::instance().emit("subu $sp, $sp, 4");
                         CodeBuffer::instance().emit("lw " + regToString(TempReg(i)) + ", ($sp)");
-                        //returnTempReg(TempReg(i)); *rach* no need , we must save them to the registers $s0-$s7
+                        CodeBuffer::instance().emit("addu $sp, $sp, 4"); //shani2: was subu! this is why i got confused
                     }
                 }
 
-                //reset registers in which we saved the vars in the paremeters list of the function
-                for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++it)
-                {
-                    if((*it)->type != TYPE_BOOL) //shani: bool var does not save in temp registers
-                        returnTempReg((*it)->reg);
-                }
                 //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
                 //to a new register which will be saved
                 if (f->return_type != TYPE_VOID) {
                     ($$)->reg = getAvailReg();
                     CodeBuffer::instance().emit("move " + regToString(($$)->reg) + ", $v0");
                 }
-        }
-| ID LPAREN RPAREN
-{
-TableEntryFunc* f = (TableEntryFunc*)current_scope_table->getEntry(($1)->name);
-std::cout<<"h"<<endl;
-if (!f || (f->type != TYPE_FUNC))
-{
-errorUndefFunc(yylineno, ($1)->name);
-exit(0);
-}
 
-//should be an empty list of args
-if (f->declaration_list->size() != 0)
-{
-//set vector of types as strings to send as parameter to error function
-std::vector<std::string> types;
-for (std::vector<FormalDeclNode*>::const_iterator it = f->declaration_list->begin();it != f->declaration_list->end(); it++)
-{
-types.push_back(typeToString((*it)->type));
-}
-errorPrototypeMismatch(yylineno, ($1)->name, types);
-exit(0);
-}
-CallNode* tempC= new CallNode();
-tempC->return_type = f->return_type;
-$$ = tempC;
+                for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++it){
+                    returnTempReg((*it)->reg);
+                }
+              }
+            | ID LPAREN RPAREN
+             {
+                TableEntryFunc* f = (TableEntryFunc*)current_scope_table->getEntry(($1)->name);
+              //  std::cout<<"h"<<endl;
+                if (!f || (f->type != TYPE_FUNC))
+                {
+                    errorUndefFunc(yylineno, ($1)->name);
+                    exit(0);
+                }
 
-//preparing stack for saved registers sections $S0-$S7
-for (int i=10;i<NUM_OF_TEMP_REGS;i++)
-{
-//if used reg - save its value on stack
-if (!(AvailRegs[i]))
-{
-//loads used reg on stack
-CodeBuffer::instance().emit("subu $sp, $sp, 4");
-CodeBuffer::instance().emit("sw " + regToString(TempReg(i)) + ", ($sp)");
-//reset register since its value was already saved on the stack above
-returnTempReg(TempReg(i));
-}
-}
-//preparing stack for next section:
-CodeBuffer::instance().emit("subu $sp, $sp, 4");
-// saving old frame pointer on stack
-CodeBuffer::instance().emit("sw $fp, ($sp)");
-//preparing stack for the return address section
-CodeBuffer::instance().emit("subu $sp, $sp, 4");
-//saving return address on stack
-CodeBuffer::instance().emit("sw $ra, ($sp)");
-//end of pre-call, now we prepare the stack for jumping to the called function
-//make fp point to where sp points
-CodeBuffer::instance().emit("move $fp, $sp");
-//subtract one word so that sp would be one place bellow the beginning of the caller frame
-// CodeBuffer::instance().emit("subu $fp, $fp, 4"); //sn- we said the head wull alwase point to the last storaged date
-//handle cases
-if (($1)->name == "main") {
-CodeBuffer::instance().emit("jal " + ($1)->name);
-} else {
-CodeBuffer::instance().emit("jal _" + ($1)->name);
-}
-//post-call
-//load return address from stack to ra register
-CodeBuffer::instance().emit("lw $ra, ($sp)");
-//fold stack (fold ra spot)
-CodeBuffer::instance().emit("addu $sp, $sp, 4");
-//load old (saved on stack) fp to fp
-CodeBuffer::instance().emit("lw $fp, ($sp)");
-//folding up one spot
-CodeBuffer::instance().emit("addu $sp, $sp, 4");
-//folding saved registers section - shani: it shoult return pre call registers from stuck to regs? cannot understand *rach*
-for (int i=10;i<NUM_OF_TEMP_REGS;i++)
-{
-//if used reg - save its value on stack
-if (!(AvailRegs[i]))
-{
-CodeBuffer::instance().emit("subu $sp, $sp, 4");
-CodeBuffer::instance().emit("lw " + regToString(TempReg(i)) + ", ($sp)");
-//returnTempReg(TempReg(i));
-}
-}
+                //should be an empty list of args
+                if (f->declaration_list->size() != 0)
+                {
+                    //set vector of types as strings to send as parameter to error function
+                    std::vector<std::string> types;
+                    for (std::vector<FormalDeclNode*>::const_iterator it = f->declaration_list->begin();it != f->declaration_list->end(); it++)
+                    {
+                         types.push_back(typeToString((*it)->type));
+                    }
+                    errorPrototypeMismatch(yylineno, ($1)->name, types);
+                    exit(0);
+                }
+                CallNode* tempC= new CallNode();
+                tempC->return_type = f->return_type;
+                $$ = tempC;
 
-//in case the function returns a value, its saved in $v0-$v1 and needs to be moved
-//to a new register which will be saved
-if (f->return_type != TYPE_VOID) {
-($$)->reg = getAvailReg();
-CodeBuffer::instance().emit("move " + regToString(($$)->reg) + ", $v0");
-}
-}
-;
+                //preparing stack for saved registers sections $S0-$S7
+                for (int i=NUM_OF_TEMP_REGS;i!=0;i--) //shani2: change to 0 see rule above + changed to reverse
+                    {
+                        //if used reg - save its value on stack
+                        if (!(AvailRegs[i]))
+                        {
+                            //loads used reg on stack
+                            CodeBuffer::instance().emit("subu $sp, $sp, 4");
+                            CodeBuffer::instance().emit("sw " + regToString(TempReg(i)) + ", ($sp)");
+                            //reset register since its value was already saved on the stack above
+                            returnTempReg(TempReg(i));
+                        }
+                }
+                //preparing stack for next section:
+                CodeBuffer::instance().emit("subu $sp, $sp, 4");
+                // saving old frame pointer on stack
+                CodeBuffer::instance().emit("sw $fp, ($sp)");
+                //preparing stack for the return address section
+                CodeBuffer::instance().emit("subu $sp, $sp, 4");
+                //saving return address on stack
+                CodeBuffer::instance().emit("sw $ra, ($sp)");
+                //end of pre-call, now we prepare the stack for jumping to the called function
+                //make fp point to where sp points
+                CodeBuffer::instance().emit("move $fp, $sp");
+                //subtract one word so that sp would be one place bellow the beginning of the caller frame
+                // CodeBuffer::instance().emit("subu $fp, $fp, 4"); //sn- we said the head wull alwase point to the last storaged date
+                //handle cases
+                if (($1)->name == "main") {
+                     CodeBuffer::instance().emit("jal " + ($1)->name);
+                } else {
+                     CodeBuffer::instance().emit("jal _" + ($1)->name);
+                }
+                //post-call
+                //load return address from stack to ra register
+                CodeBuffer::instance().emit("lw $ra, ($sp)");
+                //fold stack (fold ra spot)
+                CodeBuffer::instance().emit("addu $sp, $sp, 4");
+                //load old (saved on stack) fp to fp
+                CodeBuffer::instance().emit("lw $fp, ($sp)");
+                //folding up one spot
+                CodeBuffer::instance().emit("addu $sp, $sp, 4");
+                //folding saved registers section
+                for (int i=0;i<NUM_OF_TEMP_REGS;i++) //shani2: change to 0 see rule above
+                {
+                    //if used reg - save its value on stack
+                    if (!(AvailRegs[i]))
+                    {
+                        CodeBuffer::instance().emit("lw " + regToString(TempReg(i)) + ", ($sp)");
+                        CodeBuffer::instance().emit("addu $sp, $sp, 4"); //shani2: was subu!
+                        //returnTempReg(TempReg(i));
+                    }
+                }
+
+                //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
+                //to a new register which will be saved
+                if (f->return_type != TYPE_VOID) {
+                        ($$)->reg = getAvailReg();
+                        CodeBuffer::instance().emit("move " + regToString(($$)->reg) + ", $v0");
+                    }
+            }
+            ;
 
 ExpList : Exp {
             //*rach*
@@ -1298,7 +1298,7 @@ Exp : LPAREN Exp RPAREN{
             tempID->size = IdVariable->size;
             tempID->name = IdVariable->name;
             tempID->reg = getAvailReg();
-            int offset = 4 + (IdVariable->f_offset)*4;
+            int offset = (IdVariable->f_offset)*4;
             if (IdVariable->type == TYPE_STRUCTID){
                 //load the *address* of the start of the struct in the stuct to the temp reg
                 CodeBuffer::instance().emit("subu " + regToString(tempID->reg) + ", $fp, " + intToString(offset)); //stuck is growing towrards the lower address
@@ -1351,7 +1351,7 @@ Exp : LPAREN Exp RPAREN{
             ExpNode* tempIDID = new ExpNode("");
             tempIDID->type = field->type;
             tempIDID->size = ($1)->size;
-            int struct_offset = -(4 + (sType->f_offset)*4); //struct_offset($fp) is the place of the start of the struct fields in the stuck //sn
+            int struct_offset = -((sType->f_offset)*4); //struct_offset($fp) is the place of the start of the struct fields in the stuck //sn
             int field_offset = struct_offset - (field->relative_offset)*4;
             //buffer: "lw id_reg, field_offset($fp)" - load the field value to the ID temp buffer
             CodeBuffer::instance().emit("lw " + regToString(tempIDID->reg) + " , " + intToString(field_offset) + "($fp)");
@@ -1568,14 +1568,14 @@ Exp : LPAREN Exp RPAREN{
         // exp = exp1 > exp2
         //in buffer: bgt exp1, exp2, ___ (true lable)
         //            ___(false lable)
-        if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
+        if (($1)->type == TYPE_BYTE && ($3)->type == TYPE_BYTE) // compare between bytes //one of them was !=
             (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgtu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
         else //regular comapare
             (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-        returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
-        returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
-        (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 <=exp2 goto___ (false lable)  //shani1 - place changed, we want to return registers before we hump to another place in the code
-        $$ = tempEx1;
+            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+            (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 <=exp2 goto___ (false lable)  //shani1 - place changed, we want to return registers before we hump to another place in the code
+             $$ = tempEx1;
        }
         | Exp SMALLER Exp{
             if ((($1)->type != TYPE_INT && ($1)->type != TYPE_BYTE) || (($3)->type != TYPE_BYTE && ($3)->type != TYPE_INT)){
@@ -1590,13 +1590,12 @@ Exp : LPAREN Exp RPAREN{
             tempEx1->reg = NONE; //no temp reg yet
             // exp = exp1 < exp2
             //in buffer: blt exp1, exp2, ___ (true lable)
-            //            ___(false lable)
-            if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
+            //                    ___(false lable)
+            if (($1)->type == TYPE_BYTE && ($3)->type == TYPE_BYTE) // compare between bytes shani2 : one of them was !=
                 (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bltu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
                 (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("blt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            //returnTempReg((dynamic_cast<ExpNode*>$1)->reg);   //rach1: i think we need to pass the reg to $$, see line bellow
-            tempEx1->reg = ($1)->reg;
+            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 => exp2 goto___ (false lable) //shani1 - we want to change registers before we jump to another place in the code
             $$ = tempEx1;
@@ -1615,7 +1614,7 @@ Exp : LPAREN Exp RPAREN{
             // exp = exp1 <= exp2
             //in buffer: ble exp1, exp2, ___ (true lable)
             //            ___(false lable)
-            if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
+            if (($1)->type == TYPE_BYTE && ($3)->type == TYPE_BYTE) // compare between bytes //shani2 one of them was !=
             (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bleu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
             (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("ble "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
@@ -1638,7 +1637,7 @@ Exp : LPAREN Exp RPAREN{
             // exp = exp1 => exp2
             //in buffer: bge exp1, exp2, ___ (true lable)
             //            ___(false lable)
-            if (($1)->type == TYPE_BYTE && ($2)->type != TYPE_BYTE) // compare between bytes
+            if (($1)->type == TYPE_BYTE && ($3)->type == TYPE_BYTE) // compare between bytes //one of them was !=
             (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgeu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
             (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bge "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
@@ -1679,7 +1678,7 @@ void yyerror(std::string m)
 }
 
 int main() {
-   // yydebug = 1; //todo: for debug
+    //yydebug = 1; //todo: for debug
     SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);
@@ -1825,7 +1824,7 @@ void closeScope(){
     }
     CodeBuffer::instance().emit("addu $sp, $sp, " + intToString(size_of_vars));
 
-}*/ //shani1: rachli, did you write this code?
+}*/
 
 /*void closeScope() {
 
@@ -1911,13 +1910,12 @@ void storeVariable(TempReg reg, int offset, int size) {
 
 
 void evaluateBoolean(ExpNode* exp) {
-    if (exp->reg == NONE)
-        exp->reg = getAvailReg();
-    //cout<<"here--------------------------------------------"<<endl; //debug
-    CodeBuffer::instance().bpatch(*(exp->trueList),CodeBuffer::instance().genLabel()); //true:
-    CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 1");              // li reg, 1;
-    int temp = CodeBuffer::instance().emit("j ");                                   // goto____ (label)
-    CodeBuffer::instance().bpatch(*(exp->falseList),CodeBuffer::instance().genLabel()); // false:
-    CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 0");              // li reg, 0;
-    CodeBuffer::instance().bpatch(CodeBuffer::makelist(temp),CodeBuffer::instance().genLabel()); //(label)
+        if (exp->reg == NONE)
+            exp->reg = getAvailReg();
+        CodeBuffer::instance().bpatch(*(exp->trueList),CodeBuffer::instance().genLabel()); //true:
+        CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 1");              // li reg, 1;
+        int temp = CodeBuffer::instance().emit("j ");                                   // goto____ (label)
+        CodeBuffer::instance().bpatch(*(exp->falseList),CodeBuffer::instance().genLabel()); // false:
+        CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 0");              // li reg, 0;
+        CodeBuffer::instance().bpatch(CodeBuffer::makelist(temp),CodeBuffer::instance().genLabel()); //(label)
 }
