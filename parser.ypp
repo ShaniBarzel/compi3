@@ -98,7 +98,7 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
         temp1->return_type = ($1)->type; //passed from marker
         $$ = temp1;
         //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
-        //closeScope();
+        closeScope();
         //return the current scope to be the outer scope
         SymbolTable* parent = current_scope_table->getParent();
         delete(current_scope_table);
@@ -189,7 +189,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
                 CodeBuffer::instance().emit(".ent main");//shani
                 CodeBuffer::instance().emit("main:");/*rach*/
                 CodeBuffer::instance().emit("move $fp, $sp");
-                //CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it
+                CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it rach92 @
 
                 //emits code for regular function declaration
                 //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
@@ -198,7 +198,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
                 CodeBuffer::instance().emit(".globl "+func_label);//shani
                 CodeBuffer::instance().emit(".ent "+func_label);//shani
                 CodeBuffer::instance().emit(func_label + ":");
-                CodeBuffer::instance().emit("move $fp, $sp"); //shani: was in comment and at the wrong place
+                //CodeBuffer::instance().emit("move $fp, $sp"); //shani: was in comment and at the wrong place  rach92 @
                 }
             }
             ;
@@ -382,12 +382,15 @@ Statements : Statement{
                     StatementsNode* new_node = new StatementsNode();
                     (new_node->breakList) = (dynamic_cast<StatementNode*>($1)->breakList);
                     (new_node->returnList) = (dynamic_cast<StatementNode*>($1)->returnList);
+                    (new_node->nextList) = (dynamic_cast<StatementNode*>($1)->nextList);    //rach92
                     $$ = new_node;
             }
             | Statement Statements{
                     StatementsNode* new_node = new StatementsNode();
                     *(new_node->breakList) = CodeBuffer::merge(*((dynamic_cast<StatementNode*>($1))->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
                     *(new_node->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->returnList), *(dynamic_cast<StatementsNode*>($2)->returnList));
+                    *(new_node->nextList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->nextList), *(dynamic_cast<StatementsNode*>($2)->nextList));//rach92
+
                     $$ = new_node;
             }
 ;
@@ -395,7 +398,7 @@ Statements : Statement{
 Statement : LBRACE ML Statements RBRACE
                 {
                         //this function does all the things we were asked to do in page 6 when closing a scope. see function ducomentation for more details
-                        // closeScope();
+                        closeScope();
                         //return the current scope to be the outer scope
                         SymbolTable* parent = current_scope_table->getParent();
                 delete(current_scope_table);
@@ -677,14 +680,14 @@ Statement : LBRACE ML Statements RBRACE
                 CodeBuffer::instance().emit("move $v0, " + regToString(($2)->reg));
                 returnTempReg($2->reg);
                 StatementNode* tempSt12 = new StatementNode();
-                //*(dynamic_cast<ExpNode*>($$)->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); shani: caused sigfault, this is why we use tempSt12!
-                // (tempSt12->returnList)->push_back(CodeBuffer::instance().emit("j ")); //shani: t2 falls here, j without backpatch //shani1 couldnt finr "return list" in the tutorials, explain
-                CodeBuffer::instance().emit("move $sp, $fp"); //shani1 was  missing, fixed missing j in t2
-                CodeBuffer::instance().emit("jr $ra");      //shani1 was missing, fixed missing j in t2
+                *(tempSt12->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani: caused sigfault, this is why we use tempSt12!
+                //*(tempSt12->returnList)->push_back(CodeBuffer::instance().emit("j ")); //shani: t2 falls here, j without backpatch //shani1 couldnt finr "return list" in the tutorials, explain
+                //CodeBuffer::instance().emit("move $sp, $fp"); //shani1 was  missing, fixed missing j in t2
+                //CodeBuffer::instance().emit("jr $ra");      //shani1 was missing, fixed missing j in t2
                 $$=tempSt12;
                 }
         | M4 M Statement{
-                // closeScope();
+                closeScope();
                 SymbolTable* current_parent = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = current_parent;
@@ -742,8 +745,9 @@ Statement : LBRACE ML Statements RBRACE
                  CodeBuffer::instance().bpatch(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList)), CodeBuffer::instance().genLabel());
 
                 StatementNode* tempSt2 = new StatementNode();
-                //*(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($9)->returnList);
+                *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($9)->returnList);
                 *(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani1 ##
+                closeScope();
                  SymbolTable* p = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = p;
@@ -790,7 +794,7 @@ M4  :  IF LPAREN Exp RPAREN {
             current_scope_table = new_table;
             offsets.push(offsets.top());
             $$=dynamic_cast<ExpNode*>($3); //shani
-        }
+        };
     //marker ElseMarker
 ElseMarker  :  /*epsilon*/
             {
@@ -815,7 +819,7 @@ ElseMarker  :  /*epsilon*/
             }
             M Statement{
                     //M's quad holds the label we want to jump to (the "j" was emitted above when N was derived)
-                    // closeScope();
+                    closeScope();
                     SymbolTable* p = current_scope_table->getParent();
                     delete(current_scope_table);
                     current_scope_table = p;
@@ -832,7 +836,7 @@ ElseMarker  :  /*epsilon*/
                     $$=tempEM2;
             }
             %prec ELSE
-
+;
 Call : ID LPAREN ExpList RPAREN  {
                 //check that function's name isn't "main", else error
 
@@ -923,7 +927,7 @@ Call : ID LPAREN ExpList RPAREN  {
                 //make fp point to where sp points
                 CodeBuffer::instance().emit("move $fp, $sp");
                 //subtract one word so that sp would be one place bellow the beginning of the caller frame
-                // CodeBuffer::instance().emit("subu $fp, $fp, 4"); //sn- we said the head wull alwase point to the last storaged date
+                CodeBuffer::instance().emit("subu $fp, $fp, 4"); //sn- we said the head wull alwase point to the last storaged date rach92: please see lines "rach92 @" - I changed them accordingly. This is one of the things that made t1 work - otherwise the print function (int t1) doesn't receive the right parameter (on stack) (receives "false" in both calls)
                 //handle cases
                 if (($1)->name == "main") {
                     CodeBuffer::instance().emit("jal " + ($1)->name);
@@ -950,7 +954,7 @@ Call : ID LPAREN ExpList RPAREN  {
                 CodeBuffer::instance().emit("addu $sp, $sp, 4");
 
                 //folding saved registers section
-                for (int i=NUM_OF_TEMP_REGS;i!=0;i--) //shani: it was 10, not 0, why? *rach* because we need only $S0-$S7 //shani2: not true. test 2, we save "i" in t(num) and it wont be restored after the return frim the function fib + changed to reverse
+                for (int i=NUM_OF_TEMP_REGS-1;i!=0;i--) //shani: it was 10, not 0, why? *rach* because we need only $S0-$S7 //shani2: not true. test 2, we save "i" in t(num) and it wont be restored after the return frim the function fib + changed to reverse
                 {
                     //if used reg - save its value on stack
                     if (!(AvailRegs[i]))
@@ -959,7 +963,10 @@ Call : ID LPAREN ExpList RPAREN  {
                         CodeBuffer::instance().emit("addu $sp, $sp, 4"); //shani2: was subu! this is why i got confused
                     }
                 }
-
+                //rach92 changed to reverse + switched places with if bellow
+                for (std::vector<ExpNode*>::reverse_iterator it = expList->rbegin(); it != expList->rend(); ++it){
+                    returnTempReg((*it)->reg);
+                }
                 //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
                 //to a new register which will be saved
                 if (f->return_type != TYPE_VOID) {
@@ -967,9 +974,6 @@ Call : ID LPAREN ExpList RPAREN  {
                     CodeBuffer::instance().emit("move " + regToString(($$)->reg) + ", $v0");
                 }
 
-                for (std::vector<ExpNode*>::iterator it = expList->begin(); it != expList->end(); ++it){
-                    returnTempReg((*it)->reg);
-                }
               }
             | ID LPAREN RPAREN
              {
@@ -1135,8 +1139,6 @@ ML :  { /* epsilon */
 };
 
 Exp : LPAREN Exp RPAREN{
-        if (($2)->type == TYPE_BOOL) //shani1 - was missing
-            evaluateBoolean(dynamic_cast<ExpNode*>($2)); //shani1 - was missing
         ExpNode* Exp = new ExpNode("");
         Exp = dynamic_cast<ExpNode*>($2);
         $$ = Exp;
@@ -1309,7 +1311,7 @@ Exp : LPAREN Exp RPAREN{
             }
 
             //if the id value is bool handle it now. it is forbidden to store boolean variables in tmp regs
-            if ((dynamic_cast<IdNode*>($1))->type == TYPE_BOOL){
+            if (tempID->type == TYPE_BOOL){
                 //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempID->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
@@ -1459,7 +1461,8 @@ Exp : LPAREN Exp RPAREN{
             tempE5->name = "false";
             tempE5->reg = NONE;
             //*rach*
-            *(tempE5->trueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani: was"j" - missing space
+                    //rach92 was trueList! this is one of the things that made t1 work (among the lines I marked with "rach92 @")
+            *(tempE5->falseList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani: was"j" - missing space
             /*when we will no what supposed to happend (which code part should be running) when this exp is false,
              we will backpatch the address of the code to the empty space in the goto__ */
             //tempE5->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
@@ -1740,7 +1743,7 @@ int main() {
         exit(0);
     }
 
-   //closeScope(); //shani was not in comment
+   closeScope(); //shani was not in comment
    delete(temp_table);
     CodeBuffer::instance().printCodeBuffer();
     CodeBuffer::instance().printDataBuffer();
@@ -1808,24 +1811,24 @@ std::vector<std::string>* declToStrings(std::vector<FormalDeclNode*>* decl)
     }
     return res;
 }
-/*/
+
 //*rach* //shani1 - please explain how to use it. what if we want to get to avariable in the stuck?
 void closeScope(){
     //this will contain the size of the variables in the current scope
     int size_of_vars = 0;
-    for (std::vector<TableEntry *>::const_iterator it = scope_table->begin();
-         it != scope_table->end(); ++it)
+    for (std::vector<TableEntry *>::const_iterator it = current_scope_table->scope_table->begin();
+         it != current_scope_table->scope_table->end(); ++it)
     {
         //if current iterator points to a variable
         if ((*it)->type != TYPE_FUNC && (*it)->type != TYPE_STRUCTID && (*it)->type != TYPE_STRUCT)
         {
-            size_of_vars += 4*(*it)->size;
+            if ((*it)->offset >= 0)
+                size_of_vars += 4*(*it)->size;
         }
     }
     CodeBuffer::instance().emit("addu $sp, $sp, " + intToString(size_of_vars));
 
-}*/
-
+}
 /*void closeScope() {
 
     //for all arguments in the scope table, print them
