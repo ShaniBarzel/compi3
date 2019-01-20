@@ -1783,7 +1783,7 @@ std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec){
     std::vector<string>* s_vec = new std::vector<string>();
 
     for(int i=0; i< t_vec.size(); i++){
-       s_vec->push_back(typeToString(t_vec[i]));
+        s_vec->push_back(typeToString(t_vec[i]));
     }
 
     return s_vec;
