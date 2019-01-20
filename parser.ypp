@@ -189,7 +189,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
                 CodeBuffer::instance().emit(".ent main");//shani
                 CodeBuffer::instance().emit("main:");/*rach*/
                 CodeBuffer::instance().emit("move $fp, $sp");
-                CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it rach92 yes we do
+               // CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it rach92 yes we do
 
                 //emits code for regular function declaration
                 //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
@@ -253,7 +253,7 @@ M2 : STRUCT ID LBRACE StructMemList{
 
         //the updating offset of the fields in the struct
         int current_offset = offsets.top();
-        int current_f_offset = frame_offsets.top();//sn
+        int current_f_offset = frame_offsets.top();
         int relative_offset = 0;
         int size = 0;
         //saving a reference to "fields list" field of the struct defined
@@ -402,10 +402,10 @@ Statement : LBRACE ML Statements RBRACE
         }
         | Type ID SC{
             int offset = offsets.top();
-            int frame_offset = frame_offsets.top(); //sn
+            int frame_offset = frame_offsets.top();
             frame_offsets.pop(); //sn
             offsets.pop();
-            if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset))){
+            if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset+1))){ //shani5 here
                 // Id already defined
                 errorDef(yylineno,($2)->name);
                 exit(0);
@@ -419,10 +419,10 @@ Statement : LBRACE ML Statements RBRACE
          }
         | StructType SC {
                 int offset = offsets.top();
-                int frame_offset = frame_offsets.top(); //sn
+                int frame_offset = frame_offsets.top();
                 frame_offsets.pop();//sn
                 offsets.pop();
-                if (!(current_scope_table->insertStructTypeEntry(($1)->name, (dynamic_cast<StructTypeNode*>($1))->structName,TYPE_STRUCTID,$1->size,offset,frame_offset))){
+                if (!(current_scope_table->insertStructTypeEntry(($1)->name, (dynamic_cast<StructTypeNode*>($1))->structName,TYPE_STRUCTID,$1->size,offset,frame_offset+1))){ //shani 5
                     // Id already defined
                     errorDef(yylineno,($1)->name);
                     exit(0);
@@ -438,10 +438,9 @@ Statement : LBRACE ML Statements RBRACE
         | Type ID ASSIGN Exp SC{
             int offset = offsets.top();
             offsets.pop();
-            int frame_offset = frame_offsets.top();//sn
-            //   cout<<"-----------"<<frame_offset<<endl;
+            int frame_offset = frame_offsets.top() ;
             frame_offsets.pop();//sn
-            if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset))){
+            if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset+1))){ //shani5
                 // Id already defined
                 errorDef(yylineno,($2)->name);
                 exit(0);
@@ -484,9 +483,9 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 int offset = offsets.top();
                 offsets.pop();
-                int frame_offset = frame_offsets.top();//sn
+                int frame_offset = frame_offsets.top();
                 frame_offsets.pop();//sn
-                if (!(current_scope_table->insertStructTypeEntry(temp11->name, temp11->structName,TYPE_STRUCTID,temp11->size,offset,frame_offset))){
+                if (!(current_scope_table->insertStructTypeEntry(temp11->name, temp11->structName,TYPE_STRUCTID,temp11->size,offset,frame_offset+1))){ //shani5
                     // Id already defined
                     errorDef(yylineno,($1)->name);
                     exit(0);
@@ -689,7 +688,7 @@ Statement : LBRACE ML Statements RBRACE
                 StatementNode* tempSt12 = new StatementNode();
                 *(tempSt12->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani: caused sigfault, this is why we use tempSt12!
                 //*(tempSt12->returnList)->push_back(CodeBuffer::instance().emit("j ")); //shani: t2 falls here, j without backpatch //shani1 couldnt finr "return list" in the tutorials, explain
-                //CodeBuffer::instance().emit("move $sp, $fp"); //shani1 was  missing, fixed missing j in t2
+               //CodeBuffer::instance().emit("move $sp, $fp"); //shani1 was  missing, fixed missing j in t2
                 //CodeBuffer::instance().emit("jr $ra");      //shani1 was missing, fixed missing j in t2
                 $$=tempSt12;
             }
@@ -955,7 +954,7 @@ Call : ID LPAREN ExpList RPAREN  {
             CodeBuffer::instance().emit("addu $sp, $sp, 4");
 
             //folding saved registers section
-            for (int i=NUM_OF_TEMP_REGS;i!=0;i--) //shani: it was 10, not 0, why? *rach* because we need only $S0-$S7 //shani2: not true. test 2, we save "i" in t(num) and it wont be restored after the return frim the function fib + changed to reverse
+            for (int i=NUM_OF_TEMP_REGS-1;i!=-1;i--) //shani5:changed to -1
             {
                 //if used reg - save its value on stack
                 if (!(AvailRegs[i]))
@@ -972,7 +971,7 @@ Call : ID LPAREN ExpList RPAREN  {
             //to a new register which will be saved
             if (f->return_type != TYPE_VOID) {
                 ($$)->reg = getAvailReg();
-                CodeBuffer::instance().emit("move " + regToString(($$)->reg) + ", $v0");
+               // CodeBuffer::instance().emit("move " + regToString(($$)->reg) + ", $v0"); already done in call
             }
 
       }
@@ -1001,7 +1000,7 @@ Call : ID LPAREN ExpList RPAREN  {
             $$ = tempC;
 
             //preparing stack for saved registers sections $S0-$S7
-            for (int i=NUM_OF_TEMP_REGS;i!=0;i--) //shani2: change to 0 see rule above + changed to reverse
+            for (int i=NUM_OF_TEMP_REGS-1;i!=-1;i--) //shani2: change to 0 see rule above + changed to reverse shani5: change to -1, fix test23
             {
                 //if used reg - save its value on stack
                 if (!(AvailRegs[i])){
@@ -1056,7 +1055,7 @@ Call : ID LPAREN ExpList RPAREN  {
             //to a new register which will be saved
             if (f->return_type != TYPE_VOID) {
                 ($$)->reg = getAvailReg();
-                CodeBuffer::instance().emit("move " + regToString(($$)->reg) + ", $v0");
+               // CodeBuffer::instance().emit("move " + regToString(($$)->reg) + ", $v0"); shani5 alredy done in call
             }
 } ;
 
