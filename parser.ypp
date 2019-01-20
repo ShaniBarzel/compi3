@@ -169,7 +169,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
                         vars_frame_offset = vars_frame_offset - (*it)->size;  //reguler var- after insertion
                     }
                     else{ //arg type is struct id
-                        vars_frame_offset = vars_frame_offset - (*it)->size; //struect var - before insertion
+                        vars_frame_offset = vars_frame_offset - (*it)->size +1; //struect var - before insertion //shani5 iadded +1
                         if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size,ParamOffset, vars_frame_offset))) //shani3 var_frame_offset was ParamFrOffset
                         {
                                 //there is already a variable with the parameter's name
