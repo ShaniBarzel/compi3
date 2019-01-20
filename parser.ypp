@@ -32,7 +32,7 @@ bool main_def = false;
 void printStructTypeHelp(const string& name, std::vector<StructMemNode*>* fields);
 std::vector<string>* TypeVecToString(std::vector<typeName>& t_vec);
 std::string typeToString(typeName type);
-//void closeScope();
+void closeScope();
 std::vector<typeName>* declToTypes(std::vector<FormalDeclNode*> decls);
 std::vector<bool> AvailRegs(NONE,true); //init all register to be free to use
 TempReg getAvailReg();
@@ -98,7 +98,7 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
         temp1->return_type = ($1)->type; //passed from marker
         $$ = temp1;
         //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
-       // closeScope(); //shani4 - was not in comment
+        //closeScope(); //shani4 - was not in comment
         //return the current scope to be the outer scope
         SymbolTable* parent = current_scope_table->getParent();
         delete(current_scope_table);
@@ -189,7 +189,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
                 CodeBuffer::instance().emit(".ent main");//shani
                 CodeBuffer::instance().emit("main:");/*rach*/
                 CodeBuffer::instance().emit("move $fp, $sp");
-                //CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it
+                CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it rach92 yes we do
 
                 //emits code for regular function declaration
                 //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
@@ -388,7 +388,7 @@ Statements : Statement{
 Statement : LBRACE ML Statements RBRACE
         {
              //this function does all the things we were asked to do in page 6 when closing a scope. see function ducomentation for more details
-             //closeScope(); /shani3 was not in error
+             //closeScope(); //shani3 was not in error
             //return the current scope to be the outer scope
             SymbolTable* parent = current_scope_table->getParent();
             delete(current_scope_table);
@@ -694,7 +694,7 @@ Statement : LBRACE ML Statements RBRACE
                 $$=tempSt12;
             }
          | M4 M Statement{
-              //  closeScope();
+                //closeScope();
                 SymbolTable* current_parent = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = current_parent;
@@ -753,7 +753,7 @@ Statement : LBRACE ML Statements RBRACE
                 StatementNode* tempSt2 = new StatementNode();
                 *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($9)->returnList);
                 //*(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani1 ##
-             //   closeScope();
+                //closeScope();
                 SymbolTable* p = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = p;
@@ -822,7 +822,7 @@ ElseMarker  :  /*epsilon*/  {
                 }
         M Statement{
                 //M's quad holds the label we want to jump to (the "j" was emitted above when N was derived)
-             //   closeScope();
+                //closeScope();
                 SymbolTable* p = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = p;
@@ -1514,6 +1514,7 @@ Exp : LPAREN Exp RPAREN{
             *((tempEx3)->trueList) = CodeBuffer::merge(*((dynamic_cast<ExpNode*>$1)->trueList),*((dynamic_cast<ExpNode*>$4)->trueList));
             //if exp2 is false then goto the exp false lable
             *((tempEx3)->falseList) = *((dynamic_cast<ExpNode*>$4)->falseList);
+
             $$ = tempEx3;
         }
         | Exp EQUAL Exp{
@@ -1738,7 +1739,7 @@ int main() {
         exit(0);
     }
 
-   // closeScope(); //shani was not in comment
+    //closeScope(); //shani was not in comment
     delete(temp_table);
     CodeBuffer::instance().printCodeBuffer();
     CodeBuffer::instance().printDataBuffer();
@@ -1806,7 +1807,7 @@ std::vector<std::string>* declToStrings(std::vector<FormalDeclNode*>* decl)
     }
     return res;
 }
-/*
+
 //*rach* //shani1 - please explain how to use it. what if we want to get to avariable in the stuck?
 void closeScope(){
     //this will contain the size of the variables in the current scope
@@ -1824,7 +1825,7 @@ void closeScope(){
     CodeBuffer::instance().emit("addu $sp, $sp, " + intToString(size_of_vars));
 
 }
-*/
+
 // this function both finds the first avail register and marks it as used
 TempReg getAvailReg(){
     for(int i=0; i< NUM_OF_TEMP_REGS; i++){
