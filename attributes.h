@@ -58,7 +58,7 @@ public:
     //std::vector<int>* breakList;
 
     Node() : size(0), name(), type(), yytext_array(), err(false), line_num(0){};
-    Node(char* yytext_a) : size(0),yytext_array(yytext_a),err(false),line_num(0){
+    Node(char* yytext_a) : size(0),yytext_array(yytext_a),err(false),line_num(0),reg(NONE){ //shani6 reg none init - very inportent!
         if (yytext_a)
             name = std::string(yytext_a);
     };

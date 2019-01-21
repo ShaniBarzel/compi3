@@ -176,6 +176,7 @@ M1 : RetType ID LPAREN Formals RPAREN {
                                 errorDef(yylineno,(*it)->name);
                                 exit(0);
                         }
+                        vars_frame_offset = vars_frame_offset - 1;  //shani6 - in video
 
                     }
                     f->declaration_list->push_back(*it);
@@ -372,13 +373,13 @@ FormalsList : FormalDecl {
         //no semantics needed
 Statements : Statement{
             StatementsNode* new_node = new StatementsNode();
-            (new_node->breakList) = (dynamic_cast<StatementNode*>($1)->breakList);
-            (new_node->returnList) = (dynamic_cast<StatementNode*>($1)->returnList);
+           *(new_node->breakList) = *(dynamic_cast<StatementNode*>($1)->breakList); //shani6 was missing dereferences
+            *(new_node->returnList) = *(dynamic_cast<StatementNode*>($1)->returnList); //shani6 was missing dereferences
             $$ = new_node;
         }
         | Statement Statements{
                 StatementsNode* new_node = new StatementsNode();
-                *(new_node->breakList) = CodeBuffer::merge(*((dynamic_cast<StatementNode*>($1))->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
+                *(new_node->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
                 *(new_node->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->returnList), *(dynamic_cast<StatementsNode*>($2)->returnList));
 
                 $$ = new_node;
@@ -405,7 +406,7 @@ Statement : LBRACE ML Statements RBRACE
             int frame_offset = frame_offsets.top();
             frame_offsets.pop(); //sn
             offsets.pop();
-            if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset+1))){ //shani5 here
+            if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset+1))){
                 // Id already defined
                 errorDef(yylineno,($2)->name);
                 exit(0);
@@ -439,8 +440,8 @@ Statement : LBRACE ML Statements RBRACE
             int offset = offsets.top();
             offsets.pop();
             int frame_offset = frame_offsets.top() ;
-            frame_offsets.pop();//sn
-            if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset+1))){ //shani5
+            frame_offsets.pop();
+            if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset+1))){
                 // Id already defined
                 errorDef(yylineno,($2)->name);
                 exit(0);
@@ -459,12 +460,13 @@ Statement : LBRACE ML Statements RBRACE
                  evaluateBoolean(dynamic_cast<ExpNode*>($4));
             }
             freeUpSpaceStack(1); // subu $sw, $sw, 4
-            TempReg expReg = dynamic_cast<ExpNode*>($4)->reg;
+            TempReg expReg =($4)->reg;
             CodeBuffer::instance().emit("sw " + regToString(expReg) + ", ($sp)");
             //free up reg
             returnTempReg(expReg);
             //set reg to none
-            dynamic_cast<ExpNode*>($4)->reg = NONE;
+            ($4)->reg = NONE;
+
             StatementNode* tempSt6 = new StatementNode();
             $$=tempSt6;
         }
@@ -476,7 +478,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 StructTypeNode* temp11 = new StructTypeNode("");
                 temp11=dynamic_cast<StructTypeNode*>($1);
-                if ((dynamic_cast<StructTypeNode*>($3))->structName != temp11->structName){
+                if ((dynamic_cast<ExpNode*>($3))->s_name != temp11->structName){ //shani6: was (dynamic_cast<StrucTypeNode*>($3))->structName. yet $3 is coming from expNode. we cannot cast it to anything other then exp because we did "new ExpNode" in the rule code
                     // exp is not the same structType type
                     errorMismatch(yylineno);
                     exit(0);
@@ -499,7 +501,7 @@ Statement : LBRACE ML Statements RBRACE
                 //int expOffset = (dynamic_cast<StructTypeNode*>($3))->f_offset; //sn offset->frame_offset
                 //get to the start of the struct in the stuck by "fp + struct offset"
                 CodeBuffer::instance().emit("subu " + dest_reg_s + ", $fp, " + intToString(4*(frame_offset))); //shani4: was frame_offset+1
-                for (int i = 0; i < (dynamic_cast<StructTypeNode*>($3))->size; i++ ) {
+                for (int i = 0; i < ($3)->size; i++ ) { //shani6 was dynamic cast to StructTypeNode
                     CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", ("+ dest_reg_s +")"); //copy from stuct to temp reg
                     CodeBuffer::instance().emit("subu $sp, $sp, 4"); //expand the stuck
                     CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", ($sp)");//store the fieled value - was shani4: $sp instead of ($sp)
@@ -650,7 +652,7 @@ Statement : LBRACE ML Statements RBRACE
                    // returnTempReg($1->reg);//shani - call has no temp reg
                     StatementNode* tempSt9 = new StatementNode();
                     $$=tempSt9;
-           }
+        }
 
         | RETURN SC{
                 //get current function scope
@@ -708,7 +710,7 @@ Statement : LBRACE ML Statements RBRACE
                 CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->trueList), (dynamic_cast<MNode*>($2))->quad);
                 StatementNode* tempSt13 = new StatementNode();
                 $$=tempSt13;
-                }
+           }
           ElseMarker{
                 //we jump to else if the expression evaluates to false
                 CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->falseList), dynamic_cast<ElseMarkerNode*>($5)->quad);
@@ -804,7 +806,7 @@ ElseMarker  :  /*epsilon*/  {
             //so we only need to set its next list to a new list containing the jump instruction
             //and set its quad to some fresh label
             ElseMarkerNode* tempEM = new ElseMarkerNode();
-            *(tempEM->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+            *(tempEM->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani6
             tempEM->quad = CodeBuffer::instance().genLabel();
             $$=tempEM;
         }
@@ -815,7 +817,7 @@ ElseMarker  :  /*epsilon*/  {
                 //information on N, M is in their rules
 
                 {
-                        SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
+                SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
                 current_scope_table = new_scope_table;
                 offsets.push(offsets.top());
                 }
@@ -1317,6 +1319,7 @@ Exp : LPAREN Exp RPAREN{
             }
             $$ = tempID;
           }
+
         | ID PERIOD ID{
             //check if $1 is struct name and $3 is its field
             TableEntryStructType* sType = new TableEntryStructType();
@@ -1740,8 +1743,9 @@ int main() {
 
     //closeScope(); //shani was not in comment
     delete(temp_table);
-    CodeBuffer::instance().printCodeBuffer();
     CodeBuffer::instance().printDataBuffer();
+    CodeBuffer::instance().printCodeBuffer();
+
 }
 
 //=======================================================CPP HELP FUNCTIONS=====================================================================
