@@ -1478,11 +1478,11 @@ Exp : LPAREN Exp RPAREN{
                 ExpNode* tempEx5 = new ExpNode("");
                 tempEx5->type = TYPE_BOOL;
                 tempEx5->size = 1; //bool size is 1
-                tempEx5->reg = NONE;
+                tempEx5->reg = ($2)->reg;
                 //exp = not exp1 --> exp false list is exp1 true list. exp false list is exp1 true list.
-                std::vector<int> tmpList = *((tempEx5)->trueList);
+                //std::vector<int> tmpList = *((tempEx5)->trueList);        //rach92fix what is this for?
                 *((tempEx5)->trueList) = *((dynamic_cast<ExpNode*>$2)->falseList);
-                *((tempEx5)->falseList) = tmpList;
+                *((tempEx5)->falseList) = *((dynamic_cast<ExpNode*>$2)->trueList);  //rach92fix
                 $$=tempEx5;
         }
         | Exp AND M Exp{
