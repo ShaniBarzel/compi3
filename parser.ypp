@@ -976,10 +976,11 @@ Call : ID LPAREN ExpList RPAREN  {
                     CodeBuffer::instance().emit("addu $sp, $sp, 4"); //shani2: was subu! this is why i got confused
                 }
             }
+            //rach92fix : the loop bellow should't be here (resets used registers holding the function's parameters
             //rach92 changed to reverse + switched places with if bellow
-            for (std::vector<ExpNode*>::reverse_iterator it = expList->rbegin(); it != expList->rend(); ++it){
+          /* for (std::vector<ExpNode*>::reverse_iterator it = expList->rbegin(); it != expList->rend(); ++it){
                 returnTempReg((*it)->reg);
-            }
+            }*/
             //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
             //to a new register which will be saved
             if (f->return_type != TYPE_VOID) {
@@ -1311,17 +1312,20 @@ Exp : LPAREN Exp RPAREN{
             }
 
             //if the id value is bool handle it now. it is forbidden to store boolean variables in tmp regs
-            else if (tempID->type == TYPE_BOOL){
-                //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
+            else
+                {
+                 if (tempID->type == TYPE_BOOL){
+                        //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempID->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
                 (tempID)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
                 std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
-                (tempID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
+                        (tempID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                 returnTempReg(tempID->reg); //we already used the return value , no need for this temp reg no more //todo: this is unreachable by assembly
                 (tempID)->reg = NONE;
-            }
+                    }
+
             //shani3: the else if was if. if was runnig also in the case the type was bool - this was the main problem pf t2
             else{
                 offset = -offset; //stuck is growing towrards the lower address
@@ -1330,6 +1334,7 @@ Exp : LPAREN Exp RPAREN{
             }
             $$ = tempID;
           }
+}
 
         | ID PERIOD ID{
             //check if $1 is struct name and $3 is its field
