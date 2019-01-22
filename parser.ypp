@@ -1,7 +1,7 @@
 %{
 /*USER DECLERATIONS*/
 //#define YYERROR_VERBOSE 1 //todo: for degbug
-#define YYDEBUG 1 //todo: for debug
+//#define YYDEBUG 1 //todo: for debug
 #include <iostream>
 #include "symtable.h"
 #include "attributes.h"
@@ -811,7 +811,8 @@ M4  :  IF LPAREN Exp RPAREN {
             $$=dynamic_cast<ExpNode*>($3); //shani
 };
 //marker ElseMarker
-ElseMarker  :  /*epsilon*/  {
+ElseMarker  :  /*epsilon*/
+    {
             //we derive this when else is false (therefore epsilon is derived)
             //so we only need to set its next list to a new list containing the jump instruction
             //and set its quad to some fresh label
@@ -1631,7 +1632,8 @@ Exp : LPAREN Exp RPAREN{
               (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bleu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
               (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("ble "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            //returnTempReg((dynamic_cast<ExpNode*>$1)->reg);//rach92fix
+            tempEx1->reg = ($1)->reg;//rach92fix
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 > exp2 goto___ (false lable) //shani1 - place changed, we want to return registers before we hump to another place in the code
             $$ = tempEx1;
@@ -1654,7 +1656,8 @@ Exp : LPAREN Exp RPAREN{
                  (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgeu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
                 (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bge "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            //returnTempReg((dynamic_cast<ExpNode*>$1)->reg);//rach92fix
+            tempEx1->reg = ($1)->reg;//rach92fix
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 < exp2 goto___ (false lable) //shani1 - place changed, we want to return registers before we hump to another place in the code
             $$ = tempEx1;
