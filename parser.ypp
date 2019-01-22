@@ -501,9 +501,10 @@ Statement : LBRACE ML Statements RBRACE
                 TempReg dest_reg = getAvailReg();
                 TempReg temp_reg = getAvailReg();
                 std:string dest_reg_s = regToString(dest_reg);
-                //int expOffset = (dynamic_cast<StructTypeNode*>($3))->f_offset; //sn offset->frame_offset
+                TableEntryStructType* entryS = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($3)->name)); //shani8 see limr 507
+                int sourceOffset = entryS->f_offset; //shani8 see line 507
                 //get to the start of the struct in the stuck by "fp + struct offset"
-                CodeBuffer::instance().emit("subu " + dest_reg_s + ", $fp, " + intToString(4*(frame_offset))); //shani4: was frame_offset+1
+                CodeBuffer::instance().emit("subu " + dest_reg_s + ", $fp, " + intToString(4*(sourceOffset))); //shani8 was currnet frame offset instead of source frame pffset
                 for (int i = 0; i < ($3)->size; i++ ) { //shani6 was dynamic cast to StructTypeNode
                     CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", ("+ dest_reg_s +")"); //copy from stuct to temp reg
                     CodeBuffer::instance().emit("subu $sp, $sp, 4"); //expand the stuck
