@@ -792,7 +792,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 StatementNode* tempSt4 = new StatementNode();
                 //we want to set the next list of the lhs of the rule to include "jump" instruction
-                *(tempSt4->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani8: this is why we need nextlist in statment
+                *(tempSt4->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani8: this is why we need nextlist in statment rach92fix2 no, we need return list here.
                 $$=tempSt4;
         }
 
