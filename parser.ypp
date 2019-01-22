@@ -574,7 +574,7 @@ Statement : LBRACE ML Statements RBRACE
                     //copy all fields of source struct to dest struct fields
                     for (int i = 0; i < entryS->size; i++ ) {
                         CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", ("+ dest_reg_s +")"); //copy from stuct to temp reg
-                        CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", -"+ intToString(4*(iterator_offset))+"($fp)");//store the fieled value - was shani4: $sp instead of ($sp)
+                        CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", "+ intToString(-4*(iterator_offset))+"($fp)");//store the fieled value - was shani4: $sp instead of ($sp) //shani7: changed to -4 instead of --x($fp)
                         CodeBuffer::instance().emit("subu "+dest_reg_s+" , 4"); //get to the next field in the copied struct
                         iterator_offset ++;
                     }
@@ -708,18 +708,21 @@ Statement : LBRACE ML Statements RBRACE
                 //we want to insert M's quad as the target label for each of the instructions on the true list of M4
                 //meaning M would be the target for when the expression in M4 is true
                 CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->trueList), (dynamic_cast<MNode*>($2))->quad);
-                StatementNode* tempSt13 = new StatementNode();
-                $$=tempSt13;
+                //StatementNode* tempSt13 = new StatementNode(); //shani7 - the rule is not over!
+                //$$=tempSt13; //shani7 - the rule is not over!
            }
-          ElseMarker{
+          ElseMarker M{ //shani7: added M
                 //we jump to else if the expression evaluates to false
                 CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->falseList), dynamic_cast<ElseMarkerNode*>($5)->quad);
-                //generating the next jump label after the else is executed
-                CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->nextList), CodeBuffer::instance().genLabel());
+                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($3)->breakList), dynamic_cast<ElseMarkerNode*>($5)->quad); //shani7 - was missing
+                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($3)->breakList), dynamic_cast<MNode*>($6)->quad); //shani7 statment1 breake target is M - label of the end of if...else section
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->breakList), dynamic_cast<MNode*>($6)->quad); //shani7 - statment2 breake target (= "ElseMarker" breake terget) is M - label of the end of if...else section
+                  //generating the next jump label after the else is executed
+               // CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->nextList), CodeBuffer::instance().genLabel()); //shani7 - no need, this is the next code in rutine, so he will automaticly comes here
                 //setting the return and break lists of the if statement to be the concatenation
                 //of the lists of statement inside if and the else block
                 StatementNode* tempSt1 = new StatementNode();
-                *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->returnList), *(dynamic_cast<ElseMarkerNode*>($5)->returnList)); //shani1: was meger elseMarkerNode with itself
+                *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->returnList), *(dynamic_cast<ElseMarkerNode*>($5)->returnList));
                 *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($3)->breakList), *(dynamic_cast<ElseMarkerNode*>($5)->breakList));
                 $$=tempSt1;
          }
@@ -806,12 +809,12 @@ ElseMarker  :  /*epsilon*/  {
             //so we only need to set its next list to a new list containing the jump instruction
             //and set its quad to some fresh label
             ElseMarkerNode* tempEM = new ElseMarkerNode();
-            *(tempEM->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani6
+            //*(tempEM->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani7
             tempEM->quad = CodeBuffer::instance().genLabel();
             $$=tempEM;
         }
         %prec IF
-        | ELSE  N
+        | ELSE  //shani 7 deleted N
                 // when we reach here N holds the new next list (containing only the jump instruction)
                 //explanation continues in the rule bellow
                 //information on N, M is in their rules
@@ -833,10 +836,10 @@ ElseMarker  :  /*epsilon*/  {
                 // of the else block between N and M is counted also,
                 //therefore $4 refers to M, $5 refers to statement
                 ElseMarkerNode* tempEM2 = new ElseMarkerNode();
-                *(tempEM2->nextList) = *(dynamic_cast<NNode*>($2)->nextList);
-                tempEM2->quad = dynamic_cast<MNode*>($4)->quad;
-                *(tempEM2->returnList) = *(dynamic_cast<StatementNode*>($5)->returnList);
-                *(tempEM2->breakList) = *(dynamic_cast<StatementNode*>($5)->breakList);
+                //*(tempEM2->nextList) = *(dynamic_cast<NNode*>($2)->nextList); //shani7
+                tempEM2->quad = dynamic_cast<MNode*>($3)->quad; //shani7 changed to $3
+                *(tempEM2->returnList) = *(dynamic_cast<StatementNode*>($4)->returnList); //shani7 changed to $4
+                *(tempEM2->breakList) = *(dynamic_cast<StatementNode*>($4)->breakList); //shani7 changed to $4
                 $$=tempEM2;
         }
         %prec ELSE
@@ -914,7 +917,7 @@ Call : ID LPAREN ExpList RPAREN  {
                         curr_offset = s_offset + i*4;
                         //save value of field on stack
                         CodeBuffer::instance().emit("subu $sp, $sp, 4");
-                        CodeBuffer::instance().emit("lw "+regToString(tmp)+", -"+ intToString(curr_offset) +"($fp)"); //shani4: this line is needed for sw instruction
+                        CodeBuffer::instance().emit("lw "+regToString(tmp)+", "+ intToString(-curr_offset) +"($fp)"); //shani4: this line is needed for sw instruction //shani7: changed to -4 instead of --x($fp)
                         CodeBuffer::instance().emit("sw "+regToString(tmp)+", ($sp)"); //shani4 : $fp was fp
                         num++;
                     }
@@ -1655,12 +1658,13 @@ M : /*epsilon*/
     MNode* new_m = new MNode(CodeBuffer::instance().genLabel());
     $$ = new_m;
 }
-
-N : /*epsilon*/
+/* shani7 - we have no use in this right now. wont compile with "useless rule"
+N : /*epsilon
 {
     NNode* new_n = new NNode(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")));
     $$ = new_n;
 }
+*/
 //shani1
 IW : /*epsilon*/
 {
@@ -1879,7 +1883,7 @@ void freeUpSpaceStack(int size) {
 
 //stores a variable saved in reg on the stack
 void storeVariable(TempReg reg, int offset, int size) {
-    CodeBuffer::instance().emit("sw " + regToString(reg) + ", -" +intToString(4*(offset)) + "($fp)");
+    CodeBuffer::instance().emit("sw " + regToString(reg) + ", " +intToString(-4*(offset)) + "($fp)"); //shani7: changed to -4 instead of --x($fp)
 }
 
 
