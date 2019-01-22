@@ -711,12 +711,12 @@ Statement : LBRACE ML Statements RBRACE
                 //StatementNode* tempSt13 = new StatementNode(); //shani7 - the rule is not over!
                 //$$=tempSt13; //shani7 - the rule is not over!
            }
-          ElseMarker M{ //shani7: added M
+          ElseMarker { //shani7: added M
                 //we jump to else if the expression evaluates to false
                 CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($1)->falseList), dynamic_cast<ElseMarkerNode*>($5)->quad);
-                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($3)->breakList), dynamic_cast<ElseMarkerNode*>($5)->quad); //shani7 - was missing
-                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($3)->breakList), dynamic_cast<MNode*>($6)->quad); //shani7 statment1 breake target is M - label of the end of if...else section
-                CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->breakList), dynamic_cast<MNode*>($6)->quad); //shani7 - statment2 breake target (= "ElseMarker" breake terget) is M - label of the end of if...else section
+                //CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($3)->breakList), dynamic_cast<ElseMarkerNode*>($5)->quad); //shani7 - was missing
+              //  CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($3)->breakList), dynamic_cast<MNode*>($6)->quad); //shani7 statment1 breake target is M - label of the end of if...else section
+                //CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->breakList), dynamic_cast<MNode*>($6)->quad); //shani7 - statment2 breake target (= "ElseMarker" breake terget) is M - label of the end of if...else section
                   //generating the next jump label after the else is executed
                // CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($5)->nextList), CodeBuffer::instance().genLabel()); //shani7 - no need, this is the next code in rutine, so he will automaticly comes here
                 //setting the return and break lists of the if statement to be the concatenation
