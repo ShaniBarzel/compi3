@@ -1478,7 +1478,7 @@ Exp : LPAREN Exp RPAREN{
                 ExpNode* tempEx5 = new ExpNode("");
                 tempEx5->type = TYPE_BOOL;
                 tempEx5->size = 1; //bool size is 1
-                tempEx5->reg = ($2)->reg;
+                tempEx5->reg = ($2)->reg;   //rach92fix
                 //exp = not exp1 --> exp false list is exp1 true list. exp false list is exp1 true list.
                 //std::vector<int> tmpList = *((tempEx5)->trueList);        //rach92fix what is this for?
                 *((tempEx5)->trueList) = *((dynamic_cast<ExpNode*>$2)->falseList);
@@ -1496,6 +1496,7 @@ Exp : LPAREN Exp RPAREN{
                 tempEx4->size = 1; //bool size is 1
                 //exp = exp1 and (lable) exp2
                 //if exp1 is true, goto label
+                tempEx4->reg = ($1)->reg; //rach92fix
                 CodeBuffer::instance().bpatch(*((dynamic_cast<ExpNode*>$1)->trueList), (dynamic_cast<MNode*>$3)->quad);
                 //if exp2 if true then go to the true lable of exp2
                 *((tempEx4)->trueList) = *((dynamic_cast<ExpNode*>$4)->trueList);
@@ -1513,6 +1514,7 @@ Exp : LPAREN Exp RPAREN{
             tempEx3->type = TYPE_BOOL;
             tempEx3->size = 1; //bool size is 1
             //exp = exp1 or (lable) exp2
+            tempEx3->reg = ($1)->reg;   //rach92fix
             //if exp1 if false goto lable
             CodeBuffer::instance().bpatch(*((dynamic_cast<ExpNode*>$1)->falseList), (dynamic_cast<MNode*>$3)->quad);
             //if exp1 if true goto the exp true label, if exp2 is true goto the exp true lable.
