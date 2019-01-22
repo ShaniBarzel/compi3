@@ -375,12 +375,14 @@ Statements : Statement{
             StatementsNode* new_node = new StatementsNode();
            *(new_node->breakList) = *(dynamic_cast<StatementNode*>($1)->breakList); //shani6 was missing dereferences
             *(new_node->returnList) = *(dynamic_cast<StatementNode*>($1)->returnList); //shani6 was missing dereferences
+            *(new_node->nextList) = *(dynamic_cast<StatementNode*>($1)->nextList); //shani8
             $$ = new_node;
         }
         | Statement Statements{
                 StatementsNode* new_node = new StatementsNode();
                 *(new_node->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
                 *(new_node->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->returnList), *(dynamic_cast<StatementsNode*>($2)->returnList));
+                *(new_node->nextList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->nextList), *(dynamic_cast<StatementsNode*>($2)->nextList)); //shani8
 
                 $$ = new_node;
         }
@@ -399,6 +401,7 @@ Statement : LBRACE ML Statements RBRACE
             StatementNode* tempSt = new StatementNode();
             *(tempSt->breakList) = *((dynamic_cast<StatementsNode*>($3))->breakList);
             *(tempSt->returnList) = *((dynamic_cast<StatementsNode*>($3))->returnList);
+             *(tempSt->nextList) = *((dynamic_cast<StatementsNode*>($3))->nextList); //shani8
             $$=tempSt;
         }
         | Type ID SC{
@@ -745,6 +748,7 @@ Statement : LBRACE ML Statements RBRACE
         M Statement {
                 //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
                 CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($5)->trueList), dynamic_cast<MNode*>($8)->quad); //shani: was $6
+                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($9)->nextList), dynamic_cast<MNode*>($4)->quad); //shani8 - was missing. required "continue" target
                 //setting 1st M's label as the target for each of the instructions in the created s_list
                 //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
 
@@ -756,7 +760,7 @@ Statement : LBRACE ML Statements RBRACE
 
                 StatementNode* tempSt2 = new StatementNode();
                 *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($9)->returnList);
-                //*(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani1 ##
+                *(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani8
                 //closeScope();
                 SymbolTable* p = current_scope_table->getParent();
                 delete(current_scope_table);
@@ -785,7 +789,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 StatementNode* tempSt4 = new StatementNode();
                 //we want to set the next list of the lhs of the rule to include "jump" instruction
-                *(tempSt4->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
+                *(tempSt4->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani8: this is why we need nextlist in statment
                 $$=tempSt4;
         }
 
@@ -1856,7 +1860,8 @@ TempReg getAvailReg(){
 // this function marks a register as unused
 void returnTempReg(TempReg ret){
     AvailRegs[ret]=true;
-    CodeBuffer::instance().emit("li "+regToString(ret)+", 0");
+    if ((int)ret<NUM_OF_TEMP_REGS) //shani8
+        CodeBuffer::instance().emit("li "+regToString(ret)+", 0");
 }
 
 std::string intToString(int num){
