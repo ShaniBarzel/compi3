@@ -500,16 +500,18 @@ Statement : LBRACE ML Statements RBRACE
                 //assignment to struct
                 TempReg dest_reg = getAvailReg();
                 TempReg temp_reg = getAvailReg();
-                std:string dest_reg_s = regToString(dest_reg);
-                TableEntryStructType* entryS = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($3)->name)); //shani8 see limr 507
-                int sourceOffset = entryS->f_offset; //shani8 see line 507
-                //get to the start of the struct in the stuck by "fp + struct offset"
-                CodeBuffer::instance().emit("subu " + dest_reg_s + ", $fp, " + intToString(4*(sourceOffset))); //shani8 was currnet frame offset instead of source frame pffset
-                for (int i = 0; i < ($3)->size; i++ ) { //shani6 was dynamic cast to StructTypeNode
+                TableEntryStructType* entryS = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($3)->name));
+                string dest_reg_s = regToString(dest_reg);
+                int s_frame_offset = entryS->f_offset;
+                //shani9 - all loop changed
+                //get to the start of the source struct in the stuck by "fp + struct offset"
+                CodeBuffer::instance().emit("subu " + dest_reg_s + ", $fp, " + intToString(4*(s_frame_offset)));
+                //copy all fields of source struct to dest struct fields
+                for (int i = 0; i < entryS->size; i++ ) {
                     CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", ("+ dest_reg_s +")"); //copy from stuct to temp reg
-                    CodeBuffer::instance().emit("subu $sp, $sp, 4"); //expand the stuck
-                    CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", ($sp)");//store the fieled value - was shani4: $sp instead of ($sp)
-                    CodeBuffer::instance().emit("subu "+dest_reg_s+" , 4"); //get to the next field in the copied struct //shani4: was (dest_re_s) - invalid istruction
+                    CodeBuffer::instance().emit("subu $sp ,$sp,  4"); //make place
+                    CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", ($sp)");//store the fieled value - was shani4: $sp instead of ($sp) //shani7: changed to -4 instead of --x($fp)
+                    CodeBuffer::instance().emit("subu "+dest_reg_s+", "+dest_reg_s+", 4"); //get to the next field in the copied struct
                 }
                 //free up regs
                 returnTempReg(dest_reg);
@@ -579,7 +581,7 @@ Statement : LBRACE ML Statements RBRACE
                     for (int i = 0; i < entryS->size; i++ ) {
                         CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", ("+ dest_reg_s +")"); //copy from stuct to temp reg
                         CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", "+ intToString(-4*(iterator_offset))+"($fp)");//store the fieled value - was shani4: $sp instead of ($sp) //shani7: changed to -4 instead of --x($fp)
-                        CodeBuffer::instance().emit("subu "+dest_reg_s+" , 4"); //get to the next field in the copied struct
+                        CodeBuffer::instance().emit("subu "+dest_reg_s+", "+dest_reg_s+", 4"); //get to the next field in the copied struct
                         iterator_offset ++;
                     }
                     //free up regs
