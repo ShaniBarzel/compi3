@@ -90,48 +90,43 @@ Funcs :   FuncDecl Funcs
 ;
 
 FuncDecl :  M1 LBRACE Statements RBRACE{
-        //CodeBuffer::instance().printCodeBuffer(); //debug
-        //*rach*
-        //CodeBuffer::instance().bpatch(*(dynamic_cast<StatementsNode*>($3))->returnList, CodeBuffer::instance().genLabel());
+
         FuncDeclNode* temp1 = new FuncDeclNode();
         temp1->type = TYPE_FUNC;
         temp1->return_type = ($1)->type; //passed from marker
         $$ = temp1;
-        //this function does all the things we were askd to do in page 6 when closing a scope. see function ducomentation for more details
-        //closeScope(); //shani4 - was not in comment
         //return the current scope to be the outer scope
         SymbolTable* parent = current_scope_table->getParent();
         delete(current_scope_table);
         current_scope_table = parent;
-        //back to the outer scope pffset
+        //back to the outer scope offset
         offsets.pop();
-        frame_offsets.pop(); //s only place we should do this. only when a function scope get closed
-        if (($1)->name == "main") {  //exit label is for future use
+        frame_offsets.pop(); // only when a function scope get closed
+        if (($1)->name == "main") {
             CodeBuffer::instance().emit("exit:");
-            CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck //shani it was in comment
-            CodeBuffer::instance().bpatch(*(dynamic_cast<StatementsNode*>($3)->returnList),"exit"); //shani: was missing //shani: statement has no nextlist rach92 changed to returnList
+            CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck
+            CodeBuffer::instance().bpatch(*(dynamic_cast<StatementsNode*>($3)->returnList),"exit");
             CodeBuffer::instance().emit("li $v0, 10"); //10 is the exit syscall number
             CodeBuffer::instance().emit("syscall"); //call syscall number 10
-            CodeBuffer::instance().emit(".end main");//shani
+            CodeBuffer::instance().emit(".end main");
         } else {
-            CodeBuffer::instance().emit((($1)->name)+"_exit:");//shani - make label for the end of the function
-            CodeBuffer::instance().bpatch(*(dynamic_cast<StatementsNode*>($3)->returnList),($1)->name+"_exit");//shani rach92 changed to return list
-            CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck //shani it was in comment
+            CodeBuffer::instance().emit((($1)->name)+"_exit:");//make label for the end of the function
+            CodeBuffer::instance().bpatch(*(dynamic_cast<StatementsNode*>($3)->returnList),($1)->name+"_exit");
+            CodeBuffer::instance().emit("move $sp, $fp"); //return the stuck pinter to the frame poiter to earase frame from stuck
             CodeBuffer::instance().emit("jr $ra"); //jump to the adress in the ra register (return address)
-            CodeBuffer::instance().emit(".end "+($1)->name);//shani
+            CodeBuffer::instance().emit(".end "+($1)->name);
         }
 }
 ;
 
 /* marker 1 */
 M1 : RetType ID LPAREN Formals RPAREN {
-            //CodeBuffer::instance().printCodeBuffer(); //debug
             //to pass return typeto funcDecl
             ($$)->type = ($1)->type;
-            ($$)->name = ($2)->name;//*rach*
-            int ParamFrOffset = 0; //sn
+            ($$)->name = ($2)->name;
+            int ParamFrOffset = 0;
             //try to insert to the current symbol table
-            if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type,ParamFrOffset))) //sn
+            if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type,ParamFrOffset)))
             {
                 //already exist function with this name
                 errorDef(yylineno,($2)->name);
@@ -147,18 +142,19 @@ M1 : RetType ID LPAREN Formals RPAREN {
             current_scope_table = new_func_scope;
             //add the top value to the offsets stuck
             offsets.push(offsets.top());
-            frame_offsets.push(frame_offsets.top()); //sn
+            frame_offsets.push(frame_offsets.top());
 
-            int ParamOffset = offsets.top();//sn
+            int ParamOffset = offsets.top();
             f->offset = ParamOffset;
-            f->f_offset = frame_offsets.top(); //shani3 it was 0
+            f->f_offset = frame_offsets.top();
             int vars_frame_offset =0;
             if (!($4->size == -1)){ //if the parameters list is not empty
-                for(std::vector<FormalDeclNode*>::reverse_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->rbegin(); (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->rend(); it++){
+                for(std::vector<FormalDeclNode*>::reverse_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->rbegin();
+                        (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->rend(); it++){
                     /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
                     specipicaly, the "decleration" order in the outer scope is from the right variable in the agruments list, to the right. */
                     ParamOffset = ParamOffset - (*it)->size;
-                        //shani3 +shani4 - we want to pus the struct in offset of it's size to make room for it's fields, but we dont want to do it in reguler vars
+                    //we want to pus the struct in offset of it's size to make room for it's fields, but we dont want to do it in reguler vars
                     if((*it)->type != TYPE_STRUCTID){
                         if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset, vars_frame_offset )))
                         {
@@ -166,17 +162,17 @@ M1 : RetType ID LPAREN Formals RPAREN {
                             errorDef(yylineno, (*it)->name);
                             exit(0);
                         }
-                        vars_frame_offset = vars_frame_offset - (*it)->size;  //reguler var- after insertion
+                        vars_frame_offset = vars_frame_offset - (*it)->size;
                     }
                     else{ //arg type is struct id
-                        vars_frame_offset = vars_frame_offset - (*it)->size +1; //struect var - before insertion //shani5 iadded +1
-                        if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size,ParamOffset, vars_frame_offset))) //shani3 var_frame_offset was ParamFrOffset
+                        vars_frame_offset = vars_frame_offset - (*it)->size +1;
+                        if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size,ParamOffset, vars_frame_offset)))
                         {
                                 //there is already a variable with the parameter's name
                                 errorDef(yylineno,(*it)->name);
                                 exit(0);
                         }
-                        vars_frame_offset = vars_frame_offset - 1;  //shani6 - in video
+                        vars_frame_offset = vars_frame_offset - 1;
 
                     }
                     f->declaration_list->push_back(*it);
@@ -186,20 +182,17 @@ M1 : RetType ID LPAREN Formals RPAREN {
             //emits appropriate code for main function declaration
             //making frame pointer to point to the stack pointer where the frame of main function should be placed
             if ((($2)->name == "main")) {
-                CodeBuffer::instance().emit(".globl main");/*rach*/
-                CodeBuffer::instance().emit(".ent main");//shani
-                CodeBuffer::instance().emit("main:");/*rach*/
+                CodeBuffer::instance().emit(".globl main");
+                CodeBuffer::instance().emit(".ent main");
+                CodeBuffer::instance().emit("main:");
                 CodeBuffer::instance().emit("move $fp, $sp");
-               // CodeBuffer::instance().emit("subu $fp, $fp, 4"); //shani - no need, we spoke about it rach92 yes we do
-
                 //emits code for regular function declaration
                 //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
             }else {
-                std::string func_label="_" + ($2)->name;//shani
-                CodeBuffer::instance().emit(".globl "+func_label);//shani
-                CodeBuffer::instance().emit(".ent "+func_label);//shani
+                std::string func_label="_" + ($2)->name;
+                CodeBuffer::instance().emit(".globl "+func_label);
+                CodeBuffer::instance().emit(".ent "+func_label);
                 CodeBuffer::instance().emit(func_label + ":");
-                //CodeBuffer::instance().emit("move $fp, $sp"); //shani: was in comment and at the wrong place  rach92 put in comment as we agreed
             }
 };
 
@@ -209,7 +202,6 @@ Structs :   StructsDecl Structs
 ;
 
 StructsDecl :  M2 RBRACE SC{
-        //CodeBuffer::instance().printCodeBuffer(); //debug
         StructsDeclNode* temp9 = new StructsDeclNode();
         temp9->name = ($1)->name;
         temp9->size = ($1)->size;
@@ -224,9 +216,8 @@ StructsDecl :  M2 RBRACE SC{
         current_scope_table->insertStructEntry(temp9->name, TYPE_STRUCT,temp9->s_mem_list,temp9->size);
 };
 
-// marker 2
+
 M2 : STRUCT ID LBRACE StructMemList{
-        // CodeBuffer::instance().printCodeBuffer(); //debug
         StructsDeclNode* temp8 = new StructsDeclNode();
         temp8->name = ($2)->name;
         temp8->type = ($1)->type;
@@ -239,12 +230,9 @@ M2 : STRUCT ID LBRACE StructMemList{
 
         //note: there is no need to save the struct in the stuck, because it saves no data.
 
-
         std::vector<StructMemNode*>* fields_list = new std::vector<StructMemNode*>();
         fields_list = (dynamic_cast<StructMemListNode*>($4))->s_list;
-
         StructMemListNode* dec_fields_list = new StructMemListNode();
-
         current_scope_table->scope_table->pop_back();
         //create new scope table for the scope defined by the struct
         SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
@@ -263,14 +251,14 @@ M2 : STRUCT ID LBRACE StructMemList{
             (*it)->relative_offset = relative_offset;
             relative_offset += (*it)->size;
             //insert the field as a table entry of the current scope table
-            if (!(current_scope_table->insertVariableEntry((*it)->name, (*it)->type, current_offset,current_offset))){ //sn
+            if (!(current_scope_table->insertVariableEntry((*it)->name, (*it)->type, current_offset,current_offset))){
                 // id already defined
                 errorDef(yylineno, (*it)->name);
                 exit(0);
             }
             //insert field to s_mem_list of the StructTypeDecNode
             dec_fields_list->s_list->push_back(*it);
-            //increment current offset by the current field's size //shani4: these two lines was before the insertion
+            //increment current offset by the current field's size
             current_offset += (*it)->size;
             size += (*it)->size;
         }
@@ -281,7 +269,6 @@ M2 : STRUCT ID LBRACE StructMemList{
 
 
 StructMemList : StructMem {
-            //CodeBuffer::instance().printCodeBuffer(); //debug
             StructMemListNode* temp5 = new StructMemListNode();
             StructMemNode* temp5_1 = new StructMemNode();
             temp5_1 = dynamic_cast<StructMemNode*>($1);
@@ -306,7 +293,7 @@ StructMemList : StructMem {
                 temp6_2 = dynamic_cast<StructMemListNode*>($2);
                 temp6->s_list = temp6_2->s_list;
                 std::vector<StructMemNode*>::iterator it = temp6->s_list->begin();
-                (temp6->s_list)->insert(it, temp6_1); //shani4: it was push_back. stuct fields was in the wrong order
+                (temp6->s_list)->insert(it, temp6_1);
                 $$ = temp6;
 } ;
 
@@ -373,16 +360,16 @@ FormalsList : FormalDecl {
         //no semantics needed
 Statements : Statement{
             StatementsNode* new_node = new StatementsNode();
-           *(new_node->breakList) = *(dynamic_cast<StatementNode*>($1)->breakList); //shani6 was missing dereferences
-            *(new_node->returnList) = *(dynamic_cast<StatementNode*>($1)->returnList); //shani6 was missing dereferences
-           // *(new_node->nextList) = *(dynamic_cast<StatementNode*>($1)->nextList); //shani8
+           *(new_node->breakList) = *(dynamic_cast<StatementNode*>($1)->breakList);
+            *(new_node->returnList) = *(dynamic_cast<StatementNode*>($1)->returnList);
+           // *(new_node->nextList) = *(dynamic_cast<StatementNode*>($1)->nextList);
             $$ = new_node;
         }
         | Statement Statements{
                 StatementsNode* new_node = new StatementsNode();
                 *(new_node->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
                 *(new_node->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->returnList), *(dynamic_cast<StatementsNode*>($2)->returnList));
-              //  *(new_node->nextList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->nextList), *(dynamic_cast<StatementsNode*>($2)->nextList)); //shani8
+              //  *(new_node->nextList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->nextList), *(dynamic_cast<StatementsNode*>($2)->nextList));
 
                 $$ = new_node;
         }
@@ -390,8 +377,6 @@ Statements : Statement{
 
 Statement : LBRACE ML Statements RBRACE
         {
-             //this function does all the things we were asked to do in page 6 when closing a scope. see function ducomentation for more details
-             //closeScope(); //shani3 was not in error
             //return the current scope to be the outer scope
             SymbolTable* parent = current_scope_table->getParent();
             delete(current_scope_table);
@@ -407,15 +392,15 @@ Statement : LBRACE ML Statements RBRACE
         | Type ID SC{
             int offset = offsets.top();
             int frame_offset = frame_offsets.top();
-            frame_offsets.pop(); //sn
+            frame_offsets.pop();
             offsets.pop();
             if (!(current_scope_table->insertVariableEntry(($2)->name,($1)->type,offset,frame_offset+1))){
                 // Id already defined
                 errorDef(yylineno,($2)->name);
                 exit(0);
             }
-            offsets.push(offset+1); //update offset
-            frame_offsets.push(frame_offset+1);//sn
+            offsets.push(offset+1);
+            frame_offsets.push(frame_offset+1);
             //free up 1 cell space on stack for future storage of data in ID
             freeUpSpaceStack(1);
             StatementNode* tempSt4 = new StatementNode();
@@ -424,15 +409,15 @@ Statement : LBRACE ML Statements RBRACE
         | StructType SC {
                 int offset = offsets.top();
                 int frame_offset = frame_offsets.top();
-                frame_offsets.pop();//sn
+                frame_offsets.pop();
                 offsets.pop();
-                if (!(current_scope_table->insertStructTypeEntry(($1)->name, (dynamic_cast<StructTypeNode*>($1))->structName,TYPE_STRUCTID,$1->size,offset,frame_offset+1))){ //shani 5
+                if (!(current_scope_table->insertStructTypeEntry(($1)->name, (dynamic_cast<StructTypeNode*>($1))->structName,TYPE_STRUCTID,$1->size,offset,frame_offset+1))){
                     // Id already defined
                     errorDef(yylineno,($1)->name);
                     exit(0);
                 }
-                offsets.push(offset+($1)->size); //update offset
-                frame_offsets.push(frame_offset+($1)->size); //sn
+                offsets.push(offset+($1)->size);
+                frame_offsets.push(frame_offset+($1)->size);
                 StatementNode* tempSt5 = new StatementNode();
                 $$=tempSt5;
         }
@@ -449,8 +434,8 @@ Statement : LBRACE ML Statements RBRACE
                 errorDef(yylineno,($2)->name);
                 exit(0);
             }
-            offsets.push(offset+1); //update offset
-            frame_offsets.push(frame_offset+1);//sn
+            offsets.push(offset+1);
+            frame_offsets.push(frame_offset+1);
             if (($4)->type != ($1)->type){
                 // exp is not the same type as id
                 if ((($4)->type != TYPE_BYTE) || (($1)->type != TYPE_INT)){ // assignment of byte to int is ok
@@ -481,7 +466,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 StructTypeNode* temp11 = new StructTypeNode("");
                 temp11=dynamic_cast<StructTypeNode*>($1);
-                if ((dynamic_cast<ExpNode*>($3))->s_name != temp11->structName){ //shani6: was (dynamic_cast<StrucTypeNode*>($3))->structName. yet $3 is coming from expNode. we cannot cast it to anything other then exp because we did "new ExpNode" in the rule code
+                if ((dynamic_cast<ExpNode*>($3))->s_name != temp11->structName){
                     // exp is not the same structType type
                     errorMismatch(yylineno);
                     exit(0);
@@ -489,28 +474,27 @@ Statement : LBRACE ML Statements RBRACE
                 int offset = offsets.top();
                 offsets.pop();
                 int frame_offset = frame_offsets.top();
-                frame_offsets.pop();//sn
-                if (!(current_scope_table->insertStructTypeEntry(temp11->name, temp11->structName,TYPE_STRUCTID,temp11->size,offset,frame_offset+1))){ //shani5
+                frame_offsets.pop();
+                if (!(current_scope_table->insertStructTypeEntry(temp11->name, temp11->structName,TYPE_STRUCTID,temp11->size,offset,frame_offset+1))){
                     // Id already defined
                     errorDef(yylineno,($1)->name);
                     exit(0);
                 }
-                offsets.push(offset+($1)->size); //update offset
-                frame_offsets.push(frame_offset+($1)->size);//sn
+                offsets.push(offset+($1)->size);
+                frame_offsets.push(frame_offset+($1)->size);
                 //assignment to struct
                 TempReg dest_reg = getAvailReg();
                 TempReg temp_reg = getAvailReg();
                 TableEntryStructType* entryS = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($3)->name));
                 string dest_reg_s = regToString(dest_reg);
                 int s_frame_offset = entryS->f_offset;
-                //shani9 - all loop changed
                 //get to the start of the source struct in the stuck by "fp + struct offset"
                 CodeBuffer::instance().emit("subu " + dest_reg_s + ", $fp, " + intToString(4*(s_frame_offset)));
                 //copy all fields of source struct to dest struct fields
                 for (int i = 0; i < entryS->size; i++ ) {
                     CodeBuffer::instance().emit("lw " + regToString(temp_reg) + ", ("+ dest_reg_s +")"); //copy from stuct to temp reg
                     CodeBuffer::instance().emit("subu $sp ,$sp,  4"); //make place
-                    CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", ($sp)");//store the fieled value - was shani4: $sp instead of ($sp) //shani7: changed to -4 instead of --x($fp)
+                    CodeBuffer::instance().emit("sw " + regToString(temp_reg) + ", ($sp)");//store the fieled value
                     CodeBuffer::instance().emit("subu "+dest_reg_s+", "+dest_reg_s+", 4"); //get to the next field in the copied struct
                 }
                 //free up regs
@@ -545,7 +529,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
 
                 //check if valid assignment
-                else if (($3)->type != entry->type /*|| ($3)->size != entry->size*/)
+                else if (($3)->type != entry->type)
 
                 {
                     //check if not a byte to int assignment
@@ -563,10 +547,11 @@ Statement : LBRACE ML Statements RBRACE
                     errorByteTooLarge(yylineno, (dynamic_cast<ExpNode*>($3))->value);
                     exit(0);
                 }
-
-                if (($3)->type == TYPE_BOOL) {
+        //shani11 - got the if outside of the else because it has register now
+                if (($3)->type == TYPE_BOOL)
                     evaluateBoolean(dynamic_cast<ExpNode*>($3));
-                }else if(($3)->type == TYPE_STRUCTID){//shani4 : else if was missing- all code inside else if was missing
+
+                 if(($3)->type == TYPE_STRUCTID){//shani4 : else if was missing- all code inside else if was missing
                      TableEntryStructType* entryS = dynamic_cast<TableEntryStructType*>(current_scope_table->getEntry(($3)->name));
                     //assignment to struct
                     TempReg dest_reg = getAvailReg();
@@ -591,6 +576,8 @@ Statement : LBRACE ML Statements RBRACE
                      //store id value (currently in temp register) in stuck //sn to frame offset
                      CodeBuffer::instance().emit("sw " + regToString((dynamic_cast<ExpNode*>($3))->reg) + ", " + intToString(-4*(entry->f_offset)) + "($fp)");   //rach1 changed f_offset to offset //shani2- why? when it comes to assembly code, offset is always the frame offset
                 }    //set reg of exp to be none
+
+
                 returnTempReg(($3)->reg);
                 ($3)->reg = NONE;
                 StatementNode* tempSt8 = new StatementNode();
