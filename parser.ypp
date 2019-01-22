@@ -375,14 +375,14 @@ Statements : Statement{
             StatementsNode* new_node = new StatementsNode();
            *(new_node->breakList) = *(dynamic_cast<StatementNode*>($1)->breakList); //shani6 was missing dereferences
             *(new_node->returnList) = *(dynamic_cast<StatementNode*>($1)->returnList); //shani6 was missing dereferences
-            *(new_node->nextList) = *(dynamic_cast<StatementNode*>($1)->nextList); //shani8
+           // *(new_node->nextList) = *(dynamic_cast<StatementNode*>($1)->nextList); //shani8
             $$ = new_node;
         }
         | Statement Statements{
                 StatementsNode* new_node = new StatementsNode();
                 *(new_node->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
                 *(new_node->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->returnList), *(dynamic_cast<StatementsNode*>($2)->returnList));
-                *(new_node->nextList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->nextList), *(dynamic_cast<StatementsNode*>($2)->nextList)); //shani8
+              //  *(new_node->nextList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->nextList), *(dynamic_cast<StatementsNode*>($2)->nextList)); //shani8
 
                 $$ = new_node;
         }
@@ -401,7 +401,7 @@ Statement : LBRACE ML Statements RBRACE
             StatementNode* tempSt = new StatementNode();
             *(tempSt->breakList) = *((dynamic_cast<StatementsNode*>($3))->breakList);
             *(tempSt->returnList) = *((dynamic_cast<StatementsNode*>($3))->returnList);
-             *(tempSt->nextList) = *((dynamic_cast<StatementsNode*>($3))->nextList); //shani8
+           //  *(tempSt->nextList) = *((dynamic_cast<StatementsNode*>($3))->nextList); //shani8
             $$=tempSt;
         }
         | Type ID SC{
@@ -751,7 +751,7 @@ Statement : LBRACE ML Statements RBRACE
         M Statement {
                 //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
                 CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($5)->trueList), dynamic_cast<MNode*>($8)->quad); //shani: was $6
-                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($9)->nextList), dynamic_cast<MNode*>($4)->quad); //shani8 - was missing. required "continue" target
+               // CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($9)->nextList), dynamic_cast<MNode*>($4)->quad); //shani8 - was missing. required "continue" target
                 //setting 1st M's label as the target for each of the instructions in the created s_list
                 //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
 
@@ -763,7 +763,7 @@ Statement : LBRACE ML Statements RBRACE
 
                 StatementNode* tempSt2 = new StatementNode();
                 *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($9)->returnList);
-                *(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani8
+                //*(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani8
                 //closeScope();
                 SymbolTable* p = current_scope_table->getParent();
                 delete(current_scope_table);
@@ -792,7 +792,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 StatementNode* tempSt4 = new StatementNode();
                 //we want to set the next list of the lhs of the rule to include "jump" instruction
-                *(tempSt4->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani8: this is why we need nextlist in statment rach92fix2 no, we need return list here.
+                *(tempSt4->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani8: this is why we need nextlist in statment
                 $$=tempSt4;
         }
 
@@ -976,11 +976,10 @@ Call : ID LPAREN ExpList RPAREN  {
                     CodeBuffer::instance().emit("addu $sp, $sp, 4"); //shani2: was subu! this is why i got confused
                 }
             }
-            //rach92fix : the loop bellow should't be here (resets used registers holding the function's parameters
             //rach92 changed to reverse + switched places with if bellow
-          /* for (std::vector<ExpNode*>::reverse_iterator it = expList->rbegin(); it != expList->rend(); ++it){
+            for (std::vector<ExpNode*>::reverse_iterator it = expList->rbegin(); it != expList->rend(); ++it){
                 returnTempReg((*it)->reg);
-            }*/
+            }
             //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
             //to a new register which will be saved
             if (f->return_type != TYPE_VOID) {
@@ -1312,29 +1311,30 @@ Exp : LPAREN Exp RPAREN{
             }
 
             //if the id value is bool handle it now. it is forbidden to store boolean variables in tmp regs
-            else
-                {
-                 if (tempID->type == TYPE_BOOL){
-                        //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
-                std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempID->reg) + ", 1, "));
-                CodeBuffer::instance().genLabel();                              //false:
-                (tempID)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
-                std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
-                        (tempID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
-                CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
-                returnTempReg(tempID->reg); //we already used the return value , no need for this temp reg no more //todo: this is unreachable by assembly
-                (tempID)->reg = NONE;
-                    }
-
-            //shani3: the else if was if. if was runnig also in the case the type was bool - this was the main problem pf t2
-            else{
+            else { //shani10
                 offset = -offset; //stuck is growing towrards the lower address
                 //buffer: "lw id_reg, -offset($fp)"
                 CodeBuffer::instance().emit("lw " + regToString(tempID->reg) + " , " + intToString(offset) + "($fp)");
             }
+            if (tempID->type == TYPE_BOOL){
+                //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
+                std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempID->reg) + ", 1, "));
+                CodeBuffer::instance().genLabel();                              //false:
+                (tempID)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
+                std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
+                (tempID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
+                CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
+                returnTempReg(tempID->reg); //we already used the return value , no need for this temp reg no more //todo: this is unreachable by assembly
+                (tempID)->reg = NONE;
+            }
+           //shani10 - moveup because now bool does have registers...
+          /*  else{
+                offset = -offset; //stuck is growing towrards the lower address
+                //buffer: "lw id_reg, -offset($fp)"
+                CodeBuffer::instance().emit("lw " + regToString(tempID->reg) + " , " + intToString(offset) + "($fp)");
+            }*/
             $$ = tempID;
           }
-}
 
         | ID PERIOD ID{
             //check if $1 is struct name and $3 is its field
@@ -1381,7 +1381,7 @@ Exp : LPAREN Exp RPAREN{
                 (tempIDID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                 returnTempReg(tempIDID->reg); //we already used the return value , no need for this temp reg no more //shani1: todo: this is unreachable by assembly
-                (tempIDID)->reg = NONE;
+               (tempIDID)->reg = NONE;
             }
             $$ = tempIDID;
           }
@@ -1403,7 +1403,7 @@ Exp : LPAREN Exp RPAREN{
                 (tempCall)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                 returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more //shani1: todo: this is unreachable by assembly
-                (tempCall)->reg = NONE;
+               (tempCall)->reg = NONE;
             }
             $$ = tempCall;
         }
@@ -1516,7 +1516,7 @@ Exp : LPAREN Exp RPAREN{
                 //if exp1 if false goto the exp false lable. if exp2 if false goto the exp false lable.
                 *((tempEx4)->falseList) = CodeBuffer::merge(*((dynamic_cast<ExpNode*>$1)->falseList),*((dynamic_cast<ExpNode*>$4)->falseList));
                 $$ = tempEx4;
-        }
+}
         | Exp OR M Exp{
             if (($1)->type != TYPE_BOOL || ($4)->type != TYPE_BOOL){
                 //or operator is valid only on bool variables
@@ -1832,7 +1832,6 @@ std::vector<std::string>* declToStrings(std::vector<FormalDeclNode*>* decl)
     return res;
 }
 
-//*rach* //shani1 - please explain how to use it. what if we want to get to avariable in the stuck?
 void closeScope(){
     //this will contain the size of the variables in the current scope
     int size_of_vars = 0;
