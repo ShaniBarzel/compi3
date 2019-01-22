@@ -1,7 +1,7 @@
 %{
 /*USER DECLERATIONS*/
 //#define YYERROR_VERBOSE 1 //todo: for degbug
-#define YYDEBUG 1 //todo: for debug
+//#define YYDEBUG 1 //todo: for debug
 #include <iostream>
 #include "symtable.h"
 #include "attributes.h"
@@ -811,7 +811,8 @@ M4  :  IF LPAREN Exp RPAREN {
             $$=dynamic_cast<ExpNode*>($3); //shani
 };
 //marker ElseMarker
-ElseMarker  :  /*epsilon*/  {
+ElseMarker  :  /*epsilon*/
+    {
             //we derive this when else is false (therefore epsilon is derived)
             //so we only need to set its next list to a new list containing the jump instruction
             //and set its quad to some fresh label
@@ -975,10 +976,11 @@ Call : ID LPAREN ExpList RPAREN  {
                     CodeBuffer::instance().emit("addu $sp, $sp, 4"); //shani2: was subu! this is why i got confused
                 }
             }
+            //rach92fix : the loop bellow should't be here (resets used registers holding the function's parameters
             //rach92 changed to reverse + switched places with if bellow
-            for (std::vector<ExpNode*>::reverse_iterator it = expList->rbegin(); it != expList->rend(); ++it){
+          /* for (std::vector<ExpNode*>::reverse_iterator it = expList->rbegin(); it != expList->rend(); ++it){
                 returnTempReg((*it)->reg);
-            }
+            }*/
             //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
             //to a new register which will be saved
             if (f->return_type != TYPE_VOID) {
@@ -1310,17 +1312,20 @@ Exp : LPAREN Exp RPAREN{
             }
 
             //if the id value is bool handle it now. it is forbidden to store boolean variables in tmp regs
-            else if (tempID->type == TYPE_BOOL){
-                //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
+            else
+                {
+                 if (tempID->type == TYPE_BOOL){
+                        //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempID->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
                 (tempID)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
                 std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
-                (tempID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
+                        (tempID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                 returnTempReg(tempID->reg); //we already used the return value , no need for this temp reg no more //todo: this is unreachable by assembly
                 (tempID)->reg = NONE;
-            }
+                    }
+
             //shani3: the else if was if. if was runnig also in the case the type was bool - this was the main problem pf t2
             else{
                 offset = -offset; //stuck is growing towrards the lower address
@@ -1329,6 +1334,7 @@ Exp : LPAREN Exp RPAREN{
             }
             $$ = tempID;
           }
+}
 
         | ID PERIOD ID{
             //check if $1 is struct name and $3 is its field
@@ -1631,7 +1637,8 @@ Exp : LPAREN Exp RPAREN{
               (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bleu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
               (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("ble "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            //returnTempReg((dynamic_cast<ExpNode*>$1)->reg);//rach92fix
+            tempEx1->reg = ($1)->reg;//rach92fix
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 > exp2 goto___ (false lable) //shani1 - place changed, we want to return registers before we hump to another place in the code
             $$ = tempEx1;
@@ -1654,7 +1661,8 @@ Exp : LPAREN Exp RPAREN{
                  (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgeu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
                 (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bge "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            //returnTempReg((dynamic_cast<ExpNode*>$1)->reg);//rach92fix
+            tempEx1->reg = ($1)->reg;//rach92fix
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 < exp2 goto___ (false lable) //shani1 - place changed, we want to return registers before we hump to another place in the code
             $$ = tempEx1;
