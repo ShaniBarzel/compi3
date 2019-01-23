@@ -22,7 +22,7 @@ SymbolTable* current_scope_table;
 //to the variable to be inserted next
 std::stack<int> offsets;
 std::stack<int> frame_offsets;
-//rach92fix6
+//rach92fix
 std::vector<std::string>* whileLabels;
 
 //a boolean for knowing if we're inside a while loop
@@ -44,6 +44,8 @@ void returnTempReg(TempReg ret);
 void freeUpSpaceStack(int size);
 void storeVariable(TempReg reg, int offset, int size);
 void evaluateBoolean(ExpNode* exp);
+std::vector<TempReg> getTakenRegs(ExpListNode* expL);
+bool inExpList(ExpListNode* expL,int i);
 
 %}
 /*DECLERATIONS*/
@@ -892,16 +894,15 @@ Call : ID LPAREN ExpList RPAREN  {
             CallNode* temp7 = new CallNode();
             temp7->return_type = f->return_type;
             $$ = temp7;
-
-            for (int i=0;i<NUM_OF_TEMP_REGS;i++)
+            std::vector<TempReg> taken_regs = getTakenRegs(dynamic_cast<ExpListNode*>($3));
+            int taken_regs_size=taken_regs.size();
+            for (int i=0;i<taken_regs_size;i++) //shani16
             {
                 //if used reg - save its value on stack
-                if (!(AvailRegs[i]))
-                {
                     //loads used reg on stack
                     CodeBuffer::instance().emit("subu $sp, $sp, 4");
-                    CodeBuffer::instance().emit("sw " + regToString(TempReg(i)) + ", ($sp)");
-                }
+                    CodeBuffer::instance().emit("sw " + regToString(taken_regs[i]) + ", ($sp)");
+                    returnTempReg(taken_regs[i]); //shani16 - free the buckedup registers for the calle use
             }
             //preparing stack for next section:
             CodeBuffer::instance().emit("subu $sp, $sp, 4");
@@ -967,14 +968,12 @@ Call : ID LPAREN ExpList RPAREN  {
             CodeBuffer::instance().emit("addu $sp, $sp, 4");
 
             //folding saved registers section
-            for (int i=NUM_OF_TEMP_REGS-1;i!=-1;i--)
+            for (int i=taken_regs_size-1;i!=-1;i--) //shani16
             {
                 //if used reg - save its value on stack
-                if (!(AvailRegs[i]))
-                {
-                    CodeBuffer::instance().emit("lw " + regToString(TempReg(i)) + ", ($sp)");
+                    CodeBuffer::instance().emit("lw " + regToString(taken_regs[i]) + ", ($sp)");
                     CodeBuffer::instance().emit("addu $sp, $sp, 4");
-                }
+                    AvailRegs[i]=false;//shani16 the reg is back to be not availiable
             }
 
             for (std::vector<ExpNode*>::reverse_iterator it = expList->rbegin(); it != expList->rend(); ++it){
@@ -1009,16 +1008,17 @@ Call : ID LPAREN ExpList RPAREN  {
             CallNode* tempC= new CallNode();
             tempC->return_type = f->return_type;
             $$ = tempC;
-
+            //shani16
+            std::vector<TempReg> taken_regs = getTakenRegs(NULL);
+            int taken_regs_size=taken_regs.size();
             //preparing stack for saved registers
-            for (int i=NUM_OF_TEMP_REGS-1;i!=-1;i--)
+            for (int i=0;i<taken_regs_size;i++) //shani16
             {
                 //if used reg - save its value on stack
-                if (!(AvailRegs[i])){
-                    //loads used reg on stack
-                    CodeBuffer::instance().emit("subu $sp, $sp, 4");
-                    CodeBuffer::instance().emit("sw " + regToString(TempReg(i)) + ", ($sp)");
-                }
+                //loads used reg on stack
+                CodeBuffer::instance().emit("subu $sp, $sp, 4");
+                CodeBuffer::instance().emit("sw " + regToString(taken_regs[i]) + ", ($sp)");
+                returnTempReg(taken_regs[i]); //shani16 - free the buckedup registers for the calle use
             }
             //preparing stack for next section:
             CodeBuffer::instance().emit("subu $sp, $sp, 4");
@@ -1048,15 +1048,13 @@ Call : ID LPAREN ExpList RPAREN  {
             CodeBuffer::instance().emit("lw $fp, ($sp)");
             //folding up one spot
             CodeBuffer::instance().emit("addu $sp, $sp, 4");
-            //folding saved registers section
-            for (int i=0;i<NUM_OF_TEMP_REGS;i++)
+            //folding saved registers section //shani16
+            for (int i=taken_regs_size-1;i!=-1;i--) //shani16
             {
-            //if used reg - save its value on stack
-                if (!(AvailRegs[i]))
-                {
-                    CodeBuffer::instance().emit("lw " + regToString(TempReg(i)) + ", ($sp)");
-                    CodeBuffer::instance().emit("addu $sp, $sp, 4");
-                }
+                //if used reg - save its value on stack
+                CodeBuffer::instance().emit("lw " + regToString(taken_regs[i]) + ", ($sp)");
+                CodeBuffer::instance().emit("addu $sp, $sp, 4");
+                AvailRegs[i]=false;//shani16 the reg is back to be not availiable
             }
 
             //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
@@ -1312,12 +1310,16 @@ Exp : LPAREN Exp RPAREN{
                 //save this line: "beq id_value , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempID->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
+returnTempReg(tempID->reg); //we already used the return value , no need for this temp reg no more //todo: this is unreachable by assembly
+(tempID)->reg = NONE; //shani16
                 (tempID)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
+
                 std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
-                (tempID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
+returnTempReg(tempID->reg); //we already used the return value , no need for this temp reg no more //todo: this is unreachable by assembly
+(tempID)->reg = NONE;
+               (tempID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
-                returnTempReg(tempID->reg); //we already used the return value , no need for this temp reg no more //todo: this is unreachable by assembly
-                (tempID)->reg = NONE;
+
             }
             $$ = tempID;
           }
@@ -1362,12 +1364,16 @@ Exp : LPAREN Exp RPAREN{
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempIDID->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
                 (tempIDID)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
+returnTempReg(tempIDID->reg); //we already used the return value , no need for this temp reg no more //shani1: todo: this is unreachable by assembly
+(tempIDID)->reg = NONE;
+//shani16
                 std:: string trueLabel = CodeBuffer::instance().genLabel();     //true:
                 (tempIDID)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
-                CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
-                returnTempReg(tempIDID->reg); //we already used the return value , no need for this temp reg no more //shani1: todo: this is unreachable by assembly
-               (tempIDID)->reg = NONE;
-            }
+returnTempReg(tempIDID->reg); //we already used the return value , no need for this temp reg no more //shani1: todo: this is unreachable by assembly
+(tempIDID)->reg = NONE;
+
+CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
+                           }
             $$ = tempIDID;
           }
         | Call {
@@ -1384,11 +1390,14 @@ Exp : LPAREN Exp RPAREN{
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempCall->reg) + ", 1, "));
                 CodeBuffer::instance().genLabel();                              //false:
                 (tempCall)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
+returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
+(tempCall)->reg = NONE; //shani16
                 std::string trueLabel = CodeBuffer::instance().genLabel();     //true:
+returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
+(tempCall)->reg = NONE;
                 (tempCall)->trueList->push_back(CodeBuffer::instance().emit("j "));  //goto ___
                 CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
-                returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
-               (tempCall)->reg = NONE;
+
             }
             $$ = tempCall;
         }
@@ -1532,9 +1541,10 @@ Exp : LPAREN Exp RPAREN{
             //in buffer: beq exp1, exp2, ___ (true lable)
             //            ___(false lable)
             (tempEx2)->trueList->push_back(CodeBuffer::instance().emit("beq "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx2)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 != exp2 goto___ (false lable).
-            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
-            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+//shani16
+(tempEx2)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 != exp2 goto___ (false lable).
             $$=tempEx2;
         }
         | Exp NOTEQUAL Exp{
@@ -1550,9 +1560,9 @@ Exp : LPAREN Exp RPAREN{
             //in buffer: bne exp1, exp2, ___ (true lable)
             //            ___(false lable)
             (tempEx2)->trueList->push_back(CodeBuffer::instance().emit("bne "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx2)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
-            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+            returnTempReg((dynamic_cast<ExpNode*>$1)->reg); //shani16
             returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+            (tempEx2)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 == exp2 goto___ (false lable)
             $$=tempEx2;
         }
         | Exp BIGGER Exp{
@@ -1573,9 +1583,9 @@ Exp : LPAREN Exp RPAREN{
                 (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgtu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
                  (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 <=exp2 goto___ (false lable)
             returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
-            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+            returnTempReg((dynamic_cast<ExpNode*>$3)->reg); //shani16
+            (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 <=exp2 goto___ (false lable)
             $$ = tempEx1;
         }
         | Exp SMALLER Exp{
@@ -1596,9 +1606,10 @@ Exp : LPAREN Exp RPAREN{
                  (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bltu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
                 (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("blt "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 => exp2 goto___ (false lable)
-            returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
-            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+returnTempReg((dynamic_cast<ExpNode*>$1)->reg);
+returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+//shani16
+(tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 => exp2 goto___ (false lable)
              $$ = tempEx1;
         }
         | Exp SEQ Exp{
@@ -1619,9 +1630,11 @@ Exp : LPAREN Exp RPAREN{
               (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bleu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
               (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("ble "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 > exp2 goto___ (false lable)
+returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+//shani16
+(tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 > exp2 goto___ (false lable)
             tempEx1->reg = ($1)->reg;
-            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+//            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$ = tempEx1;
         }
         | Exp BEQ Exp{
@@ -1642,9 +1655,9 @@ Exp : LPAREN Exp RPAREN{
                  (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bgeu "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
             else //regular comapare
                 (tempEx1)->trueList->push_back(CodeBuffer::instance().emit("bge "+regToString((dynamic_cast<ExpNode*>$1)->reg)+", "+regToString((dynamic_cast<ExpNode*>$3)->reg)+", "));
-            (tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 < exp2 goto___ (false lable)
+returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
+(tempEx1)->falseList->push_back(CodeBuffer::instance().emit("j ")); //if exp1 < exp2 goto___ (false lable)
             tempEx1->reg = ($1)->reg;
-            returnTempReg((dynamic_cast<ExpNode*>$3)->reg);
             $$ = tempEx1;
 };
 
@@ -1885,4 +1898,25 @@ void evaluateBoolean(ExpNode* exp) {
     CodeBuffer::instance().bpatch(*(exp->falseList),CodeBuffer::instance().genLabel()); // false:
     CodeBuffer::instance().emit("li " + regToString(exp->reg) + ", 0");              // li reg, 0;
     CodeBuffer::instance().bpatch(CodeBuffer::makelist(temp),CodeBuffer::instance().genLabel()); //(label)
+}
+
+//shani16
+std::vector<TempReg> getTakenRegs(ExpListNode* expL){
+    std::vector<TempReg> ret;
+    for(int i=0; i<NUM_OF_TEMP_REGS;i++){
+        if (!AvailRegs[i] && !inExpList(expL,i))
+            ret.push_back((TempReg)i);
+    }
+    return ret;
+}
+//shani16
+bool inExpList(ExpListNode* expL,int i){
+    if (NULL==expL)
+        return false;
+    for (std::vector<ExpNode*>::iterator it = expL->getList()->begin(); it != expL->getList()->end(); ++it) {
+            if ((*it)->reg == (TempReg)i){
+                return true;
+            }
+        }
+    return false;
 }
