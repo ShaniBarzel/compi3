@@ -64,13 +64,14 @@ void evaluateBoolean(ExpNode* exp);
 %token NUM
 %token STRING
 %left LPAREN RPAREN LBRACE RBRACE
-%right NOT ASSIGN
+%right ASSIGN
 %left AND
 %left OR
 %nonassoc SMALLER BIGGER BEQ SEQ
 %left EQUAL NOTEQUAL
 %left PLUS MINUS
 %left MUL DIV
+%right NOT //shani15 not should be stronger then all binary operators
 %nonassoc IF
 %nonassoc ELSE
 
@@ -1670,7 +1671,7 @@ void yyerror(std::string m)
 }
 
 int main() {
-  //  yydebug = 1; //todo: for debug
+   // yydebug = 1; //todo: for debug
     SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);
