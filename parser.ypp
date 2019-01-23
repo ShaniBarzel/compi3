@@ -1,7 +1,7 @@
 %{
 /*USER DECLERATIONS*/
-//#define YYERROR_VERBOSE 1 //todo: for degbug
-//#define YYDEBUG 1 //todo: for debug
+#define YYERROR_VERBOSE 1 //todo: for degbug
+#define YYDEBUG 1 //todo: for debug
 #include <iostream>
 #include "symtable.h"
 #include "attributes.h"
@@ -362,16 +362,16 @@ Statements : Statement{
             StatementsNode* new_node = new StatementsNode();
            *(new_node->breakList) = *(dynamic_cast<StatementNode*>($1)->breakList);
             *(new_node->returnList) = *(dynamic_cast<StatementNode*>($1)->returnList);
-           *(new_node->nextList) = *(dynamic_cast<StatementNode*>($1)->nextList);
-           *(new_node->continueList) = *(dynamic_cast<StatementNode*>($1)->continueList);//rach92fix4
+           //*(new_node->nextList) = *(dynamic_cast<StatementNode*>($1)->nextList);//rach92fix5
+          // new_node->quad = dynamic_cast<StatementNode*>($1)->quad;//rach92fix5
             $$ = new_node;
         }
         | Statement Statements{
                 StatementsNode* new_node = new StatementsNode();
                 *(new_node->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->breakList), *(dynamic_cast<StatementsNode*>($2)->breakList));
                 *(new_node->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->returnList), *(dynamic_cast<StatementsNode*>($2)->returnList));
-              *(new_node->nextList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->nextList), *(dynamic_cast<StatementsNode*>($2)->nextList));
-              *(new_node->continueList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->continueList), *(dynamic_cast<StatementsNode*>($2)->continueList));
+              //*(new_node->nextList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($1)->nextList), *(dynamic_cast<StatementsNode*>($2)->nextList));//rach92fix5
+              //new_node->quad = dynamic_cast<StatementsNode*>($1)->quad;//rach92fix5
 
                 $$ = new_node;
         }
@@ -388,9 +388,8 @@ Statement : LBRACE ML Statements RBRACE
             StatementNode* tempSt = new StatementNode();
             *(tempSt->breakList) = *((dynamic_cast<StatementsNode*>($3))->breakList);
             *(tempSt->returnList) = *((dynamic_cast<StatementsNode*>($3))->returnList);
-           *(tempSt->nextList) = *((dynamic_cast<StatementsNode*>($3))->nextList); //shani8
-           *(tempSt->continueList) = *((dynamic_cast<StatementsNode*>($3))->continueList); //rach92fix4
-           tempSt->quad = (dynamic_cast<StatementsNode*>($3))->quad; //rach92fix4
+           *(tempSt->nextList) = *((dynamic_cast<StatementsNode*>($3))->nextList); //shani8//rach92fix5
+           tempSt->quad = dynamic_cast<StatementsNode*>($3)->quad; //shani8//rach92fix5
             $$=tempSt;
         }
         | Type ID SC{
@@ -646,7 +645,7 @@ Statement : LBRACE ML Statements RBRACE
         | Call SC
                 {
                   //free call's reg
-                   // returnTempReg($1->reg);//shani - call has no temp reg //shani12
+             // returnTempReg($1->reg);//shani - call has no temp reg //
                     StatementNode* tempSt9 = new StatementNode();
                     $$=tempSt9;
         }
@@ -687,51 +686,50 @@ Statement : LBRACE ML Statements RBRACE
                 *(tempSt12->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));
                 $$=tempSt12;
             }
-         | IF LPAREN M Exp RPAREN {
-                    // $$ = $3; - this runs over the exp son fields
-                    if (($3)->type != TYPE_BOOL)
-                    {
-                        ($$)->err = true;
-                        ($$)->line_num = yylineno;
-                    }
-                    SymbolTable* new_table = new SymbolTable(current_scope_table);
-                    current_scope_table = new_table;
-                    offsets.push(offsets.top());
-                    //$$=dynamic_cast<ExpNode*>($3);rach92fix3
-            }
-            M Statement{
+         | IF LPAREN Exp RPAREN {
+                // $$ = $3; - this runs over the exp son fields
+                if (($3)->type != TYPE_BOOL)
+                {
+                    ($$)->err = true;
+                    ($$)->line_num = yylineno;
+                }
+                SymbolTable* new_table = new SymbolTable(current_scope_table);
+                current_scope_table = new_table;
+                offsets.push(offsets.top());
+                $$=dynamic_cast<ExpNode*>($3);
+        } M Statement{
                 SymbolTable* current_parent = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = current_parent;
                 offsets.pop();
-                if (($1)->err)
+                if (($3)->err)
                 {
-                    errorMismatch(($1)->line_num);
+                    errorMismatch(($3)->line_num);
                     exit(0);
                 }
                 //we want to insert M's quad as the target label for each of the instructions on the true list of M4
                 //meaning M would be the target for when the expression in M4 is true
-                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($4)->trueList), (dynamic_cast<MNode*>($7))->quad);
-                //CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($8)->continueList),dynamic_cast<StatementNode*>($$)->quad);//rach92fix4
-                CodeBuffer::instance().merge(*(dynamic_cast<StatementNode*>($8)->continueList),*(dynamic_cast<StatementNode*>($$)->continueList));//rach92fix4
 
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($3)->trueList), (dynamic_cast<MNode*>($6))->quad);
+                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($7)->nextList), (dynamic_cast<StatementNode*>($$))->quad);//rach92fix
 
            }
           ElseMarker {
                 //we jump to else if the expression evaluates to false
-                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($4)->falseList), dynamic_cast<ElseMarkerNode*>($10)->quad);
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($3)->falseList), dynamic_cast<ElseMarkerNode*>($9)->quad);
                 //setting the return and break lists of the if statement to be the concatenation
                 //of the lists of statement inside if and the else block
                 StatementNode* tempSt1 = new StatementNode();
-                *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($8)->returnList), *(dynamic_cast<ElseMarkerNode*>($10)->returnList));
-                *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($8)->breakList), *(dynamic_cast<ElseMarkerNode*>($10)->breakList));
-                //*(tempSt1->continueList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($8)->continueList), *(dynamic_cast<StatementNode*>($$)->continueList));//rach92fix4
+                *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->returnList), *(dynamic_cast<ElseMarkerNode*>($9)->returnList));
+                *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->breakList), *(dynamic_cast<ElseMarkerNode*>($9)->breakList));
                 $$=tempSt1;
          }
 
-        | WHILE IW LPAREN M Exp RPAREN
-         {
-                if (($5)->type != TYPE_BOOL)
+        | WHILE IW {
+             CodeBuffer::instance().emit("move "+regToString(($2->reg))+", $sp");//shani12 move current sp pointer to the temp reg
+         }LPAREN M Exp RPAREN
+            {
+                if (($6)->type != TYPE_BOOL)
                 {
                     errorMismatch(yylineno);
                     exit(0);
@@ -739,27 +737,26 @@ Statement : LBRACE ML Statements RBRACE
                 SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
                 current_scope_table = new_scope_table;
                 offsets.push(offsets.top());
-            }
-        M Statement {
+            } M {
+                    CodeBuffer::instance().emit("move $sp, "+regToString(($2->reg))); //shani12: move the struct pointer back to where it was at the begining of the first iteration of the loop
+                } Statement {
                 //when exp in the while loop evaluates to true, we want to jump to the label defined in the 2nd M
-                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($5)->trueList), dynamic_cast<MNode*>($8)->quad);
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($6)->trueList), dynamic_cast<MNode*>($9)->quad);
                // CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($9)->nextList), dynamic_cast<MNode*>($4)->quad); //shani8 - was missing. required "continue" target
                 //setting 1st M's label as the target for each of the instructions in the created s_list
                 //meaning we jump to the 1st M label whenever we reach the end of the while loop block in order to re-evaluate the expression for entering the loop
 
                 //*(dynamic_cast<StatementNode*>($9)->returnList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); // j (label)
-               // CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), dynamic_cast<MNode*>($4)->quad); //(label) = M quad
+                CodeBuffer::instance().bpatch(CodeBuffer::makelist(CodeBuffer::instance().emit("j ")), dynamic_cast<MNode*>($5)->quad); //(label) = M quad
 
                 //we want to create a fresh label as target for the instructions in the concatenated list created by the false list of exp and break list of statement
-                CodeBuffer::instance().bpatch(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList)), CodeBuffer::instance().genLabel());
-                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($9)->continueList), dynamic_cast<MNode*>($4)->quad);//rach92fix4
-
+                CodeBuffer::instance().bpatch(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($6)->falseList),*(dynamic_cast<StatementNode*>($11)->breakList)), CodeBuffer::instance().genLabel());
+                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($11)->nextList), dynamic_cast<MNode*>($5)->quad);//rach92fix5  bpatch nextlist of continue with 1st M marker
+                returnTempReg($2->reg);//shani12 return the temp sp holder register
                 StatementNode* tempSt2 = new StatementNode();
-                *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($9)->returnList);
-                *(tempSt2->nextList) = *(dynamic_cast<StatementNode*>($9)->nextList);//rach92fix4
-                *(tempSt2->continueList) = *(dynamic_cast<StatementNode*>($9)->continueList);//rach92fix4
-                tempSt2->quad = dynamic_cast<StatementNode*>($9)->quad;//rach92fix4
-
+                *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($11)->returnList);
+                *(tempSt2->nextList) = *(dynamic_cast<StatementNode*>($11)->nextList);//rach92fix5
+                tempSt2->quad = dynamic_cast<MNode*>($5)->quad;//rach92fix5   this is the target label for a continue inside a while
                 //*(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani8
                 SymbolTable* p = current_scope_table->getParent();
                 delete(current_scope_table);
@@ -788,7 +785,7 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 StatementNode* tempSt4 = new StatementNode();
                 //we want to set the next list of the lhs of the rule to include "jump" instruction
-                *(tempSt4->continueList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j "));//rach92fix4 //shani8: this is why we need nextlist in statment
+                *(tempSt4->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani8: this is why we need nextlist in statment//rach92fix5
                 $$=tempSt4;
         }
 
@@ -801,6 +798,9 @@ M4  :  IF LPAREN Exp RPAREN {
             {
                 ($$)->err = true;
                 ($$)->line_num = yylineno;
+
+
+
             }
             SymbolTable* new_table = new SymbolTable(current_scope_table);
             current_scope_table = new_table;
@@ -1638,6 +1638,7 @@ M : /*epsilon*/
 IW : /*epsilon*/
 {
     inside_while =true;
+    $$->reg = getAvailReg(); //shani12: thie register will save tje address of the sp at the begining of the loop
 };
 
 %%
@@ -1652,7 +1653,7 @@ void yyerror(std::string m)
 }
 
 int main() {
-   // yydebug = 1; //todo: for debug
+  //  yydebug = 1; //todo: for debug
     SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);

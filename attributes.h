@@ -223,27 +223,24 @@ class StringNode : public Node{
 public:
     StringNode(char* yytext_a):Node(yytext_a){};
 };
-//rach92fix4
+
 class StatementNode : public Node{
 public:
-    StatementNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>), nextList(new std::vector<int>), continueList(new std::vector<int>),quad(""){};
+    StatementNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>), nextList(new std::vector<int>),quad(){};
     std::vector<int>* breakList;
     std::vector<int>* returnList;
     std::vector<int>* nextList;
-    std::vector<int>* continueList;
-    std::string quad;//rach92fix4
-
+    std::string quad;//rach92fix5
     virtual ~StatementNode(){};
 
 };
 class StatementsNode : public Node {
 public:
-    StatementsNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>),nextList(new std::vector<int>),continueList(new std::vector<int>),quad(""){};
+    StatementsNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>),nextList(new std::vector<int>),quad(){};
     std::vector<int>* breakList;
     std::vector<int>* returnList;
     std::vector<int>* nextList; //shani
-    std::vector<int>* continueList; //rach92fix4
-    std::string quad;
+    std::string quad;//rach92fix5
     virtual ~StatementsNode(){};
 };
 
