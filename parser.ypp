@@ -22,6 +22,8 @@ SymbolTable* current_scope_table;
 //to the variable to be inserted next
 std::stack<int> offsets;
 std::stack<int> frame_offsets;
+//rach92fix6
+std::vector<std::string>* whileLabels;
 
 //a boolean for knowing if we're inside a while loop
 bool inside_while = false;
@@ -704,7 +706,7 @@ Statement : LBRACE ML Statements RBRACE
                 current_scope_table = new_table;
                 offsets.push(offsets.top());
                 $$=dynamic_cast<ExpNode*>($3);
-        } M Statement N{ //shani13 added N . see line 711
+        } M Statement /*N*/{ //shani13 added N . see line 711
                 SymbolTable* current_parent = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = current_parent;
@@ -716,22 +718,22 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 //we want to insert M's quad as the target label for each of the instructions on the true list of M4
                 //meaning M would be the target for when the expression in M4 is true
-                *(dynamic_cast<StatementNode*>($7)->nextList) = *(dynamic_cast<NNode*>($8)->nextList);  //shani13 add.  look two lines below. this bpatch wont do nothing if the statment does not have en "emit j" in the nextLise
+              //  *(dynamic_cast<StatementNode*>($7)->nextList) = *(dynamic_cast<NNode*>($8)->nextList);  //shani13 add.  look two lines below. this bpatch wont do nothing if the statment does not have en "emit j" in the nextLise
                 CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($3)->trueList), (dynamic_cast<MNode*>($6))->quad);
                // CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($7)->nextList), (dynamic_cast<StatementNode*>($$))->quad);//rach92fix shani13 moved down after the defenition. this caused sigfault
 
            }
           ElseMarker {
                 //we jump to else if the expression evaluates to false
-                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($3)->falseList), dynamic_cast<ElseMarkerNode*>($10)->quad);
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($3)->falseList), dynamic_cast<ElseMarkerNode*>($9)->quad);
                 //setting the return and break lists of the if statement to be the concatenation
                 //of the lists of statement inside if and the else block
                 StatementNode* tempSt1 = new StatementNode();
-                tempSt1->quad = CodeBuffer::instance().genLabel(); //shani13 : this was missing and it is very importent. we want to make label to the end of the statment so we will no where to jump
-                *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->returnList), *(dynamic_cast<ElseMarkerNode*>($10)->returnList));
-                *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->breakList), *(dynamic_cast<ElseMarkerNode*>($10)->breakList));
-                CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($10)->nextList), tempSt1->quad);//shani13: we need this line to tell the ststment of the else (if there is one) to jump to the statment quad when it is done
-                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($7)->nextList), tempSt1->quad); //shani13 : moved from up and changed to tempSt1
+                //tempSt1->quad = CodeBuffer::instance().genLabel(); //shani13 : this was missing and it is very importent. we want to make label to the end of the statment so we will no where to jump
+                *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->returnList), *(dynamic_cast<ElseMarkerNode*>($9)->returnList));
+                *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->breakList), *(dynamic_cast<ElseMarkerNode*>($9)->breakList));
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($9)->nextList), CodeBuffer::instance().genLabel());//shani13: we need this line to tell the ststment of the else (if there is one) to jump to the statment quad when it is done
+                //CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($7)->nextList), tempSt1->quad); //shani13 : moved from up and changed to tempSt1
                 $$=tempSt1;
          }
 
@@ -747,6 +749,7 @@ Statement : LBRACE ML Statements RBRACE
                 SymbolTable* new_scope_table = new SymbolTable(current_scope_table);
                 current_scope_table = new_scope_table;
                 offsets.push(offsets.top());
+                whileLabels->push_back(dynamic_cast<MNode*>($5)->quad);//rach92fix6
             } M {
                     CodeBuffer::instance().emit("move $sp, "+regToString(($2->reg))); //shani12: move the struct pointer back to where it was at the begining of the first iteration of the loop
                 } Statement {
@@ -761,11 +764,11 @@ Statement : LBRACE ML Statements RBRACE
 
                 //we want to create a fresh label as target for the instructions in the concatenated list created by the false list of exp and break list of statement
                 CodeBuffer::instance().bpatch(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($6)->falseList),*(dynamic_cast<StatementNode*>($11)->breakList)), CodeBuffer::instance().genLabel());
-                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($11)->nextList), dynamic_cast<MNode*>($5)->quad);//rach92fix5  bpatch nextlist of continue with 1st M marker
+                //CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($11)->nextList), dynamic_cast<MNode*>($5)->quad);//rach92fix5  bpatch nextlist of continue with 1st M marker
                 returnTempReg($2->reg);//shani12 return the temp sp holder register
                 StatementNode* tempSt2 = new StatementNode();
                 *(tempSt2->returnList) = *(dynamic_cast<StatementNode*>($11)->returnList);
-                *(tempSt2->nextList) = *(dynamic_cast<StatementNode*>($11)->nextList);//rach92fix5
+                //*(tempSt2->nextList) = *(dynamic_cast<StatementNode*>($11)->nextList);//rach92fix5
                 tempSt2->quad = dynamic_cast<MNode*>($5)->quad;//rach92fix5   this is the target label for a continue inside a while
                 //*(tempSt2->nextList)=(CodeBuffer::merge(*(dynamic_cast<ExpNode*>($5)->falseList),*(dynamic_cast<StatementNode*>($9)->breakList))); //shani8
                 SymbolTable* p = current_scope_table->getParent();
@@ -775,6 +778,7 @@ Statement : LBRACE ML Statements RBRACE
                 //turn off boolean marking that we're out of the while loop
                 inside_while = false;
                 $$=tempSt2;
+                whileLabels->pop_back();//rach92fix6
             }
         | BREAK SC{
                 if (!inside_while)
@@ -795,7 +799,11 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 StatementNode* tempSt4 = new StatementNode();
                 //we want to set the next list of the lhs of the rule to include "jump" instruction
-                *(tempSt4->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani8: this is why we need nextlist in statment//rach92fix5
+                //*(tempSt4->nextList) = CodeBuffer::makelist(CodeBuffer::instance().emit("j ")); //shani8: this is why we need nextlist in statment//rach92fix5
+
+                std::string labelCont = (whileLabels->empty()) ? "" : std::string(whileLabels->back());
+                std::string contCommand = "j "+labelCont;
+                CodeBuffer::instance().emit(contCommand);
                 $$=tempSt4;
         }
 
@@ -1672,6 +1680,7 @@ void yyerror(std::string m)
 
 int main() {
    // yydebug = 1; //todo: for debug
+    whileLabels = new std::vector<std::string>();
     SymbolTable* temp_table = new SymbolTable(NULL);
     current_scope_table = temp_table;
     offsets.push(0);
