@@ -687,7 +687,6 @@ Statement : LBRACE ML Statements RBRACE
                 $$=tempSt12;
             }
          | IF LPAREN Exp RPAREN {
-                // $$ = $3; - this runs over the exp son fields
                 if (($3)->type != TYPE_BOOL)
                 {
                     ($$)->err = true;
@@ -697,7 +696,7 @@ Statement : LBRACE ML Statements RBRACE
                 current_scope_table = new_table;
                 offsets.push(offsets.top());
                 $$=dynamic_cast<ExpNode*>($3);
-        } M Statement{
+        } M Statement N{ //shani13 added N . see line 711
                 SymbolTable* current_parent = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = current_parent;
@@ -709,19 +708,22 @@ Statement : LBRACE ML Statements RBRACE
                 }
                 //we want to insert M's quad as the target label for each of the instructions on the true list of M4
                 //meaning M would be the target for when the expression in M4 is true
-
+                *(dynamic_cast<StatementNode*>($7)->nextList) = *(dynamic_cast<NNode*>($8)->nextList);  //shani13 add.  look two lines below. this bpatch wont do nothing if the statment does not have en "emit j" in the nextLise
                 CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($3)->trueList), (dynamic_cast<MNode*>($6))->quad);
-                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($7)->nextList), (dynamic_cast<StatementNode*>($$))->quad);//rach92fix
+               // CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($7)->nextList), (dynamic_cast<StatementNode*>($$))->quad);//rach92fix shani13 moved down after the defenition. this caused sigfault
 
            }
           ElseMarker {
                 //we jump to else if the expression evaluates to false
-                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($3)->falseList), dynamic_cast<ElseMarkerNode*>($9)->quad);
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ExpNode*>($3)->falseList), dynamic_cast<ElseMarkerNode*>($10)->quad);
                 //setting the return and break lists of the if statement to be the concatenation
                 //of the lists of statement inside if and the else block
                 StatementNode* tempSt1 = new StatementNode();
-                *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->returnList), *(dynamic_cast<ElseMarkerNode*>($9)->returnList));
-                *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->breakList), *(dynamic_cast<ElseMarkerNode*>($9)->breakList));
+                tempSt1->quad = CodeBuffer::instance().genLabel(); //shani13 : this was missing and it is very importent. we want to make label to the end of the statment so we will no where to jump
+                *(tempSt1->returnList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->returnList), *(dynamic_cast<ElseMarkerNode*>($10)->returnList));
+                *(tempSt1->breakList) = CodeBuffer::merge(*(dynamic_cast<StatementNode*>($7)->breakList), *(dynamic_cast<ElseMarkerNode*>($10)->breakList));
+                CodeBuffer::instance().bpatch(*(dynamic_cast<ElseMarkerNode*>($10)->nextList), tempSt1->quad);//shani13: we need this line to tell the ststment of the else (if there is one) to jump to the statment quad when it is done
+                CodeBuffer::instance().bpatch(*(dynamic_cast<StatementNode*>($7)->nextList), tempSt1->quad); //shani13 : moved from up and changed to tempSt1
                 $$=tempSt1;
          }
 
@@ -823,16 +825,18 @@ ElseMarker  :  /*epsilon*/
                 current_scope_table = new_scope_table;
                 offsets.push(offsets.top());
                 }
-        M Statement{
+        M Statement N{ //shani13 added N
                 SymbolTable* p = current_scope_table->getParent();
                 delete(current_scope_table);
                 current_scope_table = p;
                 offsets.pop();
                 //setting ElseMarker's fields in order to backpatch after it's derived
+                *(dynamic_cast<StatementNode*>($4)->nextList) = *(dynamic_cast<NNode*>($5)->nextList); //shani13: without this line, the bpatch to the statment woll go ne where
                 ElseMarkerNode* tempEM2 = new ElseMarkerNode();
                 tempEM2->quad = dynamic_cast<MNode*>($3)->quad;
                 *(tempEM2->returnList) = *(dynamic_cast<StatementNode*>($4)->returnList);
                 *(tempEM2->breakList) = *(dynamic_cast<StatementNode*>($4)->breakList);
+                *(tempEM2->nextList) = *(dynamic_cast<StatementNode*>($4)->nextList); //shani13: we need this in order to tell the statment code to jump to the statment quad in the end of the run
                 $$=tempEM2;
         }
         %prec ELSE
@@ -1633,6 +1637,12 @@ M : /*epsilon*/
 { //this marker evaluates labels
     MNode* new_m = new MNode(CodeBuffer::instance().genLabel());
     $$ = new_m;
+}
+//shani13- recreated
+N : /*epsilon*/
+{ //this marker evaluates labels
+    NNode* new_n = new NNode(CodeBuffer::instance().makelist(CodeBuffer::instance().emit("j ")));
+    $$ = new_n;
 }
 
 IW : /*epsilon*/
