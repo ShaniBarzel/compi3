@@ -226,19 +226,21 @@ public:
 
 class StatementNode : public Node{
 public:
-    StatementNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>), nextList(new std::vector<int>){};
+    StatementNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>), nextList(new std::vector<int>),quad(){};
     std::vector<int>* breakList;
     std::vector<int>* returnList;
     std::vector<int>* nextList;
+    std::string quad;//rach92fix5
     virtual ~StatementNode(){};
 
 };
 class StatementsNode : public Node {
 public:
-    StatementsNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>),nextList(new std::vector<int>){};
+    StatementsNode(): Node(NULL), breakList(new std::vector<int>), returnList(new std::vector<int>),nextList(new std::vector<int>),quad(){};
     std::vector<int>* breakList;
     std::vector<int>* returnList;
     std::vector<int>* nextList; //shani
+    std::string quad;//rach92fix5
     virtual ~StatementsNode(){};
 };
 
