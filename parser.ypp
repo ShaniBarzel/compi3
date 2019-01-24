@@ -22,9 +22,8 @@ SymbolTable* current_scope_table;
 //to the variable to be inserted next
 std::stack<int> offsets;
 std::stack<int> frame_offsets;
-//rach92fix
+//rach92fixR
 std::vector<std::string>* whileLabels;
-
 //a boolean for knowing if we're inside a while loop
 bool inside_while = false;
 //a boolean for knowing weather main is defined
@@ -126,99 +125,99 @@ FuncDecl :  M1 LBRACE Statements RBRACE{
 
 /* marker 1 */
 M1 : RetType ID LPAREN Formals RPAREN {
-            //to pass return typeto funcDecl
-            ($$)->type = ($1)->type;
-            ($$)->name = ($2)->name;
-            int ParamFrOffset = 0;
-            //try to insert to the current symbol table
-            if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type,ParamFrOffset)))
-            {
-                //already exist function with this name
-                errorDef(yylineno,($2)->name);
-                exit(0);
-            }
+//to pass return typeto funcDecl
+($$)->type = ($1)->type;
+($$)->name = ($2)->name;
+int ParamFrOffset = 0;
+//try to insert to the current symbol table
+if (!(current_scope_table->insertFunctionEntry(($2)->name, ($1)->type,ParamFrOffset)))
+{
+//already exist function with this name
+errorDef(yylineno,($2)->name);
+exit(0);
+}
 
-            TableEntryFunc* f = new TableEntryFunc();
-            f = dynamic_cast<TableEntryFunc*>(current_scope_table->getEntry(($2)->name));
+TableEntryFunc* f = new TableEntryFunc();
+f = dynamic_cast<TableEntryFunc*>(current_scope_table->getEntry(($2)->name));
 
-            //create new scope table for function scope
-            SymbolTable* new_func_scope = new SymbolTable(current_scope_table);
-            //the current scope is the function scope now
-            current_scope_table = new_func_scope;
-            //add the top value to the offsets stuck
-            offsets.push(offsets.top());
-            frame_offsets.push(frame_offsets.top());
+//create new scope table for function scope
+SymbolTable* new_func_scope = new SymbolTable(current_scope_table);
+//the current scope is the function scope now
+current_scope_table = new_func_scope;
+//add the top value to the offsets stuck
+offsets.push(offsets.top());
+frame_offsets.push(frame_offsets.top());
 
-            int ParamOffset = offsets.top();
-            f->offset = ParamOffset;
-            f->f_offset = frame_offsets.top();
-            int vars_frame_offset =0;
-            if (!($4->size == -1)){ //if the parameters list is not empty
-                for(std::vector<FormalDeclNode*>::reverse_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->rbegin();
-                        (*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->rend(); it++){
-                    /*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
-                    specipicaly, the "decleration" order in the outer scope is from the right variable in the agruments list, to the right. */
-                    ParamOffset = ParamOffset - (*it)->size;
-                    //we want to pus the struct in offset of it's size to make room for it's fields, but we dont want to do it in reguler vars
-                    if((*it)->type != TYPE_STRUCTID){
-                        if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset, vars_frame_offset )))
-                        {
-                            //there is already a variable with the parameter's name
-                            errorDef(yylineno, (*it)->name);
-                            exit(0);
-                        }
-                        vars_frame_offset = vars_frame_offset - (*it)->size;
-                    }
-                    else{ //arg type is struct id
-                        vars_frame_offset = vars_frame_offset - (*it)->size +1;
-                        if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size,ParamOffset, vars_frame_offset)))
-                        {
-                                //there is already a variable with the parameter's name
-                                errorDef(yylineno,(*it)->name);
-                                exit(0);
-                        }
-                        vars_frame_offset = vars_frame_offset - 1;
+int ParamOffset = offsets.top();
+f->offset = ParamOffset;
+f->f_offset = frame_offsets.top();
+int vars_frame_offset =0;
+if (!($4->size == -1)){ //if the parameters list is not empty
+for(std::vector<FormalDeclNode*>::reverse_iterator it = (dynamic_cast<FormalsNode*>($4))->list->dec_list->rbegin();
+(*it) && it != (dynamic_cast<FormalsNode*>($4))->list->dec_list->rend(); it++){
+/*function aguments are treated as outer scope declered, there for, thire offset's are smaller than the function scope offset.
+specipicaly, the "decleration" order in the outer scope is from the right variable in the agruments list, to the right. */
+ParamOffset = ParamOffset - (*it)->size;
+//we want to pus the struct in offset of it's size to make room for it's fields, but we dont want to do it in reguler vars
+if((*it)->type != TYPE_STRUCTID){
+if (!(current_scope_table->insertVariableEntry((*it)->name ,(*it)->type , ParamOffset, vars_frame_offset )))
+{
+//there is already a variable with the parameter's name
+errorDef(yylineno, (*it)->name);
+exit(0);
+}
+vars_frame_offset = vars_frame_offset - (*it)->size;
+}
+else{ //arg type is struct id
+vars_frame_offset = vars_frame_offset - (*it)->size +1;
+if (!(current_scope_table->insertStructTypeEntry( (*it)->name ,(*it)->s_name ,(*it)->type , (*it)->size,ParamOffset, vars_frame_offset)))
+{
+//there is already a variable with the parameter's name
+errorDef(yylineno,(*it)->name);
+exit(0);
+}
+vars_frame_offset = vars_frame_offset - 1;
 
-                    }
-                    f->declaration_list->push_back(*it);
+}
+f->declaration_list->push_back(*it);
 
-                }
-            }
-            //emits appropriate code for main function declaration
-            //making frame pointer to point to the stack pointer where the frame of main function should be placed
-            if ((($2)->name == "main")) {
-                CodeBuffer::instance().emit(".globl main");
-                CodeBuffer::instance().emit(".ent main");
-                CodeBuffer::instance().emit("main:");
-                CodeBuffer::instance().emit("move $fp, $sp");
-                //emits code for regular function declaration
-                //here we simply need to print the lable of the function name as the current fp points to the functions' frame already
-            }else {
-                std::string func_label="_" + ($2)->name;
-                CodeBuffer::instance().emit(".globl "+func_label);
-                CodeBuffer::instance().emit(".ent "+func_label);
-                CodeBuffer::instance().emit(func_label + ":");
-            }
+}
+}
+//emits appropriate code for main function declaration
+//making frame pointer to point to the stack pointer where the frame of main function should be placed
+if ((($2)->name == "main")) {
+CodeBuffer::instance().emit(".globl main");
+CodeBuffer::instance().emit(".ent main");
+CodeBuffer::instance().emit("main:");
+CodeBuffer::instance().emit("move $fp, $sp");
+//emits code for regular function declaration
+//here we simply need to print the lable of the function name as the current fp points to the functions' frame already
+}else {
+std::string func_label="_" + ($2)->name;
+CodeBuffer::instance().emit(".globl "+func_label);
+CodeBuffer::instance().emit(".ent "+func_label);
+CodeBuffer::instance().emit(func_label + ":");
+}
 };
 
 //no semantic needed
 Structs :   StructsDecl Structs
-        | /*epsilon*/
+| /*epsilon*/
 ;
 
 StructsDecl :  M2 RBRACE SC{
-        StructsDeclNode* temp9 = new StructsDeclNode();
-        temp9->name = ($1)->name;
-        temp9->size = ($1)->size;
-        temp9->s_mem_list = (dynamic_cast<StructsDeclNode*>($1))->s_mem_list;
-        $$ = temp9;
-        SymbolTable* parent = current_scope_table->getParent();
-        delete(current_scope_table);
-        current_scope_table = parent;
-        offsets.pop();
+StructsDeclNode* temp9 = new StructsDeclNode();
+temp9->name = ($1)->name;
+temp9->size = ($1)->size;
+temp9->s_mem_list = (dynamic_cast<StructsDeclNode*>($1))->s_mem_list;
+$$ = temp9;
+SymbolTable* parent = current_scope_table->getParent();
+delete(current_scope_table);
+current_scope_table = parent;
+offsets.pop();
 
-        //insert struct entry to the current scope
-        current_scope_table->insertStructEntry(temp9->name, TYPE_STRUCT,temp9->s_mem_list,temp9->size);
+//insert struct entry to the current scope
+current_scope_table->insertStructEntry(temp9->name, TYPE_STRUCT,temp9->s_mem_list,temp9->size);
 };
 
 
@@ -290,16 +289,16 @@ StructMemList : StructMem {
             $$ = temp5;
          }
 
-        | StructMem StructMemList{
-                StructMemListNode* temp6 = new StructMemListNode();
-                StructMemNode* temp6_1 = new StructMemNode();
-                temp6_1 = dynamic_cast<StructMemNode*>($1);
-                StructMemListNode* temp6_2 = new StructMemListNode();
-                temp6_2 = dynamic_cast<StructMemListNode*>($2);
-                temp6->s_list = temp6_2->s_list;
-                std::vector<StructMemNode*>::iterator it = temp6->s_list->begin();
-                (temp6->s_list)->insert(it, temp6_1);
-                $$ = temp6;
+| StructMem StructMemList{
+        StructMemListNode* temp6 = new StructMemListNode();
+        StructMemNode* temp6_1 = new StructMemNode();
+        temp6_1 = dynamic_cast<StructMemNode*>($1);
+        StructMemListNode* temp6_2 = new StructMemListNode();
+        temp6_2 = dynamic_cast<StructMemListNode*>($2);
+        temp6->s_list = temp6_2->s_list;
+        std::vector<StructMemNode*>::iterator it = temp6->s_list->begin();
+        (temp6->s_list)->insert(it, temp6_1);
+        $$ = temp6;
 } ;
 
 StructMem : Type ID SC{
@@ -1387,7 +1386,7 @@ CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
                     CodeBuffer::instance().emit("move " +regToString(tempCall->reg) + ", $v0");
                  }
             //if the return value is bool habdle it now. it is forbidden to store boolean variables in tmp regs
-            else{
+            if(tempCall->type == TYPE_BOOL){ //shani18
                 // exp = f() (func_ans) - bool
                 //save this line: "beq func_ans , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempCall->reg) + ", 1, "));
