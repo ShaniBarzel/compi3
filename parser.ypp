@@ -69,8 +69,8 @@ bool inExpList(ExpListNode* expL,int i);
 %token STRING
 %left LPAREN RPAREN LBRACE RBRACE
 %right ASSIGN
-%left AND
 %left OR
+%left AND //switch between or and and shani17
 %nonassoc SMALLER BIGGER BEQ SEQ
 %left EQUAL NOTEQUAL
 %left PLUS MINUS
@@ -657,7 +657,8 @@ Statement : LBRACE ML Statements RBRACE
         | Call SC
                 {
                   //free call's reg
-             // returnTempReg($1->reg);//shani - call has no temp reg //
+                    //returnTempReg($1->reg);
+                    //$1->reg = NONE
                     StatementNode* tempSt9 = new StatementNode();
                     $$=tempSt9;
         }
@@ -981,9 +982,9 @@ Call : ID LPAREN ExpList RPAREN  {
             }
             //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
             //to a new register which will be saved
-            if (f->return_type != TYPE_VOID) {
+            /*if (f->return_type != TYPE_VOID) {
                 ($$)->reg = getAvailReg();
-            }
+            } *///shani17 alredy done in puter call
 
       }
         | ID LPAREN RPAREN {
@@ -1059,9 +1060,9 @@ Call : ID LPAREN ExpList RPAREN  {
 
             //in case the function returns a value, its saved in $v0-$v1 and needs to be moved
             //to a new register which will be saved
-            if (f->return_type != TYPE_VOID) {
+            /*if (f->return_type != TYPE_VOID) {
                 ($$)->reg = getAvailReg();
-            }
+            } *///shani17 already done outer call
 } ;
 
 ExpList : Exp {
@@ -1381,17 +1382,19 @@ CodeBuffer::instance().bpatch(line_with_quad, trueLabel); //(label) = trueLabel
             ExpNode* tempCall = new ExpNode("");
             tempCall->type = (dynamic_cast<CallNode*>($1))->return_type;
             tempCall->reg = getAvailReg();
-            //the return value is stored in $v0 as requested
-            CodeBuffer::instance().emit("move " + regToString(tempCall->reg) + ", $v0");
+                if (tempCall->type != TYPE_VOID){ //shani17: added the if
+                    //the return value is stored in $v0 as requested
+                    CodeBuffer::instance().emit("move " +regToString(tempCall->reg) + ", $v0");
+                 }
             //if the return value is bool habdle it now. it is forbidden to store boolean variables in tmp regs
-            if ((dynamic_cast<CallNode*>($1))->return_type == TYPE_BOOL){
+            else{
                 // exp = f() (func_ans) - bool
                 //save this line: "beq func_ans , 1 , (label)" in order to later perform backpatch to the lable
                 std::vector<int> line_with_quad = CodeBuffer::makelist(CodeBuffer::instance().emit("beq " + regToString(tempCall->reg) + ", 1, "));
-                CodeBuffer::instance().genLabel();                              //false:
+                CodeBuffer::instance().genLabel(); //false
+//returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
+//(tempCall)->reg = NONE; //shani16
                 (tempCall)->falseList->push_back(CodeBuffer::instance().emit("j ")); //goto ___
-returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
-(tempCall)->reg = NONE; //shani16
                 std::string trueLabel = CodeBuffer::instance().genLabel();     //true:
 returnTempReg(tempCall->reg); //we already used the return value , no need for this temp reg no more
 (tempCall)->reg = NONE;
@@ -1506,6 +1509,7 @@ returnTempReg(tempCall->reg); //we already used the return value , no need for t
                 *((tempEx4)->trueList) = *((dynamic_cast<ExpNode*>$4)->trueList);
                 //if exp1 if false goto the exp false lable. if exp2 if false goto the exp false lable.
                 *((tempEx4)->falseList) = CodeBuffer::merge(*((dynamic_cast<ExpNode*>$1)->falseList),*((dynamic_cast<ExpNode*>$4)->falseList));
+                returnTempReg($4->reg); //shani17
                 $$ = tempEx4;
 }
         | Exp OR M Exp{
@@ -1525,7 +1529,7 @@ returnTempReg(tempCall->reg); //we already used the return value , no need for t
             *((tempEx3)->trueList) = CodeBuffer::merge(*((dynamic_cast<ExpNode*>$1)->trueList),*((dynamic_cast<ExpNode*>$4)->trueList));
             //if exp2 is false then goto the exp false lable
             *((tempEx3)->falseList) = *((dynamic_cast<ExpNode*>$4)->falseList);
-
+           returnTempReg($4->reg); //shani17
             $$ = tempEx3;
         }
         | Exp EQUAL Exp{
